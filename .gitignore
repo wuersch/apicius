@@ -1,0 +1,32 @@
+# Cross-cutting ignores for the whole monorepo.
+# Module build/dependency outputs live in backend/.gitignore and frontend/.gitignore.
+
+# OS
+.DS_Store
+
+# IDEs / editors
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.project
+.classpath
+.settings/
+.factorypath
+*.swp
+*.swo
+*.sw?
+
+# Patch / merge artifacts
+*.orig
+*.rej
+
+# Logs
+*.log
+logs/
+
+# Environment / local overrides
+.env
+.env.local
+*.local

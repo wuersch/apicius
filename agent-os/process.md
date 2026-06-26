@@ -1,0 +1,39 @@
+# Process — the SDLC loop
+
+How any change moves from idea to shipped. Written as steps to follow.
+
+## Principle: a ratchet, not a loop
+Ownership moves forward, never syncs backward:
+
+```
+mock-up owns intent  →  until shipped  →  running app owns truth  →  next change forks a fresh mock-up
+```
+
+Don't chase mock-up↔code sync. The mock-up is a thinking/approval artifact until the
+feature ships; after that, the running app is the source of truth and the mock-up
+freezes as a dated record of intent.
+
+## Steps
+1. **Frame** — write/update the feature spec from `agent-os/templates/_feature.md`.
+   Give it an ID, `Status: proposed`, and a `Depends on:` line citing the PRIN/ADR it
+   touches. State Non-Goals explicitly. Surface unknowns as `[NEEDS CLARIFICATION: …]`
+   rather than guessing.
+2. **Design** (UI features only) — fork the latest mock-up frame, refine for this feature,
+   label the frame with the FEAT id. `Status → specced` — no `[NEEDS CLARIFICATION]` markers
+   may remain at this gate.
+3. **Decide** — if a non-obvious technical choice appears, log an ADR
+   (`agent-os/templates/_adr.md`) and cite it from the feature.
+4. **Build** — implement in the real stack; do **not** paste mock-up HTML. Keep the domain
+   model lossless. `Status → building`.
+5. **Verify** — write the test first and watch it fail, then implement (RED → GREEN); every
+   acceptance criterion has a test; house-rule behavior you touched has a test.
+6. **Ship** — `Status → shipped`; the app is now source of truth. Update `docs/spec/features.md`.
+
+## Definition of done
+AC met & tested · touched house-rule behavior tested · lossless round-trip intact · ADR logged if warranted ·
+`features.md` current.
+
+## Loading discipline (for agents — this is how context stays small)
+`CLAUDE.md` → `docs/spec/features.md` (index) → the one `FEAT-` → only its cited
+`PRIN/ADR`. Never pre-load the whole corpus. The ID citations exist so you can pull the
+minimal slice.

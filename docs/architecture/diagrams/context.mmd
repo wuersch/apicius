@@ -1,0 +1,19 @@
+flowchart TB
+    designer["API designer"]
+    backend["Backend engineer"]
+    consumer["Frontend consumer"]
+    apicius["Apicius
+    (resource-first web editor:
+    React frontend + Quarkus backend)"]
+    idp["Identity provider
+    (Keycloak / OIDC)"]
+    specfile[("OpenAPI document
+    YAML/JSON · 3.0–3.2")]
+    codegen["Codegen / SDK tools"]
+
+    designer --> apicius
+    backend --> apicius
+    consumer --> apicius
+    apicius -- "authenticates via" --> idp
+    apicius -- "import / export (lossless)" --> specfile
+    specfile -- "feeds (operationId matters)" --> codegen

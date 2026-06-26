@@ -1,0 +1,9 @@
+# Frontend (Vite / Node) build outputs only.
+# OS, editor, log, and env ignores live in the repo-root .gitignore.
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
