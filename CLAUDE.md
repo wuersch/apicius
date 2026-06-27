@@ -47,6 +47,9 @@ project-specific artifacts (feature files, ADRs) here; those live under `docs/`.
 ## Ground rules
 
 - **Don't infer undocumented features or tech** — if it isn't written down, ask.
+- **Don't front-run intent — ask before generating spec artifacts** (requirements, features,
+  even an ID-reserving placeholder). The gate is *new intent*, not *new text*: routine work
+  needs no permission.
 - **Update existing docs; don't invent structure.**
 - **Docs state what *is*, not what's pending or meta** — capture durable process,
   requirements, and architecture. Leave out transient repo-status ("not scaffolded yet",

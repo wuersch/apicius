@@ -5,4 +5,3 @@
 
 | ID | Title | Status |
 |----|-------|--------|
-| [FEAT-001](features/FEAT-001-house-rules.md) | House rules — embedded best practices | proposed |

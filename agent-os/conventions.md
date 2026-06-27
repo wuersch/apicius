@@ -14,10 +14,10 @@ IDs are permanent. Never renumber. Retire by marking `superseded`, not by deleti
 Every doc declares what it depends on, by ID, in a `Depends on:` header line.
 - A FEAT cites the PRIN it honors and the ADR that constrains it.
 - An ADR cites the FEAT/decision that triggered it.
-- A mock-up frame's label cites its FEAT (`data-screen-label="FEAT-001 · house rules"`).
+- A mock-up frame's label cites its FEAT (`data-screen-label="FEAT-NNN · short title"`).
 - Code references IDs in comments where non-obvious (`// PRIN-003`).
 
-`grep -r FEAT-001 .` returns the full context for a feature — spec, decisions, mock-up,
+`grep -r FEAT-NNN .` returns the full context for a feature — spec, decisions, mock-up,
 code. That citation graph replaces pixel-level mock↔code sync.
 
 ## Feature status

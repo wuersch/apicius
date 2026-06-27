@@ -11,6 +11,8 @@
 ## User Story
 As a [role], I want [capability], so that [outcome].
 
+> One line. Human intent only — the destination, not the route. Design lives below.
+
 ## Context / Notes
 Links to related specs, constraints, decisions already made. Anything the agent needs to avoid
 guessing.
@@ -18,7 +20,25 @@ guessing.
 > Mark any unknown inline as `[NEEDS CLARIFICATION: <question>]`. None may remain when
 > Status → specced.
 
+## Interaction Model
+> How the user *reaches* the capability, not what they reach. The Apicius differentiation layer.
+> Test: if a line would be equally true of a path-first / spec-shaped tool, it's domain, not
+> interaction — delete it.
+
+- **Entry point:** What the user starts *from* (resource-first invariant: never a path or verb).
+- **Vocabulary:** Intent terms this feature exposes → what each serializes to
+  ("fetch all" → GET /collection + 200). The user never types the right column.
+- **Ordering invariant:** The fixed sequence (resource → behavior → serialization); what is
+  *not* allowed to come first.
+- **Projection direction:** Document-as-source-of-truth. The user edits a projection; the
+  OpenAPI doc is preserved, never the primary surface.
+- **Escape hatch:** Where raw / advanced (collapsed) editing is reachable, and the
+  non-destruction guarantee it must honor.
+
 ## Use Cases
+> Interaction-level, not widget-level. "Adds the 'fetch all' behavior to Person" — not "clicks
+> the + button". A step must survive a full visual redesign. The Interaction Model states the
+> invariants; use cases enact them — no invariants in steps, no flows in the section.
 
 ### UC1: [happy path]
 - **Precondition:**
@@ -60,8 +80,20 @@ checklist — gaps here become bugs later.*
 - **AC3 (UC3 / S3):** Given …, when …, then …
 
 ## Data / Domain
-Entities, fields, validation rules, states touched by this feature.
-(Add a States/Transitions block here if behavior is meaningfully stateful.)
+> Two domains. Keep them separate.
+
+**Edited domain (OpenAPI) — link, don't reproduce.**
+OpenAPI constructs this feature touches, by version-pinned, anchored reference. The spec is
+authoritative; never restate its structure.
+- e.g. [Operation Object](spec-3.1#operation-object)
+
+**Application domain (Apicius) — describe fully.**
+Apicius's own entities, fields, validation, states. Invented and owned; nothing external defines
+it. Projection/sync state (un-serialized intent, document-dirty vs. saved) lives *here* — it's
+Apicius state *about* OpenAPI, not OpenAPI.
+- Entities / fields touched:
+- Validation rules:
+- States / transitions:
 
 ## Non-Goals
 - Explicitly out of scope: …

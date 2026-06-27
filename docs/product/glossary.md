@@ -17,7 +17,7 @@
   resource (the noun) and flow down to every operation; the inherited value is always shown, and
   overriding is a deliberate local act (PRIN-005).
 - **House rule** — a best practice the tool applies, explains, and lets you override; silently
-  enforced, never a style guide to memorise (PRIN-006; FEAT-001).
+  enforced, never a style guide to memorise (PRIN-006).
 - **Opinionated lens** — the curated UI projected over the model. The lens may be as opinionated
   as we like; the underlying model stays lossless (PRIN-003).
 - **Preservation bag** — where the model keeps spec nodes it doesn't model first-class, verbatim,
