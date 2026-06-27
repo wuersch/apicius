@@ -23,15 +23,18 @@ freezes as a dated record of intent.
    may remain at this gate.
 3. **Decide** — if a non-obvious technical choice appears, log an ADR
    (`agent-os/templates/_adr.md`) and cite it from the feature.
-4. **Build** — implement in the real stack; do **not** paste mock-up HTML. Keep the domain
+4. **Build** — branch first (`feat/FEAT-NNN-slug`, or `fix/slug` for fixes); never commit to
+   `main` directly. Implement in the real stack; do **not** paste mock-up HTML. Keep the domain
    model lossless. `Status → building`.
 5. **Verify** — write the test first and watch it fail, then implement (RED → GREEN); every
    acceptance criterion has a test; house-rule behavior you touched has a test.
-6. **Ship** — `Status → shipped`; the app is now source of truth. Update `docs/spec/features.md`.
+6. **Ship** — open a PR; merge once review passes and tests are green. Keep `main` linear:
+   rebase, no merge commits; delete and prune the branch after. `Status → shipped`; the app is
+   now source of truth. Update `docs/spec/features.md`.
 
 ## Definition of done
 AC met & tested · touched house-rule behavior tested · lossless round-trip intact · ADR logged if warranted ·
-`features.md` current.
+`features.md` current · shipped via rebased PR (tests green).
 
 ## Loading discipline (for agents — this is how context stays small)
 `CLAUDE.md` → `docs/spec/features.md` (index) → the one `FEAT-` → only its cited
