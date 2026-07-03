@@ -11,7 +11,6 @@
 - Source peek (CodeMirror) + lossless round-trip import/export (PRIN-003/004).
 
 ## Later
-- Version targeting & downgrade guard (PRIN-007).
 - Canvas map (React Flow).
 - "Try it" / mock server.
 - Relationships: nesting + shared-by-reference.
