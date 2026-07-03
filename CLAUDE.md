@@ -56,6 +56,8 @@ project-specific artifacts (feature files, ADRs) here; those live under `docs/`.
   "none imported yet"), tooling/automation speculation, self-referential maintenance notes
   ("keep this thin"), and import/provenance asides. Status that genuinely matters has a home
   (feature `Status:`, techstack `decided`/`proposed`) — put it there, not in prose.
+- **Every sentence earns its place** — don't generate to fill a template. Omit a section or
+  field that doesn't apply.
 - **Explain decisions** — record the *why*; this is also a learning project.
 - **No undocumented shortcuts** — treat this as a long-lived system.
 - **Memory is local and private** — promote insights worth sharing into the docs; use your
