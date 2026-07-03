@@ -1,21 +1,18 @@
 # Mock-ups
 
-> Design references (PRIN-*, not code). Recreate in the stack; fork per feature (`process.md`).
-> The running app is the source of truth once a feature ships.
+Design references for the UI, recreated in the stack (see `agent-os/conventions.md` for how
+mock-ups are used and cited).
 
-## Import manifest
-The frames the initial-exploration canvas (`OpenAPI Editor Concepts.dc.html`) should
-contain (`data-screen-label`) and the ID each one maps to:
+## Apicius shell — launcher · editor · operation
+[`launcher-hybrid-v3.html`](launcher-hybrid-v3.html) — the Apicius visual identity across three
+views, each in light and dark. Read [`launcher-hybrid-v3-notes.md`](launcher-hybrid-v3-notes.md)
+alongside it for layout, status-color semantics, theme tokens, and the decisions the HTML can't
+speak.
 
-- **Concept A / B / C** — three IA directions (Resource Cards / Document / Canvas) →
-  resource-first IA (`constitution.md`, PRIN-001/002).
-- **Refinement A — operation detail** · **Shape + House rules** — operation depth, filters/query
-  params, headers, answers, the redesigned Shape, house rules → PRIN-006.
-- **Refinement 02** — example on the noun + inherit/override → PRIN-005.
-- **Refinement 03** — version selector + capability gating + downgrade guard → PRIN-007.
-- **shadcn — Resources home** · **Operation detail** — stack restyle → `techstack.md` (proposed).
-- **Refinement 05 — capability picker** · **created operation** → PRIN-001/002.
+| Frame (`data-screen-label`) | View | Maps to |
+|---|---|---|
+| `apicius launcher v3` | All-APIs home | FEAT-002 |
+| `apicius editor — Storefront API` | One API · Resources home | future — Resource & Shape editing (`roadmap.md`) |
+| `apicius operation — Browse all products` | One capability | future — capability-first operation creation (`roadmap.md`) |
 
-## Going forward
-New/updated mock-ups live in **this folder**, one per feature change, each frame labelled with
-its FEAT id (e.g. `data-screen-label="FEAT-NNN · short title"`).
+Each frame has a light and a `— dark` variant.
