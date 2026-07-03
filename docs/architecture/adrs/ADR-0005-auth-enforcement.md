@@ -6,9 +6,9 @@
 
 ## Context
 Apicius stores user specs server-side, so it needs authenticated access and (once collaboration
-exists) per-spec authorization. We need to decide the mechanism and where enforcement lives. The
-concrete permission model (roles, sharing) is **not yet specced** — this ADR fixes the
-*mechanism*, not the policy.
+exists) per-spec authorization. We need to decide the mechanism and where enforcement lives. This
+ADR fixes the enforcement *mechanism* for authentication and authorization, not the concrete
+permission policy (roles, sharing).
 
 ## Decision
 
@@ -33,10 +33,6 @@ claim (created from token claims; display name/email refreshed on later requests
 ### Frontend role awareness
 The frontend may fetch the current user's context (e.g. `/api/v1/users/me`) to show/hide UI —
 **UX only;** the backend always re-checks.
-
-### Deferred
-The concrete role hierarchy and per-spec sharing/permission rules are TBD; they will be encoded
-in `AuthorizationService` and an accompanying feature spec when collaboration is designed.
 
 ## Consequences
 - Server-side authority: the frontend can never bypass security.
