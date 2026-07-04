@@ -13,8 +13,10 @@ export default defineConfig({
   },
   server: {
     // Single-origin in dev: proxy /api/* to the Quarkus backend (ADR-0007, no CORS).
+    // The trailing slash is load-bearing: a bare '/api' prefix would also swallow
+    // SPA routes like /apis/:id on hard loads (FEAT-002).
     proxy: {
-      '/api': 'http://localhost:8080',
+      '/api/': 'http://localhost:8080',
     },
   },
   test: {
