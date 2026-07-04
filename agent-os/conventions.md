@@ -22,6 +22,8 @@ code. That citation graph replaces pixel-level mock↔code sync.
 
 ## Feature status
 `proposed → specced → building → shipped` (plus `superseded`).
+Use `proposed` only while open questions remain; once a spec's decisions are settled (no
+`[NEEDS CLARIFICATION]` left) it is `specced` — the flow tracks readiness, not authorship age.
 Source of truth = the feature file header. `docs/spec/features.md` mirrors only
 **ID · title · status** as the load-first index.
 

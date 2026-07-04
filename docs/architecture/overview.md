@@ -10,8 +10,7 @@
 2. **Server-authoritative model** — the superset OpenAPI model, parse/serialize, and the rules
    engine live in the Quarkus backend; user specs persist in PostgreSQL as JSONB documents; the
    browser is a typed client over the REST API, holding only view state (ADR-0002).
-3. **OpenAPI 3.0–3.2 span** — one in-memory superset; version is a serialization concern
-   (PRIN-007).
+3. **OpenAPI 3.0–3.2 span** — one in-memory superset model spanning the versions.
 4. **Approachable to non-engineers** — the intent layer; correctness supplied via house rules.
 
 ## C4 L1 — System context

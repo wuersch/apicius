@@ -13,8 +13,9 @@ storage-oriented drafts/branches workflow. Apicius is editor-first by contrast.
 
 ## The bet
 Organize around what the API **is** (its resources / nouns) and what it **lets people do**
-(capabilities, in plain language). Make the spec a serialization detail — available on demand,
-never the mental model. Bake best practices in so consistency is the default, not a discipline.
+(capabilities, in plain language). Treat the OpenAPI document as a derived output — reachable on
+demand, never the mental model. Bake best practices in so consistency is the default, not a
+discipline.
 
 ## What this means
 - A backend engineer, a product designer, and a frontend consumer can all read the same screen.
@@ -65,8 +66,3 @@ act. One mental model, not five places to hunt.
 Best practices are applied by default, explained in plain language, and overridable. Detection is
 deterministic and explainable; the optional AI layer only assists fixes/naming. Never a style
 guide to memorize.
-
-## PRIN-007 — Version is a detail, not a mode
-OpenAPI version (3.0–3.2) is a tucked-away document setting, defaulted to 3.1. The intent layer
-hides encoding differences. Version surfaces in exactly two places: capability **gating**
-("needs 3.2") and the **downgrade guard** (never drop silently).

@@ -5,3 +5,7 @@
 
 | ID | Title | Status |
 |----|-------|--------|
+| FEAT-001 | Authenticate | specced |
+| FEAT-002 | My APIs home | specced |
+| FEAT-003 | Create a new empty API | specced |
+| FEAT-004 | Import an existing OpenAPI document | specced |

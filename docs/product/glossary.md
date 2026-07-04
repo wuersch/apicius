@@ -24,5 +24,5 @@
   so import → export round-trips unmodeled content untouched (PRIN-003).
 - **Derivation** — the deterministic mapping from a capability (+ its resource) to a concrete
   operation: method, path, params, conventional responses, `operationId` (PRIN-001/002).
-- **Intent** — what the user means, independent of OpenAPI version encoding. The model and UI
-  speak intent; version-specific serialization lives only in import/export (PRIN-007).
+- **Intent** — what the user means, expressed as resources and capabilities rather than spec syntax.
+  The model and UI speak intent; the OpenAPI document is the derived form.
