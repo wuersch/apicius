@@ -16,3 +16,16 @@ speak.
 | `apicius operation — Browse all products` | One capability | future — capability-first operation creation (`roadmap.md`) |
 
 Each frame has a light and a `— dark` variant.
+
+## Create API dialog — launcher v4
+[`launcher-hybrid-v4.html`](launcher-hybrid-v4.html) — v3's launcher with the **Create API
+dialog** added; the v3 editor/operation frames are carried over unchanged. Read
+[`launcher-hybrid-v4-notes.md`](launcher-hybrid-v4-notes.md) alongside it — v3's notes still
+apply for layout, tokens, and semantics and are not repeated.
+
+| Frame (`data-screen-label`) | View | Maps to |
+|---|---|---|
+| `apicius launcher v4 · 1a` | Workspace launcher, no dialog | FEAT-002 |
+| `apicius launcher v4 · 1b — create dialog` | Create API dialog over the launcher | FEAT-003 |
+
+Each frame has a light and a `— dark` variant.
