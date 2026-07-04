@@ -19,10 +19,10 @@ vi.mock('@/api/endpoints/users/users', () => ({
   }),
 }))
 
-// FEAT-001 AC1: the home greets the authenticated designer by name.
-test('greets the authenticated user by name', () => {
+// FEAT-001 AC1: the home greets the authenticated designer by first name (the mockups' convention).
+test('greets the authenticated user by first name', () => {
   render(<App />)
-  expect(screen.getByRole('heading', { name: /welcome, ada lovelace/i })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Welcome, Ada' })).toBeInTheDocument()
 })
 
 // FEAT-001 AC6: the app chrome shows the initials avatar.

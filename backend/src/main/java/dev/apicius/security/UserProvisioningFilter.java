@@ -52,6 +52,11 @@ public class UserProvisioningFilter {
      * IdP-agnostic display-name fallback chain (AC5):
      * {@code name} → {@code given_name} + {@code family_name} → {@code preferred_username}
      * → {@code email} → {@code sub}.
+     *
+     * <p>Order = most-to-least human: {@code name} is the IdP's canonical display rendering;
+     * given + family reconstruct it when absent; {@code preferred_username} is a login handle
+     * (less human, so lower); {@code email} is a last-resort label; {@code sub} is opaque but
+     * the only claim guaranteed present, so it anchors the chain and keeps the result non-null.
      */
     static String resolveDisplayName(JsonWebToken jwt) {
         String name = nonBlank(jwt.getClaim("name"));

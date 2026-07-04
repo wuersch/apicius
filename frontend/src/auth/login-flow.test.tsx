@@ -56,7 +56,7 @@ test('first /users/me carries the Bearer token and fires once', async () => {
     </QueryClientProvider>,
   )
 
-  await screen.findByText(/welcome, ada lovelace/i)
+  await screen.findByText('Welcome, Ada')
 
   expect(fetch).toHaveBeenCalledTimes(1)
   const [url, init] = (fetch as unknown as Mock).mock.calls[0]

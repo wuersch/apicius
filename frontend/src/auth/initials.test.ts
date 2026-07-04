@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { getInitials } from './initials'
+import { getFirstName, getInitials } from './initials'
 
 // FEAT-001 AC6: initials from first + last name claims, with graceful fallbacks.
 describe('getInitials', () => {
@@ -27,5 +27,25 @@ describe('getInitials', () => {
 
   test('ignores blank claims', () => {
     expect(getInitials({ given_name: '  ', name: 'Ada Lovelace' })).toBe('AL')
+  })
+})
+
+// The mockups address the current user by first name.
+describe('getFirstName', () => {
+  test('prefers the given_name claim', () => {
+    expect(getFirstName({ given_name: 'Ada', family_name: 'Lovelace' })).toBe('Ada')
+  })
+
+  test('falls back to the first word of the name claim', () => {
+    expect(getFirstName({ name: 'Grace Hopper' })).toBe('Grace')
+  })
+
+  test('falls back to the first word of the provided full name', () => {
+    expect(getFirstName(undefined, 'Mallory Might')).toBe('Mallory')
+  })
+
+  test('is undefined when no usable name is available', () => {
+    expect(getFirstName({ email: 'ada@example.com' })).toBeUndefined()
+    expect(getFirstName(undefined)).toBeUndefined()
   })
 })

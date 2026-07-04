@@ -25,6 +25,20 @@ export function getInitials(profile: NameClaims | undefined | null): string {
   return fallback ? fallback[0].toUpperCase() : '?'
 }
 
+// Address the current user by first name (the mockups' convention). Derived from the
+// viewer's own OIDC profile — no server round-trip — with the canonical /users/me
+// displayName as a fallback when the token carries no separate name claims.
+export function getFirstName(
+  profile: NameClaims | undefined | null,
+  fallbackFullName?: string,
+): string | undefined {
+  const given = nonBlank(profile?.given_name)
+  if (given) return given
+
+  const fullName = nonBlank(profile?.name) ?? nonBlank(fallbackFullName)
+  return fullName ? fullName.split(/\s+/)[0] : undefined
+}
+
 function nonBlank(value: string | undefined): string | undefined {
   const trimmed = value?.trim()
   return trimmed ? trimmed : undefined
