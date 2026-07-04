@@ -12,10 +12,11 @@
 - **Persistence:** Hibernate ORM Panache + PostgreSQL; specs stored as JSONB documents, with
   relational tables for users/sharing/audit — decided (ADR-0004).
 - **Domain model:** the superset OpenAPI model lives here, server-side — single source of truth.
-- **OpenAPI parse / serialize:** a Java library (e.g. swagger-parser) + a custom lossless layer
-  — proposed.
-- **Rules engine:** custom pure-function checks in Java; evaluate Spectral-equivalent rules for
-  reuse — proposed.
+- **OpenAPI model / parse / serialize / edit:** `apitomy-data-models` (the Apicurio Studio model,
+  now under Apitomy) — object model, visitor traversal, and a JSON-serializable command layer;
+  backend-only — proposed (ADR-0009).
+- **Rules engine:** `apitomy-data-models` validation rules + `IValidationSeverityRegistry`,
+  extended with Apicius house rules (PRIN-006) — proposed (ADR-0009).
 - **Auth:** quarkus-oidc + Keycloak (Dev Services) — decided (ADR-0005).
 - **Migrations:** Hibernate drop-and-create → Flyway later — decided (ADR-0004).
 - **Test:** JUnit 5 (`@QuarkusTest`) + REST-assured + Mockito — proposed.
