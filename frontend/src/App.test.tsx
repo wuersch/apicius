@@ -1,10 +1,15 @@
 import { render, screen } from '@testing-library/react'
-import { expect, test, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
+import { beforeEach, expect, test, vi } from 'vitest'
 import App from './App'
 
 vi.mock('react-oidc-context', () => ({
   useAuth: () => ({
-    user: { profile: { given_name: 'Ada', family_name: 'Lovelace' } },
+    user: {
+      access_token: 'test-token',
+      profile: { given_name: 'Ada', family_name: 'Lovelace' },
+    },
     signoutRedirect: vi.fn(),
   }),
 }))
@@ -13,20 +18,54 @@ vi.mock('@/api/endpoints/users/users', () => ({
   useGetCurrentUser: () => ({
     data: {
       status: 200,
-      data: { id: '5f0f0aa9-6ba7-4bbd-a2f1-c07a1f1c1a11', displayName: 'Ada Lovelace', email: 'ada@example.com' },
+      data: { id: 'u-1', displayName: 'Ada Lovelace', email: 'ada@example.com' },
       headers: new Headers(),
     },
   }),
 }))
 
-// FEAT-001 AC1: the home greets the authenticated designer by first name (the mockups' convention).
-test('greets the authenticated user by first name', () => {
-  render(<App />)
-  expect(screen.getByRole('heading', { name: 'Welcome, Ada' })).toBeInTheDocument()
+vi.mock('@/api/endpoints/specs/specs', () => ({
+  useListSpecs: vi.fn(),
+  useGetLastEditedLocation: () => ({ data: { status: 204, data: undefined, headers: new Headers() } }),
+}))
+
+import { useListSpecs } from '@/api/endpoints/specs/specs'
+
+beforeEach(() => {
+  vi.mocked(useListSpecs).mockReturnValue({
+    data: {
+      status: 200,
+      data: {
+        items: [
+          { id: 'b-1', title: 'Storefront API', description: 'Sell products online.', apiVersion: '1.0', resourceCount: 5, operationCount: 21, updatedAt: '2026-06-25T12:00:00Z' },
+        ],
+        total: 1,
+      },
+      headers: new Headers(),
+    },
+  } as never)
 })
 
-// FEAT-001 AC6: the app chrome shows the initials avatar.
-test('shows the initials avatar in the app chrome', () => {
-  render(<App />)
+// The home route renders the FEAT-002 landing page inside the chrome (initials avatar, FEAT-001 AC6).
+test('renders the home page and chrome at the root route', () => {
+  render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>,
+  )
+  expect(screen.getByText('Storefront API')).toBeInTheDocument()
   expect(screen.getByText('AL')).toBeInTheDocument()
+})
+
+// FEAT-002 AC3: opening a card navigates to the editor route for that API.
+test('opening a card enters the editor', async () => {
+  const user = userEvent.setup()
+  render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>,
+  )
+  await user.click(screen.getByRole('link', { name: /Storefront API/ }))
+  expect(screen.getByRole('heading', { name: 'Editor' })).toBeInTheDocument()
+  expect(screen.getByText('b-1')).toBeInTheDocument()
 })

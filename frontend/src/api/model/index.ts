@@ -5,5 +5,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './instant';
+export * from './lastEditedLocationResponse';
+export * from './specListResponse';
+export * from './specSummaryResponse';
 export * from './userResponse';
 export * from './uuid';
