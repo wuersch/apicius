@@ -1,0 +1,41 @@
+{
+  "realm": "apicius",
+  "enabled": true,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "apicius-frontend",
+      "name": "Apicius frontend (dev)",
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "ada",
+      "enabled": true,
+      "firstName": "Ada",
+      "lastName": "Lovelace",
+      "email": "ada@example.com",
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "ada", "temporary": false }]
+    },
+    {
+      "username": "grace",
+      "enabled": true,
+      "firstName": "Grace",
+      "lastName": "Hopper",
+      "email": "grace@example.com",
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "grace", "temporary": false }]
+    }
+  ]
+}

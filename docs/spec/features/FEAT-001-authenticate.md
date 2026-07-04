@@ -1,7 +1,7 @@
 # FEAT-001: Authenticate
 
 **ID:** FEAT-001
-**Status:** specced
+**Status:** building
 **Depends on:** ADR-0004, ADR-0005
 **Mockup:** none yet — login is IdP-hosted; the in-app surface is the identity indicator (an initials avatar) with sign-out, in the app chrome.
 

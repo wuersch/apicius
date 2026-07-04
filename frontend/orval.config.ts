@@ -13,10 +13,17 @@ export default defineConfig({
       client: 'react-query',
       httpClient: 'fetch',
       // Requests are same-origin in dev (Vite proxies /api → backend, ADR-0007) and in
-      // prod (nginx). The generated calls are prefixed with the API base path (ADR-0002).
-      baseUrl: '/api/v1',
+      // prod (nginx). No baseUrl: the spec's paths already carry /api/v1 (ADR-0002).
       clean: true,
       prettier: false,
+      override: {
+        // Every generated call goes through the auth-aware fetch wrapper, which
+        // attaches the in-memory Bearer token (ADR-0005).
+        mutator: {
+          path: 'src/api/mutator/custom-fetch.ts',
+          name: 'customFetch',
+        },
+      },
     },
   },
 })
