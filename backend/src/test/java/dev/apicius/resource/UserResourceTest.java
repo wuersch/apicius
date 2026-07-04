@@ -5,8 +5,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import dev.apicius.domain.AppUser;
-import dev.apicius.repository.AppUserRepository;
 import dev.apicius.service.UserProvisioningService;
+import dev.apicius.test.CleanDatabaseTest;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
@@ -14,22 +14,13 @@ import io.quarkus.test.security.oidc.Claim;
 import io.quarkus.test.security.oidc.OidcSecurity;
 import jakarta.inject.Inject;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
-class UserResourceTest {
-
-    @Inject
-    AppUserRepository repository;
+class UserResourceTest extends CleanDatabaseTest {
 
     @Inject
     UserProvisioningService provisioningService;
-
-    @BeforeEach
-    void cleanUsers() {
-        QuarkusTransaction.requiringNew().run(repository::deleteAll);
-    }
 
     // AC1: first authenticated request provisions an app_user from the token claims.
     @Test
