@@ -5,6 +5,8 @@ import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Priorities;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Response;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,16 +35,17 @@ public class UserProvisioningFilter {
     // types); if a reactive endpoint is ever added, this JDBC call must not run for it
     // on the event loop.
     @ServerRequestFilter(priority = Priorities.AUTHENTICATION)
-    public void provisionUser() {
+    public void provisionUser(ContainerRequestContext requestContext) {
         if (identity.isAnonymous()) {
             return; // @Authenticated on the resources produces the 401
         }
-        // OIDC is the only authentication mechanism, so the principal is always a JWT;
-        // the type check guards test identities constructed without one.
-        if (identity.getPrincipal() instanceof JsonWebToken jwt) {
-            String email = jwt.getClaim("email");
-            currentUser.set(provisioningService.provision(jwt.getSubject(), resolveDisplayName(jwt), email));
+        // OIDC bearer tokens are the only accepted credential, so the principal is a JWT.
+        // Anything else (e.g. an opaque token) is unsupported — reject rather than 500 later.
+        if (!(identity.getPrincipal() instanceof JsonWebToken jwt)) {
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
+            return;
         }
+        currentUser.set(provisioningService.provision(jwt.getSubject(), resolveDisplayName(jwt), verifiedEmail(jwt)));
     }
 
     /**
@@ -66,6 +69,17 @@ public class UserProvisioningFilter {
         }
         String email = nonBlank(jwt.getClaim("email"));
         return email != null ? email : jwt.getSubject();
+    }
+
+    /** The {@code email} claim, but only when the IdP asserts it verified — an unverified
+     *  address is attacker-controllable and must not be stored as the user's email. */
+    static String verifiedEmail(JsonWebToken jwt) {
+        return isTrue(jwt.getClaim("email_verified")) ? nonBlank(jwt.getClaim("email")) : null;
+    }
+
+    // Accept a real JSON boolean or a stringified "true" (test-security stringifies claims).
+    private static boolean isTrue(Object claim) {
+        return Boolean.TRUE.equals(claim) || "true".equals(String.valueOf(claim));
     }
 
     private static String nonBlank(String value) {

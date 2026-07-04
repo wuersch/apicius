@@ -4,6 +4,9 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import dev.apicius.domain.AppUser;
 import dev.apicius.service.UserProvisioningService;
 import dev.apicius.test.CleanDatabaseTest;
@@ -13,6 +16,7 @@ import io.quarkus.test.security.TestSecurity;
 import io.quarkus.test.security.oidc.Claim;
 import io.quarkus.test.security.oidc.OidcSecurity;
 import jakarta.inject.Inject;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +32,8 @@ class UserResourceTest extends CleanDatabaseTest {
     @OidcSecurity(claims = {
             @Claim(key = "sub", value = "sub-ada"),
             @Claim(key = "name", value = "Ada Lovelace"),
-            @Claim(key = "email", value = "ada@example.com")
+            @Claim(key = "email", value = "ada@example.com"),
+            @Claim(key = "email_verified", value = "true")
     })
     void firstAuthenticatedRequestProvisionsAppUserFromClaims() {
         given()
@@ -50,7 +55,8 @@ class UserResourceTest extends CleanDatabaseTest {
     @OidcSecurity(claims = {
             @Claim(key = "sub", value = "sub-ada"),
             @Claim(key = "name", value = "Ada L. Lovelace"),
-            @Claim(key = "email", value = "countess@example.com")
+            @Claim(key = "email", value = "countess@example.com"),
+            @Claim(key = "email_verified", value = "true")
     })
     void returningSubjectReusesRowAndRefreshesClaims() {
         UUID existingId = QuarkusTransaction.requiringNew().call(
@@ -76,5 +82,45 @@ class UserResourceTest extends CleanDatabaseTest {
                 .statusCode(401);
 
         assertEquals(0, repository.count());
+    }
+
+    // An unverified email claim is attacker-controllable and must not be stored.
+    @Test
+    @TestSecurity(user = "sub-mallory")
+    @OidcSecurity(claims = {
+            @Claim(key = "sub", value = "sub-mallory"),
+            @Claim(key = "name", value = "Mallory"),
+            @Claim(key = "email", value = "victim@example.com"),
+            @Claim(key = "email_verified", value = "false")
+    })
+    void unverifiedEmailIsNotPersisted() {
+        given()
+                .when().get("/api/v1/users/me")
+                .then()
+                .statusCode(200)
+                .body("displayName", equalTo("Mallory"))
+                .body("email", nullValue());
+    }
+
+    // Repeat requests with unchanged claims must not bump updated_at (no write amplification).
+    @Test
+    @TestSecurity(user = "sub-ada")
+    @OidcSecurity(claims = {
+            @Claim(key = "sub", value = "sub-ada"),
+            @Claim(key = "name", value = "Ada Lovelace"),
+            @Claim(key = "email", value = "ada@example.com"),
+            @Claim(key = "email_verified", value = "true")
+    })
+    void repeatRequestWithUnchangedClaimsDoesNotUpdate() {
+        given().when().get("/api/v1/users/me").then().statusCode(200);
+        Instant firstUpdatedAt = QuarkusTransaction.requiringNew().call(
+                () -> repository.findByOidcSubject("sub-ada").orElseThrow().updatedAt);
+
+        given().when().get("/api/v1/users/me").then().statusCode(200);
+        AppUser after = QuarkusTransaction.requiringNew().call(
+                () -> repository.findByOidcSubject("sub-ada").orElseThrow());
+
+        assertEquals(firstUpdatedAt, after.updatedAt);
+        assertTrue(after.version == 0, "unchanged claims must not bump the optimistic-lock version");
     }
 }

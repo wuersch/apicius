@@ -1,10 +1,15 @@
+import { useAuth } from 'react-oidc-context'
 import { AppChrome } from '@/components/AppChrome'
 import { useGetCurrentUser } from '@/api/endpoints/users/users'
 
 function App() {
+  const auth = useAuth()
   // The first authenticated request: it provisions the app_user server-side
   // (FEAT-001 AC1) and returns the canonical display name for the greeting.
-  const { data: response } = useGetCurrentUser()
+  // Gated on the token so it can't fire before auth is wired.
+  const { data: response } = useGetCurrentUser({
+    query: { enabled: Boolean(auth.user?.access_token) },
+  })
   const user = response?.status === 200 ? response.data : undefined
 
   return (

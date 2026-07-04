@@ -6,6 +6,7 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import java.util.Objects;
 
 @ApplicationScoped
 public class UserProvisioningService {
@@ -22,8 +23,14 @@ public class UserProvisioningService {
     public AppUser provision(String oidcSubject, String displayName, String email) {
         AppUser user = repository.findByOidcSubject(oidcSubject)
                 .orElseGet(() -> tryCreate(oidcSubject, displayName, email));
-        user.displayName = displayName;
-        user.email = email;
+        // Assign only on change so dirty-checking doesn't UPDATE (and bump updated_at)
+        // on every authenticated request when the claims are unchanged.
+        if (!Objects.equals(user.displayName, displayName)) {
+            user.displayName = displayName;
+        }
+        if (!Objects.equals(user.email, email)) {
+            user.email = email;
+        }
         return user;
     }
 
