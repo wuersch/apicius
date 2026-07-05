@@ -53,6 +53,12 @@ use, mapped to the need above:
   guidelines extend this rather than start from zero.
 - **Version transforms** — `transform/` (2.0→3.0→3.1→3.2 visitors) give spec-upgrade capability.
 
+The library is consumed **behind a thin Apicius-owned seam** — the `dev.apicius.document`
+package's `DocumentEngine` interface; only the `document.apitomy` adapter may import
+`io.apitomy.*`. The seam keeps the engine swappable (the bus-factor trade-off below) and grows
+method-by-method as features need it: creation (FEAT-003) first; parse/validate (FEAT-004) and
+commands/traversal (editor) when they land.
+
 The library **stays out of the browser.** Its TypeScript build is JSweet-transpiled from Java —
 Java-shaped and un-idiomatic. The React app holds only view state (ADR-0002): it consumes derived
 projections and emits command JSON over the management API. This reinforces, rather than bends, the
