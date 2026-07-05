@@ -26,4 +26,12 @@ public class LastEditedLocationRepository implements PanacheRepositoryBase<LastE
                 .getResultStream()
                 .findFirst();
     }
+
+    /**
+     * Entity-returning counterpart to {@link #findByUserId} for the write side (the upsert must
+     * mutate the row). Never call from a read path — that would hydrate what ADR-0008 keeps cold.
+     */
+    public Optional<LastEditedLocation> findEntityByUserId(UUID userId) {
+        return find("user.id", userId).firstResultOptional();
+    }
 }

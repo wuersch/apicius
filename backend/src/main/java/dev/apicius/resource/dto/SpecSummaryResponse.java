@@ -1,5 +1,6 @@
 package dev.apicius.resource.dto;
 
+import dev.apicius.domain.Spec;
 import dev.apicius.repository.projection.SpecSummaryProjection;
 import java.time.Instant;
 import java.util.UUID;
@@ -22,5 +23,17 @@ public record SpecSummaryResponse(
                 summary.resourceCount(),
                 summary.operationCount(),
                 summary.updatedAt());
+    }
+
+    /** A just-created API is a spec summary — the create path (FEAT-003) returns the same shape. */
+    public static SpecSummaryResponse from(Spec spec) {
+        return new SpecSummaryResponse(
+                spec.id,
+                spec.title,
+                spec.description,
+                spec.apiVersion,
+                spec.resourceCount,
+                spec.operationCount,
+                spec.updatedAt);
     }
 }
