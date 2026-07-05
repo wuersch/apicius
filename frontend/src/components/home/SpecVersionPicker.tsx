@@ -47,9 +47,8 @@ export function SpecVersionPicker({
         <RadioGroupItem
           key={option.value}
           value={option.value}
-          // Selection = olive border + pale olive tint (mockup: #F4F2E6 / #37381F in dark) —
-          // olive means good/safe everywhere, never decoration.
-          className="rounded-lg border border-border bg-card px-4 py-3 text-left transition-colors data-[state=checked]:border-olive data-[state=checked]:bg-[#F4F2E6] dark:data-[state=checked]:bg-[#37381F]"
+          // Selection = olive border + tint — olive means good/safe everywhere, never decoration.
+          className="rounded-lg border border-border bg-card px-4 py-3 text-left transition-colors data-[state=checked]:border-olive data-[state=checked]:bg-olive-selected"
         >
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold">{option.label}</span>

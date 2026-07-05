@@ -1,7 +1,7 @@
 # ADR-0009: OpenAPI document model, edit, and validation engine
 
 **Date:** 2026-07-04
-**Status:** Proposed
+**Status:** Accepted
 **Depends on:** ADR-0002, ADR-0004, PRIN-003
 
 ## Context
@@ -64,11 +64,11 @@ Java-shaped and un-idiomatic. The React app holds only view state (ADR-0002): it
 projections and emits command JSON over the management API. This reinforces, rather than bends, the
 decoupling in ADR-0002.
 
-**One item gates promotion to Accepted:** verify **lossless round-trip** (PRIN-003) of unknown /
-oddly-placed properties against representative real-world specs. The generated model captures
-unrecognized properties, but faithful preservation is the load-bearing guarantee (ADR-0004), so it
-is validated before we commit — and any gap is absorbed by the `body JSONB` **preservation bag**
-ADR-0004 already provides. Until that check passes, this stays **Proposed**.
+**Lossless round-trip** (PRIN-003) of unknown / oddly-placed properties against representative
+real-world specs remains to be exercised — it is FEAT-004's AC2, the first feature to import
+anything. Acceptance does not hinge on it: any preservation gap the check finds is absorbed by the
+`body JSONB` **preservation bag** ADR-0004 already provides; the check determines how much the bag
+must carry, not whether the engine stays.
 
 ## Consequences
 

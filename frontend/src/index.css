@@ -53,6 +53,7 @@
     --color-olive: var(--olive);
     --color-olive-chip: var(--olive-chip);
     --color-olive-chip-foreground: var(--olive-chip-foreground);
+    --color-olive-selected: var(--olive-selected);
     --color-teal: var(--teal);
     --color-ochre: var(--ochre);
     --color-ochre-chip: var(--ochre-chip);
@@ -110,6 +111,7 @@
     --olive: #5E6A3F;
     --olive-chip: #E6E7D4;
     --olive-chip-foreground: #57613A;
+    --olive-selected: #F4F2E6;
     --teal: #34736A;
     --ochre: #9A6B33;
     --ochre-chip: #F0E2C8;
@@ -157,6 +159,7 @@
         --olive: #97A860;
         --olive-chip: #3A4026;
         --olive-chip-foreground: #ABB97E;
+        --olive-selected: #37381F;
         --teal: #6FB3A7;
         --ochre: #D9A860;
         --ochre-chip: #4A3A22;

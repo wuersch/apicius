@@ -3,7 +3,6 @@ package dev.apicius.service;
 import dev.apicius.document.DocumentEngine;
 import dev.apicius.document.SpecVersion;
 import dev.apicius.domain.AppUser;
-import dev.apicius.domain.LastEditedLocation;
 import dev.apicius.domain.Spec;
 import dev.apicius.repository.LastEditedLocationRepository;
 import dev.apicius.repository.SpecRepository;
@@ -62,21 +61,12 @@ public class SpecService {
         spec.operationCount = 0;
         spec.body = documentEngine.createEmptyDocument(version, title, normalizedDescription);
         specRepository.persist(spec);
+        // The upsert below is native SQL referencing the new row's FK — flush the insert first.
+        specRepository.flush();
 
-        recordLastEditedLocation(owner, spec);
+        // Creating is editing: the pointer moves to the new API, at API level (no capability yet).
+        lastEditedLocationRepository.upsertForUser(owner.id, spec.id, null);
         return spec;
-    }
-
-    /** Upsert against the single per-user row; API-level (no capability exists yet). */
-    private void recordLastEditedLocation(AppUser user, Spec spec) {
-        LastEditedLocation location = lastEditedLocationRepository.findEntityByUserId(user.id)
-                .orElseGet(LastEditedLocation::new);
-        location.user = user;
-        location.spec = spec;
-        location.capabilityName = null;
-        if (location.id == null) {
-            lastEditedLocationRepository.persist(location);
-        }
     }
 
     /** Blank means "not provided": info.description is omitted, the projection column stays null (AC2). */
