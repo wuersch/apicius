@@ -29,3 +29,22 @@ apply for layout, tokens, and semantics and are not repeated.
 | `apicius launcher v4 · 1b — create dialog` | Create API dialog over the launcher | FEAT-003 |
 
 Each frame has a light and a `— dark` variant.
+
+## New API menu · import flow — launcher v6
+[`launcher-hybrid-v6.html`](launcher-hybrid-v6.html) — v4's launcher and Create API dialog with
+the **"New API" menu** (settled from the v5 exploration), the **import flow** (picker → reading →
+review), and the final brand mark; the v3 editor/operation frames are carried over unchanged.
+Supersedes v4's launcher frames as the current launcher reference. Read
+[`launcher-hybrid-v6-notes.md`](launcher-hybrid-v6-notes.md) alongside it — v3's notes (layout,
+tokens, semantics) and v4's notes (Create API dialog) still apply and are not repeated.
+
+| Frame (`data-screen-label`) | View | Maps to |
+|---|---|---|
+| `apicius launcher v6 · 1a` | Workspace launcher, no dialog | FEAT-002 |
+| `apicius launcher v6 · 1b — create dialog` | Create API dialog over the launcher | FEAT-003 |
+| `apicius launcher v6 · 1c — New API menu` | Creation entry menu (scratch / import) | FEAT-003, FEAT-004 |
+| `apicius launcher v6 · 1d — import picker` | Import dialog: drop zone / browse / URL | FEAT-004 |
+| `apicius launcher v6 · 1e — import reading` | Processing state while the spec is read | FEAT-004 |
+| `apicius launcher v6 · 1f — import review` | Confirm with detected title/description/version | FEAT-004 |
+
+Each frame has a light and a `— dark` variant.

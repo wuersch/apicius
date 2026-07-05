@@ -3,7 +3,7 @@
 **ID:** FEAT-004
 **Status:** specced
 **Depends on:** PRIN-003, PRIN-004, ADR-0004, ADR-0009
-**Mockup:** Import — file-upload and paste-raw-text entry, landing in the editor.
+**Mockup:** `docs/design/mockups/launcher-hybrid-v6.html` — frames `apicius launcher v6 · 1c — New API menu`, `1d — import picker`, `1e — import reading`, `1f — import review` (+ dark variants), with design notes in `launcher-hybrid-v6-notes.md`.
 
 > **Type:** Deterministic — behavior is fixed and verifiable. Every requirement maps to a
 > pass/fail test.
