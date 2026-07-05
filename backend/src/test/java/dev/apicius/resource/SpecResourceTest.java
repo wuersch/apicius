@@ -1,12 +1,17 @@
 package dev.apicius.resource;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.apicius.domain.AppUser;
 import dev.apicius.domain.LastEditedLocation;
 import dev.apicius.domain.Spec;
@@ -21,6 +26,8 @@ import java.util.UUID;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @QuarkusTest
 class SpecResourceTest extends CleanDatabaseTest {
@@ -175,6 +182,185 @@ class SpecResourceTest extends CleanDatabaseTest {
     void unauthenticatedRequestsAreRejected() {
         given().when().get("/api/v1/specs").then().statusCode(401);
         given().when().get("/api/v1/specs/last-edited").then().statusCode(401);
+        given().contentType("application/json").body("{\"title\":\"Storefront API\"}")
+                .when().post("/api/v1/specs").then().statusCode(401);
+    }
+
+    // ---- FEAT-003: create a new empty API ----
+
+    // AC1: default version → persisted spec carries the title, seeded info.version 1.0.0, the
+    // latest 3.1 patch as `openapi`, zeroed counts — and the response is the created summary.
+    @Test
+    @AsAda
+    void createSpecWithDefaultVersionSeedsIdentityAndDocument() {
+        String id = given()
+                .contentType("application/json")
+                .body("{\"title\":\"Storefront API\"}")
+                .when().post("/api/v1/specs")
+                .then()
+                .statusCode(201)
+                .header("Location", containsString("/api/v1/specs/"))
+                .body("title", equalTo("Storefront API"))
+                .body("description", nullValue())
+                .body("apiVersion", equalTo("1.0.0"))
+                .body("resourceCount", equalTo(0))
+                .body("operationCount", equalTo(0))
+                .body("updatedAt", notNullValue())
+                .extract().path("id");
+
+        var body = readBody(UUID.fromString(id));
+        assertEquals("3.1.1", body.path("openapi").asText());
+        assertEquals("Storefront API", body.path("info").path("title").asText());
+        assertEquals("1.0.0", body.path("info").path("version").asText());
+    }
+
+    // AC2: a provided description lands in both the projection column and info.description.
+    @Test
+    @AsAda
+    void createSpecWithDescriptionSetsDescription() {
+        String id = given()
+                .contentType("application/json")
+                .body("{\"title\":\"Storefront API\",\"description\":\"Sell products online.\"}")
+                .when().post("/api/v1/specs")
+                .then()
+                .statusCode(201)
+                .body("description", equalTo("Sell products online."))
+                .extract().path("id");
+
+        assertEquals("Sell products online.",
+                readBody(UUID.fromString(id)).path("info").path("description").asText());
+    }
+
+    // AC2: omitted (or blank) description → info.description is absent, not null/empty.
+    @Test
+    @AsAda
+    void createSpecWithoutDescriptionOmitsDescriptionKey() {
+        String id = given()
+                .contentType("application/json")
+                .body("{\"title\":\"Storefront API\",\"description\":\"  \"}")
+                .when().post("/api/v1/specs")
+                .then()
+                .statusCode(201)
+                .body("description", nullValue())
+                .extract().path("id");
+
+        assertFalse(readBody(UUID.fromString(id)).path("info").has("description"),
+                "info.description must be absent when not provided (AC2)");
+    }
+
+    // AC3: a chosen minor pins the latest patch of that minor; immutability is by omission —
+    // no endpoint mutates `openapi` (v1 recourse: recreate).
+    @ParameterizedTest
+    @CsvSource({"3.0, 3.0.4", "3.2, 3.2.0"})
+    @AsAda
+    void createSpecHonorsTheChosenSpecVersion(String minor, String expectedPatch) {
+        String id = given()
+                .contentType("application/json")
+                .body("{\"title\":\"Fleet API\",\"specVersion\":\"" + minor + "\"}")
+                .when().post("/api/v1/specs")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        assertEquals(expectedPatch, readBody(UUID.fromString(id)).path("openapi").asText());
+    }
+
+    // AC4: titles need not be unique — APIs are keyed by UUID.
+    @Test
+    @AsAda
+    void createSpecAllowsDuplicateTitles() {
+        String first = given().contentType("application/json").body("{\"title\":\"Storefront API\"}")
+                .when().post("/api/v1/specs").then().statusCode(201).extract().path("id");
+        String second = given().contentType("application/json").body("{\"title\":\"Storefront API\"}")
+                .when().post("/api/v1/specs").then().statusCode(201).extract().path("id");
+
+        assertNotEquals(first, second);
+        assertEquals(2, specRepository.count());
+    }
+
+    // AC5: blank title → RFC 9457 problem+json naming the field; nothing persisted.
+    @Test
+    @AsAda
+    void createSpecRejectsBlankTitleWithProblemDetail() {
+        given()
+                .contentType("application/json")
+                .body("{\"title\":\"   \"}")
+                .when().post("/api/v1/specs")
+                .then()
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("title", equalTo("Validation failed"))
+                .body("status", equalTo(400))
+                .body("violations[0].field", equalTo("title"))
+                .body("violations[0].message", notNullValue());
+
+        assertEquals(0, specRepository.count(), "nothing may be persisted on a rejected create (AC5)");
+    }
+
+    // AC5 (same contract): the title field missing entirely.
+    @Test
+    @AsAda
+    void createSpecRejectsMissingTitle() {
+        given()
+                .contentType("application/json")
+                .body("{}")
+                .when().post("/api/v1/specs")
+                .then()
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("title"));
+
+        assertEquals(0, specRepository.count());
+    }
+
+    // Defensive edge of AC3: an unsupported version is rejected through the same problem contract.
+    @Test
+    @AsAda
+    void createSpecRejectsUnsupportedSpecVersion() {
+        given()
+                .contentType("application/json")
+                .body("{\"title\":\"Fleet API\",\"specVersion\":\"2.0\"}")
+                .when().post("/api/v1/specs")
+                .then()
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("specVersion"));
+
+        assertEquals(0, specRepository.count());
+    }
+
+    // Creating counts as editing: the creator's jump-back-in pointer lands on the new API,
+    // at API level (no capability yet).
+    @Test
+    @AsAda
+    void createSpecRecordsTheCreatorsLastEditedLocation() {
+        String id = given().contentType("application/json").body("{\"title\":\"Storefront API\"}")
+                .when().post("/api/v1/specs").then().statusCode(201).extract().path("id");
+
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("specId", equalTo(id))
+                .body("specTitle", equalTo("Storefront API"))
+                .body("capabilityName", nullValue());
+    }
+
+    // The pointer is an upsert against the single per-user row, not an accumulating history.
+    @Test
+    @AsAda
+    void creatingASecondApiMovesTheLastEditedLocation() {
+        given().contentType("application/json").body("{\"title\":\"Storefront API\"}")
+                .when().post("/api/v1/specs").then().statusCode(201);
+        String second = given().contentType("application/json").body("{\"title\":\"Fleet API\"}")
+                .when().post("/api/v1/specs").then().statusCode(201).extract().path("id");
+
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("specId", equalTo(second));
+        assertEquals(1, lastEditedLocationRepository.count(), "one row per user (upsert, not insert)");
     }
 
     private UUID seedSpec(String oidcSubject, String displayName, String title, String description,
@@ -213,5 +399,16 @@ class SpecResourceTest extends CleanDatabaseTest {
 
     private Statistics statistics() {
         return entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+    }
+
+    /** The persisted document, parsed — create-path assertions read what actually hit the column. */
+    private JsonNode readBody(UUID specId) {
+        String body = QuarkusTransaction.requiringNew()
+                .call(() -> specRepository.findById(specId).body);
+        try {
+            return new ObjectMapper().readTree(body);
+        } catch (Exception e) {
+            throw new AssertionError("spec.body is not valid JSON", e);
+        }
     }
 }
