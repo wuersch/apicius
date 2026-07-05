@@ -1,7 +1,7 @@
 # FEAT-003: Create a new empty API
 
 **ID:** FEAT-003
-**Status:** building
+**Status:** shipped
 **Depends on:** PRIN-006, ADR-0004, ADR-0009
 **Mockup:** Create-a-design dialog — title, optional description, and an explained OpenAPI-version picker (default 3.1).
 
