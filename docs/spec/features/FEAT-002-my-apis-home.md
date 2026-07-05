@@ -1,7 +1,7 @@
 # FEAT-002: My APIs home
 
 **ID:** FEAT-002
-**Status:** building
+**Status:** shipped
 **Depends on:** PRIN-001, PRIN-002, ADR-0004, ADR-0005, ADR-0008
 **Mockup:** `docs/design/mockups/launcher-hybrid-v3.html` — frame `apicius launcher v3` (+ `— dark`), with design notes in `launcher-hybrid-v3-notes.md`.
 

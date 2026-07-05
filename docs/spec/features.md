@@ -6,6 +6,6 @@
 | ID | Title | Status |
 |----|-------|--------|
 | FEAT-001 | Authenticate | shipped |
-| FEAT-002 | My APIs home | building |
+| FEAT-002 | My APIs home | shipped |
 | FEAT-003 | Create a new empty API | specced |
 | FEAT-004 | Import an existing OpenAPI document | specced |
