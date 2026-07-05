@@ -5,7 +5,7 @@ import { defineConfig } from 'orval'
 // re-run whenever the API contract changes.
 export default defineConfig({
   apicius: {
-    input: 'http://localhost:8080/q/openapi',
+    input: 'http://127.0.0.1:8080/q/openapi',
     output: {
       mode: 'tags-split',
       target: 'src/api/endpoints',

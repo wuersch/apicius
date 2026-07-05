@@ -5,23 +5,30 @@
  * OpenAPI spec version: 1.0.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
+  CreateSpecRequest,
   LastEditedLocationResponse,
-  SpecListResponse
+  ProblemDetail,
+  SpecListResponse,
+  SpecSummaryResponse
 } from '../../model';
 
 import { customFetch } from '../../mutator/custom-fetch';
@@ -170,7 +177,106 @@ export function useListSpecs<TData = Awaited<ReturnType<typeof listSpecs>>, TErr
 
 
 
-export type getLastEditedLocationResponse200 = {
+export type createSpecResponse201 = {
+  data: SpecSummaryResponse
+  status: 201
+}
+
+export type createSpecResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type createSpecResponse401 = {
+  data: void
+  status: 401
+}
+
+export type createSpecResponse403 = {
+  data: void
+  status: 403
+}
+
+export type createSpecResponseSuccess = (createSpecResponse201) & {
+  headers: Headers;
+};
+export type createSpecResponseError = (createSpecResponse400 | createSpecResponse401 | createSpecResponse403) & {
+  headers: Headers;
+};
+
+export type createSpecResponse = (createSpecResponseSuccess | createSpecResponseError)
+
+export const getCreateSpecUrl = () => {
+
+
+
+
+  return `/api/v1/specs`
+}
+
+/**
+ * @summary Create a new, empty API (FEAT-003)
+ */
+export const createSpec = async (createSpecRequest: CreateSpecRequest, options?: RequestInit): Promise<createSpecResponse> => {
+
+  return customFetch<createSpecResponse>(getCreateSpecUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createSpecRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateSpecMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSpec>>, TError,{data: CreateSpecRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSpec>>, TError,{data: CreateSpecRequest}, TContext> => {
+
+const mutationKey = ['createSpec'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSpec>>, {data: CreateSpecRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSpec(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSpecMutationResult = NonNullable<Awaited<ReturnType<typeof createSpec>>>
+    export type CreateSpecMutationBody = CreateSpecRequest
+    export type CreateSpecMutationError = ProblemDetail | void
+
+    /**
+ * @summary Create a new, empty API (FEAT-003)
+ */
+export const useCreateSpec = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSpec>>, TError,{data: CreateSpecRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createSpec>>,
+        TError,
+        {data: CreateSpecRequest},
+        TContext
+      > => {
+      return useMutation(getCreateSpecMutationOptions(options), queryClient);
+    }
+    export type getLastEditedLocationResponse200 = {
   data: LastEditedLocationResponse
   status: 200
 }
