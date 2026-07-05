@@ -31,7 +31,7 @@ export function HomePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-11 py-8">
-      <header className="flex items-end justify-between gap-4">
+      <header className="flex items-start justify-between gap-4">
         <div>
           {/* AC6: time of day + name; date below. */}
           <h1 className="text-3xl font-bold">
@@ -39,9 +39,10 @@ export function HomePage() {
           </h1>
           <p className="mt-1.5 text-sm text-text-tertiary">{formatFriendlyDate(now)}</p>
         </div>
-        {/* The permanent create/import affordance (mockup v4 placement). Inert until FEAT-003/004. */}
-        <Button disabled className="shrink-0">
-          <Plus aria-hidden className="size-4" />
+        {/* The permanent create/import affordance (mockup v4 placement: top-aligned with the
+            greeting, 42px). Inert until FEAT-003/004. */}
+        <Button disabled className="mt-0.5 h-[42px] shrink-0 rounded-md px-[18px] text-[13.5px] font-semibold">
+          <Plus aria-hidden className="size-3.5" />
           New API
         </Button>
       </header>
