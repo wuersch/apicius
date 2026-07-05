@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
@@ -27,9 +28,22 @@ vi.mock('@/api/endpoints/users/users', () => ({
 vi.mock('@/api/endpoints/specs/specs', () => ({
   useListSpecs: vi.fn(),
   useGetLastEditedLocation: () => ({ data: { status: 204, data: undefined, headers: new Headers() } }),
+  useCreateSpec: () => ({ mutate: vi.fn(), isPending: false }),
+  getListSpecsQueryKey: () => ['/api/v1/specs'],
+  getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
 }))
 
 import { useListSpecs } from '@/api/endpoints/specs/specs'
+
+function renderApp() {
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider client={new QueryClient()}>
+        <App />
+      </QueryClientProvider>
+    </MemoryRouter>,
+  )
+}
 
 beforeEach(() => {
   vi.mocked(useListSpecs).mockReturnValue({
@@ -48,11 +62,7 @@ beforeEach(() => {
 
 // The home route renders the FEAT-002 landing page inside the chrome (initials avatar, FEAT-001 AC6).
 test('renders the home page and chrome at the root route', () => {
-  render(
-    <MemoryRouter>
-      <App />
-    </MemoryRouter>,
-  )
+  renderApp()
   expect(screen.getByText('Storefront API')).toBeInTheDocument()
   expect(screen.getByText('AL')).toBeInTheDocument()
 })
@@ -60,11 +70,7 @@ test('renders the home page and chrome at the root route', () => {
 // FEAT-002 AC3: opening a card navigates to the editor route for that API.
 test('opening a card enters the editor', async () => {
   const user = userEvent.setup()
-  render(
-    <MemoryRouter>
-      <App />
-    </MemoryRouter>,
-  )
+  renderApp()
   await user.click(screen.getByRole('link', { name: /Storefront API/ }))
   expect(screen.getByRole('heading', { name: 'Editor' })).toBeInTheDocument()
   expect(screen.getByText('b-1')).toBeInTheDocument()

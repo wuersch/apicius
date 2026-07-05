@@ -52,5 +52,7 @@ function isSameOrigin(url: string): boolean {
 
 async function parseBody(response: Response): Promise<unknown> {
   const contentType = response.headers.get('content-type')
-  return contentType?.includes('application/json') ? response.json() : response.text()
+  // 'json' not 'application/json': structured suffixes like application/problem+json
+  // (RFC 9457 errors) must parse as JSON too.
+  return contentType?.includes('json') ? response.json() : response.text()
 }

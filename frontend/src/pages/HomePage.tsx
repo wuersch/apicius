@@ -3,6 +3,7 @@ import { useAuth } from 'react-oidc-context'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ApiCard } from '@/components/home/ApiCard'
+import { CreateApiDialog } from '@/components/home/CreateApiDialog'
 import { EmptyState } from '@/components/home/EmptyState'
 import { JumpBackInCard } from '@/components/home/JumpBackInCard'
 import { getFirstName } from '@/auth/initials'
@@ -39,12 +40,16 @@ export function HomePage() {
           </h1>
           <p className="mt-1.5 text-sm text-text-tertiary">{formatFriendlyDate(now)}</p>
         </div>
-        {/* The permanent create/import affordance (mockup v4 placement: top-aligned with the
-            greeting, 42px). Inert until FEAT-003/004. */}
-        <Button disabled className="mt-0.5 h-[42px] shrink-0 rounded-md px-[18px] text-[13.5px] font-semibold">
-          <Plus aria-hidden className="size-3.5" />
-          New API
-        </Button>
+        {/* The permanent create affordance (mockup v4 placement: top-aligned with the
+            greeting, 42px); opens the Create API dialog (FEAT-003). */}
+        <CreateApiDialog
+          trigger={
+            <Button className="mt-0.5 h-[42px] shrink-0 rounded-md px-[18px] text-[13.5px] font-semibold">
+              <Plus aria-hidden className="size-3.5" />
+              New API
+            </Button>
+          }
+        />
       </header>
 
       {lastEdited?.specId && <JumpBackInCard location={lastEdited} now={now} />}

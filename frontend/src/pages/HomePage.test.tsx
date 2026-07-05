@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { HomePage } from './HomePage'
@@ -19,10 +21,13 @@ vi.mock('@/api/endpoints/users/users', () => ({
 vi.mock('@/api/endpoints/specs/specs', () => ({
   useListSpecs: vi.fn(),
   useGetLastEditedLocation: vi.fn(),
+  useCreateSpec: vi.fn(),
+  getListSpecsQueryKey: () => ['/api/v1/specs'],
+  getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
 }))
 
 import { useGetCurrentUser } from '@/api/endpoints/users/users'
-import { useGetLastEditedLocation, useListSpecs } from '@/api/endpoints/specs/specs'
+import { useCreateSpec, useGetLastEditedLocation, useListSpecs } from '@/api/endpoints/specs/specs'
 
 const specs = [
   { id: 'b-2', title: 'billing API', description: 'Invoices.', apiVersion: '2.3', resourceCount: 4, operationCount: 18, updatedAt: '2026-06-24T12:00:00Z' },
@@ -48,10 +53,13 @@ function arrange({
       ? { status: 200, data: lastEdited, headers: new Headers() }
       : { status: 204, data: undefined, headers: new Headers() },
   } as never)
+  vi.mocked(useCreateSpec).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
 
   return render(
     <MemoryRouter>
-      <HomePage />
+      <QueryClientProvider client={new QueryClient()}>
+        <HomePage />
+      </QueryClientProvider>
     </MemoryRouter>,
   )
 }
@@ -111,4 +119,16 @@ test('renders the empty state when there are no APIs', () => {
   expect(screen.getByText('Start from scratch')).toBeInTheDocument()
   expect(screen.getByText('Import a spec')).toBeInTheDocument()
   expect(screen.queryByRole('region', { name: 'All APIs' })).not.toBeInTheDocument()
+})
+
+// FEAT-003: the New API CTA is live and opens the Create API dialog.
+test('the New API button opens the create dialog', async () => {
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+  arrange()
+  const button = screen.getByRole('button', { name: 'New API' })
+  expect(button).toBeEnabled()
+
+  await user.click(button)
+  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Create a new API' })).toBeInTheDocument()
 })
