@@ -23,7 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 public abstract class CleanDatabaseTest {
 
     @Inject
-    protected AppUserRepository repository;
+    protected AppUserRepository appUserRepository;
 
     @Inject
     protected SpecRepository specRepository;
@@ -36,7 +36,7 @@ public abstract class CleanDatabaseTest {
         QuarkusTransaction.requiringNew().run(() -> {
             lastEditedLocationRepository.deleteAll();
             specRepository.deleteAll();
-            repository.deleteAll();
+            appUserRepository.deleteAll();
         });
     }
 }

@@ -43,8 +43,8 @@ class UserResourceTest extends CleanDatabaseTest {
                 .body("displayName", equalTo("Ada Lovelace"))
                 .body("email", equalTo("ada@example.com"));
 
-        assertEquals(1, repository.count());
-        AppUser user = repository.findByOidcSubject("sub-ada").orElseThrow();
+        assertEquals(1, appUserRepository.count());
+        AppUser user = appUserRepository.findByOidcSubject("sub-ada").orElseThrow();
         assertEquals("Ada Lovelace", user.displayName);
         assertEquals("ada@example.com", user.email);
     }
@@ -70,7 +70,7 @@ class UserResourceTest extends CleanDatabaseTest {
                 .body("displayName", equalTo("Ada L. Lovelace"))
                 .body("email", equalTo("countess@example.com"));
 
-        assertEquals(1, repository.count());
+        assertEquals(1, appUserRepository.count());
     }
 
     // AC3: no valid token → 401, and no protected data is served nor any user provisioned.
@@ -81,7 +81,7 @@ class UserResourceTest extends CleanDatabaseTest {
                 .then()
                 .statusCode(401);
 
-        assertEquals(0, repository.count());
+        assertEquals(0, appUserRepository.count());
     }
 
     // An unverified email claim is attacker-controllable and must not be stored.
@@ -114,11 +114,11 @@ class UserResourceTest extends CleanDatabaseTest {
     void repeatRequestWithUnchangedClaimsDoesNotUpdate() {
         given().when().get("/api/v1/users/me").then().statusCode(200);
         Instant firstUpdatedAt = QuarkusTransaction.requiringNew().call(
-                () -> repository.findByOidcSubject("sub-ada").orElseThrow().updatedAt);
+                () -> appUserRepository.findByOidcSubject("sub-ada").orElseThrow().updatedAt);
 
         given().when().get("/api/v1/users/me").then().statusCode(200);
         AppUser after = QuarkusTransaction.requiringNew().call(
-                () -> repository.findByOidcSubject("sub-ada").orElseThrow());
+                () -> appUserRepository.findByOidcSubject("sub-ada").orElseThrow());
 
         assertEquals(firstUpdatedAt, after.updatedAt);
         assertTrue(after.version == 0, "unchanged claims must not bump the optimistic-lock version");

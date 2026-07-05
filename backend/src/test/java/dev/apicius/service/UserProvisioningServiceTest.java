@@ -24,12 +24,12 @@ class UserProvisioningServiceTest extends CleanDatabaseTest {
             winner.oidcSubject = "sub-race";
             winner.displayName = "Winner";
             winner.email = "winner@example.com";
-            repository.persist(winner);
+            appUserRepository.persist(winner);
         });
 
         AppUser result = service.tryCreate("sub-race", "Loser", "loser@example.com");
 
         assertEquals("Winner", result.displayName);
-        assertEquals(1, repository.count());
+        assertEquals(1, appUserRepository.count());
     }
 }
