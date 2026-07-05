@@ -28,10 +28,26 @@ public class LastEditedLocationRepository implements PanacheRepositoryBase<LastE
     }
 
     /**
-     * Entity-returning counterpart to {@link #findByUserId} for the write side (the upsert must
-     * mutate the row). Never call from a read path — that would hydrate what ADR-0008 keeps cold.
+     * Atomically records (insert-or-move) the user's single jump-back-in pointer. A native
+     * {@code ON CONFLICT} upsert on purpose: a read-then-write upsert loses the race against
+     * {@code uq_last_edited_location_user_id} when the same user creates twice concurrently,
+     * rolling back the loser's whole transaction. Last-writer-wins is exactly the pointer's
+     * semantic, so the database's atomic upsert is the correct tool (PostgreSQL per ADR-0004).
      */
-    public Optional<LastEditedLocation> findEntityByUserId(UUID userId) {
-        return find("user.id", userId).firstResultOptional();
+    public void upsertForUser(UUID userId, UUID specId, String capabilityName) {
+        getEntityManager().createNativeQuery("""
+                insert into last_edited_location
+                    (id, user_id, spec_id, capability_name, created_at, updated_at, version)
+                values (gen_random_uuid(), :userId, :specId, :capabilityName, now(), now(), 0)
+                on conflict (user_id) do update set
+                    spec_id = excluded.spec_id,
+                    capability_name = excluded.capability_name,
+                    updated_at = now(),
+                    version = last_edited_location.version + 1
+                """)
+                .setParameter("userId", userId)
+                .setParameter("specId", specId)
+                .setParameter("capabilityName", capabilityName)
+                .executeUpdate();
     }
 }

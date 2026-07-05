@@ -9,12 +9,14 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.apicius.domain.AppUser;
 import dev.apicius.domain.LastEditedLocation;
 import dev.apicius.domain.Spec;
+import dev.apicius.service.SpecService;
 import dev.apicius.service.UserProvisioningService;
 import dev.apicius.test.AsAda;
 import dev.apicius.test.CleanDatabaseTest;
@@ -22,7 +24,13 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManagerFactory;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.IntStream;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
@@ -34,6 +42,9 @@ class SpecResourceTest extends CleanDatabaseTest {
 
     @Inject
     UserProvisioningService provisioningService;
+
+    @Inject
+    SpecService specService;
 
     @Inject
     EntityManagerFactory entityManagerFactory;
@@ -344,6 +355,34 @@ class SpecResourceTest extends CleanDatabaseTest {
                 .body("specId", equalTo(id))
                 .body("specTitle", equalTo("Storefront API"))
                 .body("capabilityName", nullValue());
+    }
+
+    // The pointer upsert must be atomic: concurrent creates by the same user race the
+    // uq_last_edited_location_user_id constraint — a read-then-write upsert makes the loser's
+    // whole transaction (including its new Spec) roll back.
+    @Test
+    void concurrentCreatesByTheSameUserAllSucceed() throws Exception {
+        AppUser ada = QuarkusTransaction.requiringNew()
+                .call(() -> provisioningService.provision("sub-ada", "Ada Lovelace", null));
+        int creates = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(creates);
+        CyclicBarrier barrier = new CyclicBarrier(creates);
+        try {
+            List<Future<Spec>> futures = IntStream.range(0, creates)
+                    .mapToObj(i -> executor.submit(() -> {
+                        barrier.await();
+                        return specService.createEmpty(ada, "Race API", null, null);
+                    }))
+                    .toList();
+            for (Future<Spec> future : futures) {
+                assertNotNull(future.get().id, "every concurrent create must commit");
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertEquals(creates, specRepository.count());
+        assertEquals(1, lastEditedLocationRepository.count(), "still one pointer row per user");
     }
 
     // The pointer is an upsert against the single per-user row, not an accumulating history.

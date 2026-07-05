@@ -35,10 +35,6 @@ public enum SpecVersion {
                 .orElseThrow(() -> new IllegalArgumentException("unsupported spec version: " + minor));
     }
 
-    public String minor() {
-        return minor;
-    }
-
     public String latestPatch() {
         return latestPatch;
     }

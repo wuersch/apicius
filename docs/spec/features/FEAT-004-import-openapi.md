@@ -2,7 +2,7 @@
 
 **ID:** FEAT-004
 **Status:** specced
-**Depends on:** PRIN-003, PRIN-004, ADR-0004
+**Depends on:** PRIN-003, PRIN-004, ADR-0004, ADR-0009
 **Mockup:** Import — file-upload and paste-raw-text entry, landing in the editor.
 
 > **Type:** Deterministic — behavior is fixed and verifiable. Every requirement maps to a
@@ -64,7 +64,8 @@ chosen; title/description come from the imported `info`. Sources in v1 are **fil
   the document.
 - **AC2 (UC1 / lossless):** Given an imported document, when it is exported unchanged, then export
   reproduces 100% of the original content — including nodes Apicius doesn't model (preservation bag,
-  S3/S4) — so `import → export` is faithful.
+  S3/S4) — so `import → export` is faithful. Verified against representative real-world specs, not
+  just fixtures — this test is also ADR-0009's round-trip verification of the document engine.
 - **AC3 (UC3 / S1):** Given a Swagger 2.0 document, when import is attempted, then it is rejected with a
   clear "3.0–3.2 only" message and nothing is persisted.
 - **AC4 (UC3 / S2):** Given unparseable input, when import is attempted, then it is rejected with a
