@@ -54,6 +54,12 @@ a per-resource path override arrives (deliberately deferred).
 - **Failure responses:** 404 on the `{id}` paths, declared with a plain-language description
   and no body schema in v1 — the error-body model (e.g. RFC 9457) is a separate future house
   rule.
+- **Spec-required completions** (a valid, well-crafted document forces three constructs the
+  table's cells don't show): the `{id}` path parameter, declared once at the item path-item
+  level (`name: id, in: path, required: true, schema: {type: string}`); `required: true` on the
+  Add/Update request bodies; and a plain-language `description` on every response, phrased from
+  the noun ("The list of products.", "No product with this id exists.") and owned by the
+  canonical derivation so recognition and tests stay stable.
 - Derivation writes exactly these constructs and nothing else — no tags, no extensions, no
   scaffolding elsewhere in the document.
 
