@@ -3,9 +3,18 @@
 > Core domain terms, defined once. These are the words the UI and the docs use; when a term
 > below appears in a spec, it means exactly this.
 
-- **Resource** — a noun the API is about (Product, Order). The primary unit of organisation;
+- **Resource** — a noun the API is about (Product, Order): a datatype with identity and at
+  least one capability. Always an object shape — identity is a field, and only objects have
+  fields — so a resource can never be a simple type. The primary unit of organisation;
   operations are *derived* from resources, not authored as paths (PRIN-001).
-- **Shape** — the structure of a resource: its fields, types, formats, identity field, and links
+- **Datatype** — a named type the API defines (Money, Address — and every resource is one):
+  either a shape (an object with fields) or a refined simple value — a constrained string or
+  number, or an enum (CountryCode, Currency).
+  A datatype without identity-and-capabilities is plain data used by resources; the UI may
+  group these as "shared data", though sharing isn't required. Giving a datatype its first
+  capability makes it a resource; removing the last one makes it plain data again — a role
+  change, not a migration.
+- **Shape** — the structure of a datatype: its fields, types, formats, identity field, and links
   to other resources. One Shape feeds every operation that uses the resource.
 - **Capability** — a plain-language thing the API lets people do ("Look up one product"). The
   primary expression of an operation; the verb/path/params are derived detail (PRIN-002).
