@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router'
 import { AppChrome } from '@/components/AppChrome'
 import { HomePage } from '@/pages/HomePage'
-import { EditorPlaceholderPage } from '@/pages/EditorPlaceholderPage'
+import { EditorPage } from '@/pages/EditorPage'
 
 function App() {
   return (
@@ -10,7 +10,7 @@ function App() {
       <main className="flex flex-1 flex-col">
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/apis/:id" element={<EditorPlaceholderPage />} />
+          <Route path="/apis/:id" element={<EditorPage />} />
         </Routes>
       </main>
     </div>

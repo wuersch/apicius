@@ -24,11 +24,15 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AddResourceRequest,
   CreateSpecRequest,
   LastEditedLocationResponse,
   ProblemDetail,
+  ResourceResponse,
+  SpecDetailResponse,
   SpecListResponse,
-  SpecSummaryResponse
+  SpecSummaryResponse,
+  Uuid
 } from '../../model';
 
 import { customFetch } from '../../mutator/custom-fetch';
@@ -405,3 +409,242 @@ export function useGetLastEditedLocation<TData = Awaited<ReturnType<typeof getLa
 
 
 
+export type getSpecResponse200 = {
+  data: SpecDetailResponse
+  status: 200
+}
+
+export type getSpecResponse401 = {
+  data: void
+  status: 401
+}
+
+export type getSpecResponse403 = {
+  data: void
+  status: 403
+}
+
+export type getSpecResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type getSpecResponseSuccess = (getSpecResponse200) & {
+  headers: Headers;
+};
+export type getSpecResponseError = (getSpecResponse401 | getSpecResponse403 | getSpecResponse404) & {
+  headers: Headers;
+};
+
+export type getSpecResponse = (getSpecResponseSuccess | getSpecResponseError)
+
+export const getGetSpecUrl = (specId: Uuid,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}`
+}
+
+/**
+ * @summary One API with its resources and their capabilities (FEAT-005 AC8)
+ */
+export const getSpec = async (specId: Uuid, options?: RequestInit): Promise<getSpecResponse> => {
+
+  return customFetch<getSpecResponse>(getGetSpecUrl(specId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSpecQueryKey = (specId: Uuid,) => {
+    return [
+    `/api/v1/specs/${specId}`
+    ] as const;
+    }
+
+
+export const getGetSpecQueryOptions = <TData = Awaited<ReturnType<typeof getSpec>>, TError = void | ProblemDetail>(specId: Uuid, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSpec>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSpecQueryKey(specId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSpec>>> = ({ signal }) => getSpec(specId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: specId !== null && specId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSpec>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSpecQueryResult = NonNullable<Awaited<ReturnType<typeof getSpec>>>
+export type GetSpecQueryError = void | ProblemDetail
+
+
+export function useGetSpec<TData = Awaited<ReturnType<typeof getSpec>>, TError = void | ProblemDetail>(
+ specId: Uuid, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSpec>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSpec>>,
+          TError,
+          Awaited<ReturnType<typeof getSpec>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSpec<TData = Awaited<ReturnType<typeof getSpec>>, TError = void | ProblemDetail>(
+ specId: Uuid, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSpec>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSpec>>,
+          TError,
+          Awaited<ReturnType<typeof getSpec>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSpec<TData = Awaited<ReturnType<typeof getSpec>>, TError = void | ProblemDetail>(
+ specId: Uuid, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSpec>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One API with its resources and their capabilities (FEAT-005 AC8)
+ */
+
+export function useGetSpec<TData = Awaited<ReturnType<typeof getSpec>>, TError = void | ProblemDetail>(
+ specId: Uuid, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSpec>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSpecQueryOptions(specId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type addResourceResponse201 = {
+  data: ResourceResponse
+  status: 201
+}
+
+export type addResourceResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type addResourceResponse401 = {
+  data: void
+  status: 401
+}
+
+export type addResourceResponse403 = {
+  data: void
+  status: 403
+}
+
+export type addResourceResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type addResourceResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type addResourceResponseSuccess = (addResourceResponse201) & {
+  headers: Headers;
+};
+export type addResourceResponseError = (addResourceResponse400 | addResourceResponse401 | addResourceResponse403 | addResourceResponse404 | addResourceResponse409) & {
+  headers: Headers;
+};
+
+export type addResourceResponse = (addResourceResponseSuccess | addResourceResponseError)
+
+export const getAddResourceUrl = (specId: Uuid,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources`
+}
+
+/**
+ * @summary Add a resource; its operations derive from the chosen capabilities per ADR-0010 (FEAT-005)
+ */
+export const addResource = async (specId: Uuid,
+    addResourceRequest: AddResourceRequest, options?: RequestInit): Promise<addResourceResponse> => {
+
+  return customFetch<addResourceResponse>(getAddResourceUrl(specId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(addResourceRequest)
+  }
+);}
+
+
+
+
+
+export const getAddResourceMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResource>>, TError,{specId: Uuid;data: AddResourceRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addResource>>, TError,{specId: Uuid;data: AddResourceRequest}, TContext> => {
+
+const mutationKey = ['addResource'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addResource>>, {specId: Uuid;data: AddResourceRequest}> = (props) => {
+          const {specId,data} = props ?? {};
+
+          return  addResource(specId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddResourceMutationResult = NonNullable<Awaited<ReturnType<typeof addResource>>>
+    export type AddResourceMutationBody = AddResourceRequest
+    export type AddResourceMutationError = ProblemDetail | void
+
+    /**
+ * @summary Add a resource; its operations derive from the chosen capabilities per ADR-0010 (FEAT-005)
+ */
+export const useAddResource = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResource>>, TError,{specId: Uuid;data: AddResourceRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addResource>>,
+        TError,
+        {specId: Uuid;data: AddResourceRequest},
+        TContext
+      > => {
+      return useMutation(getAddResourceMutationOptions(options), queryClient);
+    }
