@@ -27,4 +27,27 @@ public record ProblemDetail(
                 "The request contains one or more invalid fields.",
                 violations);
     }
+
+    public static ProblemDetail notFound(String detail) {
+        return new ProblemDetail(
+                "https://apicius.dev/problems/not-found",
+                "Not found",
+                404,
+                detail,
+                null);
+    }
+
+    /**
+     * A name conflict (FEAT-005 AC6): well-formed request, colliding document state. The
+     * {@code violations} entry keys the conflict to its field so dialogs can render it inline,
+     * like a validation failure.
+     */
+    public static ProblemDetail nameConflict(String detail) {
+        return new ProblemDetail(
+                "https://apicius.dev/problems/name-conflict",
+                "Name conflict",
+                409,
+                detail,
+                List.of(new FieldViolation("name", detail)));
+    }
 }

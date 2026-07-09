@@ -1,8 +1,12 @@
 package dev.apicius.resource;
 
+import dev.apicius.document.ResourceView;
 import dev.apicius.domain.Spec;
+import dev.apicius.resource.dto.AddResourceRequest;
 import dev.apicius.resource.dto.CreateSpecRequest;
 import dev.apicius.resource.dto.LastEditedLocationResponse;
+import dev.apicius.resource.dto.ResourceResponse;
+import dev.apicius.resource.dto.SpecDetailResponse;
 import dev.apicius.resource.dto.SpecListResponse;
 import dev.apicius.resource.dto.SpecSummaryResponse;
 import dev.apicius.resource.problem.ProblemDetail;
@@ -15,12 +19,14 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.net.URI;
+import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
@@ -60,6 +66,48 @@ public class SpecResource {
                 request.description(), request.specVersion());
         URI location = uriInfo.getAbsolutePathBuilder().path(spec.id.toString()).build();
         return Response.created(location).entity(SpecSummaryResponse.from(spec)).build();
+    }
+
+    @GET
+    @Path("/{specId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "getSpec",
+            summary = "One API with its resources and their capabilities (FEAT-005 AC8)")
+    @APIResponse(responseCode = "200", description = "The API",
+            content = @Content(schema = @Schema(implementation = SpecDetailResponse.class)))
+    @APIResponse(responseCode = "404", description = "No such API",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public SpecDetailResponse get(@PathParam("specId") UUID specId) {
+        return SpecDetailResponse.from(specService.detail(specId));
+    }
+
+    @POST
+    @Path("/{specId}/resources")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "addResource",
+            summary = "Add a resource; its operations derive from the chosen capabilities "
+                    + "per ADR-0010 (FEAT-005)")
+    @APIResponse(responseCode = "201", description = "Created",
+            content = @Content(schema = @Schema(implementation = ResourceResponse.class)))
+    @APIResponse(responseCode = "400", description = "Validation failed",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409", description = "The name is already used in this API",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response addResource(@PathParam("specId") UUID specId,
+            @Valid AddResourceRequest request) {
+        ResourceView resource = specService.addResource(currentUser.require(), specId,
+                request.name(), request.description(), request.capabilities());
+        // 201 without a Location header, deliberately (RFC 9110 SHOULD): resources have no
+        // addressable sub-endpoint yet, and a Location that 404s is worse than none.
+        return Response.status(Response.Status.CREATED)
+                .entity(ResourceResponse.from(resource)).build();
     }
 
     @GET
