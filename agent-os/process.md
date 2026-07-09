@@ -11,16 +11,20 @@ mock-up owns intent  →  until shipped  →  running app owns truth  →  next 
 
 Don't chase mock-up↔code sync. The mock-up is a thinking/approval artifact until the
 feature ships; after that, the running app is the source of truth and the mock-up
-freezes as a dated record of intent.
+freezes as a dated record of intent. Mock-ups are not authoritative: the spec owns the
+requirements; a mock-up suggests a possible direction, and a feature may diverge from or
+drop mock-up elements.
 
 ## Steps
 1. **Frame** — write/update the feature spec from `agent-os/templates/_feature.md`.
    Give it an ID, `Status: proposed`, and a `Depends on:` line citing the PRIN/ADR it
    touches. State Non-Goals explicitly. Surface unknowns as `[NEEDS CLARIFICATION: …]`
    rather than guessing.
-2. **Design** (UI features only) — fork the latest mock-up frame, refine for this feature,
-   label the frame with the FEAT id. `Status → specced` — no `[NEEDS CLARIFICATION]` markers
-   may remain at this gate.
+2. **Design** (UI features only) — mock-ups are provided by the user (a separate
+   design-focused session), not authored in this loop. The user points to the mock-up file
+   and view during feature development; the spec's `Mockup:` line records that pointer.
+   `Status → specced` once the spec's decisions are settled — no `[NEEDS CLARIFICATION]`
+   markers may remain at this gate.
 3. **Decide** — if a non-obvious technical choice appears, log an ADR
    (`agent-os/templates/_adr.md`) and cite it from the feature.
 4. **Build** — branch first (`feat/FEAT-NNN-slug`, or `fix/slug` for fixes); never commit to
