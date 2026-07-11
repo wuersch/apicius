@@ -1,8 +1,10 @@
 # FEAT-006: Edit a resource's shape (simple-typed fields)
 
 **ID:** FEAT-006
-**Status:** proposed
+**Status:** specced
 **Depends on:** PRIN-001, PRIN-002, PRIN-006, ADR-0004, ADR-0008, ADR-0009, ADR-0011
+**Mockup:** `docs/design/mockups/launcher-hybrid-v7.html` — views 2c (add a field),
+2d·1–2d·6 (field-editor states)
 
 > **Type:** Deterministic — behavior is fixed and verifiable. Every requirement maps to a
 > pass/fail test.
@@ -34,9 +36,9 @@ resource's shape.
   is the field's identity and display (ADR-0011). A field's *kind* is a plain-language core
   type (Text, Whole number, Decimal number, Yes/no, Date, Date & time), optionally refined
   (as email, UUID, URL, password; 32/64-bit; float/double), optionally a *list of* any of
-  these — each serializing per ADR-0011's table. Attributes: *required*, *auto* ("the
-  server sets it"), *write-only* ("never returned"). The designer never types the
-  serialized column.
+  these — each serializing per ADR-0011's table. Attributes: *required*, and a
+  *visibility* — normal, *auto* ("the server sets it" → `readOnly`) or *write-only*
+  ("never returned" → `writeOnly`). The designer never types the serialized column.
 - **Tiered vocabulary invariant:** the core types are the working vocabulary; refinements
   are secondary intent — optional, never required to proceed (PRIN-006).
 - **Ordering invariant:** name first, then kind, then attributes; serialization is derived,
@@ -66,7 +68,7 @@ resource's shape.
 
 ### UC3: Change a field (alternate)
 - **Precondition:** the resource has a field beyond `id`.
-- **Flow:** renames it, changes its kind, toggles required/auto/write-only, or edits its
+- **Flow:** renames it, changes its kind, its required or visibility, or edits its
   description; confirms.
 - **Outcome:** the property is rewritten in place — its `required` membership follows it —
   and nothing else in the document changes. The identity field is exempt: `id` is shown but
@@ -83,13 +85,8 @@ resource's shape.
 - **Flow:** attempts to confirm with a name that derives to nothing (empty after
   stripping), or one that collides case-insensitively with an existing field of this shape
   (including `id`).
-- **Outcome:** blocked with a message naming the problem; nothing is persisted.
-
-### UC6: Invisible field (failure)
-- **Precondition:** adding or changing a field.
-- **Flow:** attempts to confirm with both auto and write-only set.
-- **Outcome:** blocked with the explanation that a field the server sets but never returns
-  is visible to no one; nothing is persisted.
+- **Outcome:** the edit cannot be completed; a message names the problem; nothing is
+  persisted.
 
 ## Acceptance Criteria
 - **AC1 (UC1):** Given a resource and a valid field name and core type, when the designer
@@ -103,8 +100,9 @@ resource's shape.
   Apicius-specific content — no `x-` extensions, no constructs beyond ADR-0011's table.
 - **AC4 (UC2):** Given a refinement or list choice, when the designer confirms, then it
   serializes exactly per ADR-0011 (`format` on the type; `array` + `items` for lists).
-- **AC5 (UC2):** Given the kind *Text as password*, then write-only defaults on, shown as
-  an applied, explained rule; overriding it yields `format: password` without `writeOnly`.
+- **AC5 (UC2):** Given the kind *Text as password*, then visibility defaults to
+  write-only, shown as an applied, explained rule; overriding it yields
+  `format: password` without `writeOnly`.
 - **AC6 (UC3):** Given a rename, retype, attribute, or description change, when the
   designer confirms, then the property is rewritten in place, its `required` membership
   follows the field, and no other property or document content changes.
@@ -114,11 +112,11 @@ resource's shape.
   `required` entry are absent with no other change; a shape reduced to `id` alone remains
   valid.
 - **AC9 (UC5):** Given a name empty after derivation or case-insensitively equal to an
-  existing field's property name (including `id`), when the designer attempts to confirm,
-  then the edit is rejected with a message naming the problem and nothing is persisted.
-- **AC10 (UC6):** Given auto and write-only both set, when the designer attempts to
-  confirm, then the edit is rejected with the invisibility explanation and nothing is
-  persisted.
+  existing field's property name (including `id`), then the edit cannot be completed, a
+  message names the problem, and nothing is persisted.
+- **AC10 (UC1, UC3):** Given any field edit Apicius accepts, then the persisted property
+  carries at most one of `readOnly` / `writeOnly` — a field is never both auto and
+  write-only, which would make it visible to no one.
 - **AC11 (UC1):** Given a resource's shape is displayed, then each field shows its
   plain-language kind and attributes, derived detail de-emphasized, and `id` is visibly
   present as the read-only identity field.
@@ -135,8 +133,8 @@ resource's shape.
   (ADR-0009), with the designer's `last_edited_location` written at the same chokepoint;
   ADR-0008 counts are unaffected by field edits.
 - Validation rules: property name non-empty after derivation and case-insensitively unique
-  within the shape (including `id`); kind from ADR-0011's vocabulary; at most one of
-  auto / write-only; `id` immutable.
+  within the shape (including `id`); kind from ADR-0011's vocabulary; visibility one of
+  normal / auto / write-only (ADR-0011); `id` immutable.
 - States / transitions: none beyond saved-document; each field edit is atomic — the
   document is never persisted mid-edit.
 

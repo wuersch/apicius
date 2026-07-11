@@ -46,14 +46,18 @@ is the durable contract; vocabulary grows by adding rows, never by reshaping the
 ### Field attributes
 
 - **required** → membership in the schema's `required` array.
-- **auto** ("the server sets it; you never send it") → `readOnly: true` — the same
-  mechanism ADR-0010's `id` uses.
-- **write-only** ("you send it; the server never returns it") → `writeOnly: true`.
-- auto and write-only are **mutually exclusive** — both at once describes a field nobody
-  can ever see; rejected with that explanation.
-- **House rule: Text as password defaults write-only on.** `format: password` alone is only
-  a display hint; `writeOnly: true` is what states the server never echoes the value. The
-  default is applied, explained, and overridable (PRIN-006).
+- **visibility** — a single value, one of three:
+  - **normal** (the default) → serializes nothing;
+  - **auto** ("the server sets it; you never send it") → `readOnly: true` — the same
+    mechanism ADR-0010's `id` uses;
+  - **write-only** ("you send it; the server never returns it") → `writeOnly: true`.
+
+  Auto and write-only at once would describe a field nobody can ever see; the model
+  therefore carries visibility as one value — in the field model and, at build time, the
+  API contract — so the invisible state is unrepresentable rather than validated away.
+- **House rule: Text as password defaults visibility to write-only.** `format: password`
+  alone is only a display hint; `writeOnly: true` is what states the server never echoes
+  the value. The default is applied, explained, and overridable (PRIN-006).
 - A field description → the property's `description`.
 
 ### Property-name derivation
