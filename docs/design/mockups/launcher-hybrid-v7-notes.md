@@ -71,9 +71,6 @@ version/error, menu open, activity panel, greeting stressor) carry over unchange
 
 - All v6 open questions carry over (post-create/post-import landing, resource↔datatype
   promotion, `x-*` home, composition, import failures).
-- Refinement vocabulary per kind (Text: email/UUID/URL/password; numbers: bit-width /
-  float-double) is asserted here but the full ADR-0011 table isn't rendered anywhere a
-  user can browse — candidate: the kind menu's second column or a "?" affordance.
 - Long shapes: the inline editor assumes short tables; whether the editor pins or scrolls
   with very long shapes (20+ fields) is unresolved.
 - Field reordering is out of scope (FEAT-006 non-goal): new fields append.
