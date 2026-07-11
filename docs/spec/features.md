@@ -9,4 +9,4 @@
 | FEAT-002 | My APIs home | shipped |
 | FEAT-003 | Create a new empty API | shipped |
 | FEAT-004 | Import an existing OpenAPI document | specced |
-| FEAT-005 | Create a resource | building |
+| FEAT-005 | Create a resource | shipped |

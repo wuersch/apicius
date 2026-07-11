@@ -1,7 +1,7 @@
 # FEAT-005: Create a resource
 
 **ID:** FEAT-005
-**Status:** building
+**Status:** shipped
 **Depends on:** PRIN-001, PRIN-002, PRIN-006, ADR-0004, ADR-0008, ADR-0009, ADR-0010
 **Mockup:** `docs/design/mockups/launcher-hybrid-v6.html` — View 2 (editor, resource cards);
 the creation-flow view is pointed to by the user before/during build.
