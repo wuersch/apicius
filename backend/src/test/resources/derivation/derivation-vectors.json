@@ -1,0 +1,306 @@
+{
+  "_comment": "Shared ADR-0010 derivation vectors — asserted by BOTH suites so the backend writer (CanonicalDerivation.java, DerivationVectorsTest) and the frontend presentation mirror (frontend/src/lib/derivation.ts, derivation.test.ts) can never drift.",
+  "valid": [
+    {
+      "name": "Product",
+      "schemaName": "Product",
+      "collectionPath": "/products",
+      "itemPath": "/products/{id}",
+      "labels": {
+        "BROWSE": "Browse all products",
+        "LOOK_UP": "Look up one product",
+        "ADD": "Add a product",
+        "UPDATE": "Update a product",
+        "REMOVE": "Remove a product"
+      },
+      "operationIds": {
+        "BROWSE": "listProducts",
+        "LOOK_UP": "getProduct",
+        "ADD": "createProduct",
+        "UPDATE": "updateProduct",
+        "REMOVE": "deleteProduct"
+      }
+    },
+    {
+      "name": "Review",
+      "schemaName": "Review",
+      "collectionPath": "/reviews",
+      "itemPath": "/reviews/{id}",
+      "labels": {
+        "BROWSE": "Browse all reviews",
+        "LOOK_UP": "Look up one review",
+        "ADD": "Add a review",
+        "UPDATE": "Update a review",
+        "REMOVE": "Remove a review"
+      },
+      "operationIds": {
+        "BROWSE": "listReviews",
+        "LOOK_UP": "getReview",
+        "ADD": "createReview",
+        "UPDATE": "updateReview",
+        "REMOVE": "deleteReview"
+      }
+    },
+    {
+      "name": "Order item",
+      "schemaName": "OrderItem",
+      "collectionPath": "/order-items",
+      "itemPath": "/order-items/{id}",
+      "labels": {
+        "BROWSE": "Browse all order items",
+        "LOOK_UP": "Look up one order item",
+        "ADD": "Add an order item",
+        "UPDATE": "Update an order item",
+        "REMOVE": "Remove an order item"
+      },
+      "operationIds": {
+        "BROWSE": "listOrderItems",
+        "LOOK_UP": "getOrderItem",
+        "ADD": "createOrderItem",
+        "UPDATE": "updateOrderItem",
+        "REMOVE": "deleteOrderItem"
+      }
+    },
+    {
+      "name": "Category",
+      "schemaName": "Category",
+      "collectionPath": "/categories",
+      "itemPath": "/categories/{id}",
+      "labels": {
+        "BROWSE": "Browse all categories",
+        "LOOK_UP": "Look up one category",
+        "ADD": "Add a category",
+        "UPDATE": "Update a category",
+        "REMOVE": "Remove a category"
+      },
+      "operationIds": {
+        "BROWSE": "listCategories",
+        "LOOK_UP": "getCategory",
+        "ADD": "createCategory",
+        "UPDATE": "updateCategory",
+        "REMOVE": "deleteCategory"
+      }
+    },
+    {
+      "name": "Status",
+      "schemaName": "Status",
+      "collectionPath": "/statuses",
+      "itemPath": "/statuses/{id}",
+      "labels": {
+        "BROWSE": "Browse all statuses",
+        "LOOK_UP": "Look up one status",
+        "ADD": "Add a status",
+        "UPDATE": "Update a status",
+        "REMOVE": "Remove a status"
+      },
+      "operationIds": {
+        "BROWSE": "listStatuses",
+        "LOOK_UP": "getStatus",
+        "ADD": "createStatus",
+        "UPDATE": "updateStatus",
+        "REMOVE": "deleteStatus"
+      }
+    },
+    {
+      "name": "Box",
+      "schemaName": "Box",
+      "collectionPath": "/boxes",
+      "itemPath": "/boxes/{id}",
+      "labels": {
+        "BROWSE": "Browse all boxes",
+        "LOOK_UP": "Look up one box",
+        "ADD": "Add a box",
+        "UPDATE": "Update a box",
+        "REMOVE": "Remove a box"
+      },
+      "operationIds": {
+        "BROWSE": "listBoxes",
+        "LOOK_UP": "getBox",
+        "ADD": "createBox",
+        "UPDATE": "updateBox",
+        "REMOVE": "deleteBox"
+      }
+    },
+    {
+      "name": "Address",
+      "schemaName": "Address",
+      "collectionPath": "/addresses",
+      "itemPath": "/addresses/{id}",
+      "labels": {
+        "BROWSE": "Browse all addresses",
+        "LOOK_UP": "Look up one address",
+        "ADD": "Add an address",
+        "UPDATE": "Update an address",
+        "REMOVE": "Remove an address"
+      },
+      "operationIds": {
+        "BROWSE": "listAddresses",
+        "LOOK_UP": "getAddress",
+        "ADD": "createAddress",
+        "UPDATE": "updateAddress",
+        "REMOVE": "deleteAddress"
+      }
+    },
+    {
+      "name": "Key",
+      "schemaName": "Key",
+      "collectionPath": "/keys",
+      "itemPath": "/keys/{id}",
+      "labels": {
+        "BROWSE": "Browse all keys",
+        "LOOK_UP": "Look up one key",
+        "ADD": "Add a key",
+        "UPDATE": "Update a key",
+        "REMOVE": "Remove a key"
+      },
+      "operationIds": {
+        "BROWSE": "listKeys",
+        "LOOK_UP": "getKey",
+        "ADD": "createKey",
+        "UPDATE": "updateKey",
+        "REMOVE": "deleteKey"
+      }
+    },
+    {
+      "name": "Person",
+      "schemaName": "Person",
+      "collectionPath": "/people",
+      "itemPath": "/people/{id}",
+      "labels": {
+        "BROWSE": "Browse all people",
+        "LOOK_UP": "Look up one person",
+        "ADD": "Add a person",
+        "UPDATE": "Update a person",
+        "REMOVE": "Remove a person"
+      },
+      "operationIds": {
+        "BROWSE": "listPeople",
+        "LOOK_UP": "getPerson",
+        "ADD": "createPerson",
+        "UPDATE": "updatePerson",
+        "REMOVE": "deletePerson"
+      }
+    },
+    {
+      "name": "People",
+      "schemaName": "People",
+      "collectionPath": "/people",
+      "itemPath": "/people/{id}",
+      "labels": {
+        "BROWSE": "Browse all people",
+        "LOOK_UP": "Look up one people",
+        "ADD": "Add a people",
+        "UPDATE": "Update a people",
+        "REMOVE": "Remove a people"
+      },
+      "operationIds": {
+        "BROWSE": "listPeople",
+        "LOOK_UP": "getPeople",
+        "ADD": "createPeople",
+        "UPDATE": "updatePeople",
+        "REMOVE": "deletePeople"
+      }
+    },
+    {
+      "name": "API key",
+      "schemaName": "APIKey",
+      "collectionPath": "/api-keys",
+      "itemPath": "/api-keys/{id}",
+      "labels": {
+        "BROWSE": "Browse all API keys",
+        "LOOK_UP": "Look up one API key",
+        "ADD": "Add an API key",
+        "UPDATE": "Update an API key",
+        "REMOVE": "Remove an API key"
+      },
+      "operationIds": {
+        "BROWSE": "listAPIKeys",
+        "LOOK_UP": "getAPIKey",
+        "ADD": "createAPIKey",
+        "UPDATE": "updateAPIKey",
+        "REMOVE": "deleteAPIKey"
+      }
+    },
+    {
+      "name": "Order",
+      "schemaName": "Order",
+      "collectionPath": "/orders",
+      "itemPath": "/orders/{id}",
+      "labels": {
+        "BROWSE": "Browse all orders",
+        "LOOK_UP": "Look up one order",
+        "ADD": "Add an order",
+        "UPDATE": "Update an order",
+        "REMOVE": "Remove an order"
+      },
+      "operationIds": {
+        "BROWSE": "listOrders",
+        "LOOK_UP": "getOrder",
+        "ADD": "createOrder",
+        "UPDATE": "updateOrder",
+        "REMOVE": "deleteOrder"
+      }
+    },
+    {
+      "name": "Category 5",
+      "schemaName": "Category5",
+      "collectionPath": "/category-5s",
+      "itemPath": "/category-5s/{id}",
+      "labels": {
+        "BROWSE": "Browse all category 5s",
+        "LOOK_UP": "Look up one category 5",
+        "ADD": "Add a category 5",
+        "UPDATE": "Update a category 5",
+        "REMOVE": "Remove a category 5"
+      },
+      "operationIds": {
+        "BROWSE": "listCategory5s",
+        "LOOK_UP": "getCategory5",
+        "ADD": "createCategory5",
+        "UPDATE": "updateCategory5",
+        "REMOVE": "deleteCategory5"
+      }
+    },
+    {
+      "name": "iPhone",
+      "schemaName": "IPhone",
+      "collectionPath": "/iphones",
+      "itemPath": "/iphones/{id}",
+      "labels": {
+        "BROWSE": "Browse all iPhones",
+        "LOOK_UP": "Look up one iPhone",
+        "ADD": "Add an iPhone",
+        "UPDATE": "Update an iPhone",
+        "REMOVE": "Remove an iPhone"
+      },
+      "operationIds": {
+        "BROWSE": "listIPhones",
+        "LOOK_UP": "getIPhone",
+        "ADD": "createIPhone",
+        "UPDATE": "updateIPhone",
+        "REMOVE": "deleteIPhone"
+      }
+    },
+    {
+      "name": "Goose",
+      "schemaName": "Goose",
+      "collectionPath": "/geese",
+      "itemPath": "/geese/{id}",
+      "labels": {
+        "BROWSE": "Browse all geese",
+        "LOOK_UP": "Look up one goose",
+        "ADD": "Add a goose",
+        "UPDATE": "Update a goose",
+        "REMOVE": "Remove a goose"
+      },
+      "operationIds": {
+        "BROWSE": "listGeese",
+        "LOOK_UP": "getGoose",
+        "ADD": "createGoose",
+        "UPDATE": "updateGoose",
+        "REMOVE": "deleteGoose"
+      }
+    }
+  ],
+  "invalid": ["", "   ", "1product", "pro-duct", "pro  duct", " Product", "Product!", "prod/uct"]
+}

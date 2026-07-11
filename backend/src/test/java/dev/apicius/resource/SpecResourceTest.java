@@ -1,5 +1,6 @@
 package dev.apicius.resource;
 
+import static dev.apicius.test.JsonAssertions.assertNoVendorExtensions;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -10,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -400,6 +402,334 @@ class SpecResourceTest extends CleanDatabaseTest {
                 .statusCode(200)
                 .body("specId", equalTo(second));
         assertEquals(1, lastEditedLocationRepository.count(), "one row per user (upsert, not insert)");
+    }
+
+    // ---- FEAT-005: create a resource ----
+
+    private static final String ALL_CAPABILITIES =
+            "[\"BROWSE\",\"LOOK_UP\",\"ADD\",\"UPDATE\",\"REMOVE\"]";
+
+    // AC1: all five capabilities → the response names them in plain language, and the persisted
+    // document carries the ADR-0010 constructs (the engine test owns the exhaustive assertions).
+    @Test
+    @AsAda
+    void addResourceWithAllCapabilitiesDerivesSchemaAndPaths() {
+        UUID specId = createApi("Storefront API");
+
+        postResource(specId, "{\"name\":\"Product\",\"description\":\"Something you sell.\","
+                + "\"capabilities\":" + ALL_CAPABILITIES + "}")
+                .statusCode(201)
+                .body("name", equalTo("Product"))
+                .body("description", equalTo("Something you sell."))
+                .body("capabilities", hasSize(5))
+                .body("capabilities[0].capability", equalTo("BROWSE"))
+                .body("capabilities[0].label", equalTo("Browse all products"))
+                .body("capabilities[0].method", equalTo("GET"))
+                .body("capabilities[0].path", equalTo("/products"))
+                .body("capabilities[3].label", equalTo("Update a product"))
+                .body("capabilities[3].method", equalTo("PATCH"))
+                .body("capabilities[3].path", equalTo("/products/{id}"));
+
+        JsonNode body = readBody(specId);
+        JsonNode schema = body.path("components").path("schemas").path("Product");
+        assertEquals("Something you sell.", schema.path("description").asText());
+        assertEquals("string", schema.path("properties").path("id").path("type").asText());
+        assertTrue(schema.path("properties").path("id").path("readOnly").asBoolean());
+        assertEquals("Browse all products",
+                body.path("paths").path("/products").path("get").path("summary").asText());
+        assertTrue(body.path("paths").path("/products/{id}").path("patch").path("requestBody")
+                .path("content").has("application/merge-patch+json"));
+        assertEquals("#/components/schemas/Product",
+                body.path("paths").path("/products").path("get").path("responses").path("200")
+                        .path("content").path("application/json").path("schema")
+                        .path("properties").path("items").path("items").path("$ref").asText());
+    }
+
+    // AC2: the projection columns and the jump-back-in pointer move in the same transaction
+    // as the document mutation.
+    @Test
+    @AsAda
+    void addResourceUpdatesProjectionCountsAndPointer() {
+        UUID specId = createApi("Storefront API");
+
+        postResource(specId, "{\"name\":\"Product\",\"capabilities\":" + ALL_CAPABILITIES + "}")
+                .statusCode(201);
+
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .statusCode(200)
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("specId", equalTo(specId.toString()))
+                .body("capabilityName", nullValue());
+    }
+
+    // AC3: the persisted document contains nothing Apicius-specific — no x- keys anywhere.
+    @Test
+    @AsAda
+    void addResourcePersistsNothingApiciusSpecific() {
+        UUID specId = createApi("Storefront API");
+
+        postResource(specId, "{\"name\":\"Product\",\"capabilities\":" + ALL_CAPABILITIES + "}")
+                .statusCode(201);
+
+        assertNoVendorExtensions(readBody(specId));
+    }
+
+    // AC4: a subset derives exactly the chosen operations; the unused path item is absent.
+    @Test
+    @AsAda
+    void addResourceWithSubsetOmitsUnchosenOperationsAndPaths() {
+        UUID specId = createApi("Storefront API");
+
+        postResource(specId, "{\"name\":\"Product\",\"capabilities\":[\"BROWSE\",\"ADD\"]}")
+                .statusCode(201)
+                .body("capabilities", hasSize(2));
+
+        JsonNode body = readBody(specId);
+        assertTrue(body.path("paths").has("/products"));
+        assertFalse(body.path("paths").has("/products/{id}"),
+                "a path item with no chosen operation must not exist at all (AC4)");
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("operationCount", equalTo(2));
+    }
+
+    // AC5: blank / missing name → problem+json naming the field; nothing persisted.
+    @Test
+    @AsAda
+    void addResourceRejectsBlankName() {
+        UUID specId = createApi("Storefront API");
+
+        postResource(specId, "{\"name\":\"   \",\"capabilities\":" + ALL_CAPABILITIES + "}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations.field", org.hamcrest.Matchers.hasItem("name"));
+        postResource(specId, "{\"capabilities\":" + ALL_CAPABILITIES + "}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("name"));
+
+        assertUntouched(specId);
+    }
+
+    // AC5's edge: a name that can't derive cleanly (pattern) is rejected the same way.
+    @Test
+    @AsAda
+    void addResourceRejectsUnderivableName() {
+        UUID specId = createApi("Storefront API");
+
+        postResource(specId, "{\"name\":\"1product\",\"capabilities\":" + ALL_CAPABILITIES + "}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("name"));
+
+        assertUntouched(specId);
+    }
+
+    // AC6: a name already used in this API — case-insensitively, both derive the same schema —
+    // is a 409 conflict naming the problem; nothing persisted.
+    @Test
+    @AsAda
+    void addResourceRejectsDuplicateNameWithConflict() {
+        UUID specId = createApi("Storefront API");
+        postResource(specId, "{\"name\":\"Product\",\"capabilities\":[\"ADD\"]}").statusCode(201);
+
+        postResource(specId, "{\"name\":\"product\",\"capabilities\":" + ALL_CAPABILITIES + "}")
+                .statusCode(409)
+                .contentType("application/problem+json")
+                .body("title", equalTo("Name conflict"))
+                .body("status", equalTo(409))
+                .body("detail", containsString("product"))
+                .body("violations[0].field", equalTo("name"));
+
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(1));
+    }
+
+    // AC6's structural twin: different names colliding on the derived path (Person and People
+    // both pluralize to /people) conflict too — one path can't serve two resources.
+    @Test
+    @AsAda
+    void addResourceRejectsCollidingDerivedPaths() {
+        UUID specId = createApi("Storefront API");
+        postResource(specId, "{\"name\":\"Person\",\"capabilities\":[\"ADD\"]}").statusCode(201);
+
+        postResource(specId, "{\"name\":\"People\",\"capabilities\":[\"ADD\"]}")
+                .statusCode(409)
+                .contentType("application/problem+json")
+                .body("detail", containsString("/people"));
+    }
+
+    // AC7: no capability selected → rejected with the at-least-one rule; nothing persisted.
+    @Test
+    @AsAda
+    void addResourceRejectsEmptyCapabilities() {
+        UUID specId = createApi("Storefront API");
+
+        postResource(specId, "{\"name\":\"Product\",\"capabilities\":[]}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("capabilities"));
+
+        assertUntouched(specId);
+    }
+
+    // Duplicate capability values are deselection-proofing, not extra operations.
+    @Test
+    @AsAda
+    void addResourceIgnoresDuplicateCapabilities() {
+        UUID specId = createApi("Storefront API");
+
+        postResource(specId, "{\"name\":\"Product\",\"capabilities\":[\"ADD\",\"ADD\"]}")
+                .statusCode(201)
+                .body("capabilities", hasSize(1));
+
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("operationCount", equalTo(1));
+    }
+
+    // Unknown API → 404 problem+json on both new endpoints.
+    @Test
+    @AsAda
+    void resourceEndpointsReturn404ForUnknownApi() {
+        UUID unknown = UUID.randomUUID();
+
+        given()
+                .when().get("/api/v1/specs/{specId}", unknown)
+                .then()
+                .statusCode(404)
+                .contentType("application/problem+json")
+                .body("title", equalTo("Not found"));
+        given()
+                .contentType("application/json")
+                .body("{\"name\":\"Product\",\"capabilities\":[\"ADD\"]}")
+                .when().post("/api/v1/specs/{specId}/resources", unknown)
+                .then()
+                .statusCode(404)
+                .contentType("application/problem+json");
+    }
+
+    // Same 401 posture as every other endpoint (FEAT-001).
+    @Test
+    void unauthenticatedResourceEndpointsAreRejected() {
+        UUID any = UUID.randomUUID();
+        given().when().get("/api/v1/specs/" + any).then().statusCode(401);
+        given().contentType("application/json")
+                .body("{\"name\":\"Product\",\"capabilities\":[\"ADD\"]}")
+                .when().post("/api/v1/specs/" + any + "/resources").then().statusCode(401);
+    }
+
+    // AC8, empty half: an API with no resources says so through an empty projection.
+    @Test
+    @AsAda
+    void getSpecReturnsTheEmptyApiPlainly() {
+        UUID specId = createApi("Storefront API");
+
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .statusCode(200)
+                .body("id", equalTo(specId.toString()))
+                .body("title", equalTo("Storefront API"))
+                .body("apiVersion", equalTo("1.0.0"))
+                .body("resourceCount", equalTo(0))
+                .body("resources", hasSize(0));
+    }
+
+    // AC8, populated half: created resources come back with their capabilities in plain
+    // language — projected from the document, not echoed from the request.
+    @Test
+    @AsAda
+    void getSpecProjectsCreatedResourcesWithCapabilities() {
+        UUID specId = createApi("Storefront API");
+        postResource(specId, "{\"name\":\"Order item\",\"description\":\"A line of an order.\","
+                + "\"capabilities\":[\"BROWSE\",\"REMOVE\"]}").statusCode(201);
+
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .statusCode(200)
+                .body("resources", hasSize(1))
+                .body("resources[0].name", equalTo("OrderItem"))
+                .body("resources[0].description", equalTo("A line of an order."))
+                .body("resources[0].capabilities", hasSize(2))
+                .body("resources[0].capabilities[0].label", equalTo("Browse all order items"))
+                .body("resources[0].capabilities[0].method", equalTo("GET"))
+                .body("resources[0].capabilities[0].path", equalTo("/order-items"))
+                .body("resources[0].capabilities[1].label", equalTo("Remove an order item"))
+                .body("resources[0].capabilities[1].path", equalTo("/order-items/{id}"));
+    }
+
+    // Document mutations serialize on the spec row (pessimistic lock): concurrent adds of
+    // different resources to the same API must both commit, not 500 on optimistic conflicts.
+    @Test
+    void concurrentResourceAddsToTheSameApiAllSucceed() throws Exception {
+        AppUser ada = QuarkusTransaction.requiringNew()
+                .call(() -> provisioningService.provision("sub-ada", "Ada Lovelace", null));
+        UUID specId = QuarkusTransaction.requiringNew()
+                .call(() -> specService.createEmpty(ada, "Race API", null, null).id);
+        List<String> names = List.of("Product", "Review");
+        ExecutorService executor = Executors.newFixedThreadPool(names.size());
+        CyclicBarrier barrier = new CyclicBarrier(names.size());
+        try {
+            List<Future<?>> futures = names.stream()
+                    .<Future<?>>map(name -> executor.submit(() -> {
+                        barrier.await();
+                        return QuarkusTransaction.requiringNew().call(() ->
+                                specService.addResource(ada, specId, name, null,
+                                        List.of(dev.apicius.document.derivation.Capability.values())));
+                    }))
+                    .toList();
+            for (Future<?> future : futures) {
+                assertNotNull(future.get(), "every concurrent add must commit");
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+
+        JsonNode body = readBody(specId);
+        assertEquals(2, body.path("components").path("schemas").size());
+        QuarkusTransaction.requiringNew().run(() -> {
+            Spec spec = specRepository.findById(specId);
+            assertEquals(2, spec.resourceCount);
+            assertEquals(10, spec.operationCount);
+        });
+    }
+
+    private UUID createApi(String title) {
+        String id = given().contentType("application/json").body("{\"title\":\"" + title + "\"}")
+                .when().post("/api/v1/specs").then().statusCode(201).extract().path("id");
+        return UUID.fromString(id);
+    }
+
+    private io.restassured.response.ValidatableResponse postResource(UUID specId, String json) {
+        return given().contentType("application/json").body(json)
+                .when().post("/api/v1/specs/" + specId + "/resources").then();
+    }
+
+    /** "Nothing is persisted": the rejected add left no schema, no path, no count delta. */
+    private void assertUntouched(UUID specId) {
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(0))
+                .body("operationCount", equalTo(0))
+                .body("resources", hasSize(0));
+        JsonNode body = readBody(specId);
+        assertTrue(body.path("paths").isMissingNode() || body.path("paths").isEmpty());
+        assertTrue(body.path("components").isMissingNode() || body.path("components").isEmpty());
     }
 
     private UUID seedSpec(String oidcSubject, String displayName, String title, String description,

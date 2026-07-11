@@ -5,12 +5,17 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './addResourceRequest';
+export * from './capability';
+export * from './capabilityResponse';
 export * from './createSpecRequest';
 export * from './createSpecRequestSpecVersion';
 export * from './fieldViolation';
 export * from './instant';
 export * from './lastEditedLocationResponse';
 export * from './problemDetail';
+export * from './resourceResponse';
+export * from './specDetailResponse';
 export * from './specListResponse';
 export * from './specSummaryResponse';
 export * from './userResponse';

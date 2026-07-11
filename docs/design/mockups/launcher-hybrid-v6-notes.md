@@ -1,13 +1,13 @@
 # Design notes — Launcher Hybrid v6 (New API menu · brand mark)
 
 > Companion to `launcher-hybrid-v6.html` (mockup — launcher, Create API dialog, New API
-> menu, editor, operation — each light + dark).
+> menu, editor, new-resource dialog, operation — each light + dark).
 > v6 = v4's launcher + dialog, with the **"New API" menu** consolidated from the v5
 > exploration and the **final brand mark** applied. Everything in
 > [`launcher-hybrid-v3-notes.md`](launcher-hybrid-v3-notes.md) (layout grid, tokens,
 > semantics) and [`launcher-hybrid-v4-notes.md`](launcher-hybrid-v4-notes.md) (Create API
 > dialog) still applies and is not repeated here.
-> Depends on: FEAT-002, FEAT-003, FEAT-004, PRIN-001, PRIN-002, PRIN-003.
+> Depends on: FEAT-002, FEAT-003, FEAT-005, PRIN-001, PRIN-002, PRIN-003, PRIN-006.
 
 ## Views ↔ frames
 
@@ -19,7 +19,8 @@
 | 1d · Import picker | `apicius launcher v6 · 1d — import picker` (+ ` dark`) | Import dialog: drop zone / browse / URL |
 | 1e · Import reading | `apicius launcher v6 · 1e — import reading` (+ ` dark`) | Processing state while the spec is read |
 | 1f · Import review | `apicius launcher v6 · 1f — import review` (+ ` dark`) | 1b-style confirm with detected title/description/version |
-| 2 · Editor | `apicius editor — Storefront API` (+ ` — dark`) | Resource-first editor shell (v3 notes) |
+| 2a · Editor | `apicius editor — Storefront API · 2a` (+ ` — dark`) | Resource-first editor shell (v3 notes) |
+| 2b · New resource dialog | `apicius editor — Storefront API · 2b — new resource dialog` (+ ` — dark`) | FEAT-005 creation dialog over the editor |
 | 3 · Operation | `apicius operation — Browse all products` (+ ` — dark`) | Operation detail (v3 notes) |
 
 ## Settled from v5 (exploration closed)
@@ -51,8 +52,7 @@ content (PRIN-001).
 Entry: "Import a spec" in the New API menu (1c). Three dialog states on the same scrim/card
 shell as 1b:
 
-- **1d · picker (640px):** one dashed drop zone (drag, "browse files" inline link, or paste
-  raw YAML/JSON directly — the drop zone is also FEAT-004's paste entry;
+- **1d · picker (640px):** one dashed drop zone (drag, or "browse files" inline link;
   `YAML or JSON · up to 10 MB` in mono), an "or" divider, and a **From a URL** field with a
   Fetch button (URL renders in JetBrains Mono). Footer states the lossless promise up front:
   "Everything in your file is kept — even fields apicius doesn't show" (PRIN-003). No
@@ -70,6 +70,23 @@ shell as 1b:
 Vocabulary stays plain (PRIN-002): "spec", "your file" — never "parse", "deserialize", or
 format jargon in user-facing copy (the step trace says "Parsed — OpenAPI 3.0, valid" as the
 one deliberate exception, since version detection is the payload of that step).
+
+## The New resource dialog (view 2b, FEAT-005)
+
+- Same scrim/card shell as 1b (660px). Order enforces the FEAT-005 invariant: **noun first**
+  (Name, with the derived `schema Review · collection /reviews` line in mono beneath),
+  optional Description, then **What people can do** — the five standard capabilities as
+  checkbox rows, all pre-selected (PRIN-006), each with its method dot + plain-language
+  label + derived verb/path in mono (PRIN-002: derivation shown, never typed).
+- Deselecting is the deliberate override (UC2): the mock shows *Update a review* unchecked —
+  row fades, derived column reads "won't be created". `at least one` sits as a quiet
+  mono hint by the section label (UC4's rule, stated before it's violated).
+- The identity rule is a fixed footer row inside the capability list (key icon): every
+  resource gets a read-only `id` — not a choice, so not a checkbox.
+- Dialog footer states exactly what will be written ("Creates 4 operations on 2 paths.") —
+  the atomic-derivation promise made legible. Primary action: **Create resource →**.
+- Left-nav relabel (2a + 2b): **"Shared data" → "Data types"** — the two-word plain form;
+  "shared" over-promised (a datatype needn't be referenced twice to exist).
 
 ## Brand mark (new in v6)
 
@@ -94,6 +111,13 @@ greeting first-name length stressor. The real app derives all of these from stat
 ## Open questions
 
 - Post-create landing (empty-API editor state) — still unmocked, carried from v4 notes.
+  FEAT-005's AC8 empty state ("no resources yet" + creation offer) is the same gap.
+- Resources vs. data types: the distinction is capability-presence (glossary), but the
+  nav presents them as siblings — promotion/demotion UX and whether "Data types" earns a
+  separate list view are unresolved.
+- Vendor extensions (`x-*`): no home yet — candidate: an *Advanced* section per noun
+  (PRIN-003 requires they survive round-trip and stay visible somewhere).
+- Inheritance / composition (`allOf` etc.): unmodeled and unmocked; deliberately deferred.
 - Import error states (unparseable file, unreachable URL, unsupported version) — the happy
   path is mocked (1d–1f); failures are not.
 - Post-import landing — 1f's "Add to workspace" should land on the imported API's editor;

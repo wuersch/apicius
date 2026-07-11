@@ -1,5 +1,7 @@
 package dev.apicius.document;
 
+import dev.apicius.document.derivation.ResourceDerivation;
+
 /**
  * Apicius-owned seam over the OpenAPI document model/edit/validation engine (ADR-0009). The
  * concrete implementation ({@code apitomy-data-models}, isolated in {@code document.apitomy}) is
@@ -16,4 +18,23 @@ public interface DocumentEngine {
      * as {@code Spec.body}.
      */
     String createEmptyDocument(SpecVersion version, String title, String description);
+
+    /**
+     * FEAT-005: derives a resource into the document per ADR-0010 — the schema (required,
+     * read-only {@code id: string}, {@code description} only when non-null) plus the
+     * collection/item paths carrying exactly the chosen operations — and returns the serialized
+     * result. A pure transformation: the derivation arrives pre-computed
+     * ({@code CanonicalDerivation}) so the writer and the uniqueness check share one source,
+     * and uniqueness itself is the caller's rule. Touches nothing else in the document (AC3).
+     */
+    String addResource(String body, ResourceDerivation derivation, String description);
+
+    /**
+     * The concept projection of a stored document (FEAT-005 AC8): schema names, path keys, and
+     * the recognized resources with their capabilities — "recognition is derivation inverted"
+     * (ADR-0010), matching candidate segmentations of each schema name against the document's
+     * actual paths. Heuristic, refuse-don't-mangle recognition of imports (PRIN-003) is a
+     * future feature.
+     */
+    DocumentProjection project(String body);
 }

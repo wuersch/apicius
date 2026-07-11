@@ -29,7 +29,18 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
   useListSpecs: vi.fn(),
   useGetLastEditedLocation: () => ({ data: { status: 204, data: undefined, headers: new Headers() } }),
   useCreateSpec: () => ({ mutate: vi.fn(), isPending: false }),
+  useAddResource: () => ({ mutate: vi.fn(), isPending: false }),
+  useGetSpec: () => ({
+    data: {
+      status: 200,
+      data: { id: 'b-1', title: 'Storefront API', apiVersion: '1.0', resourceCount: 0, operationCount: 0, resources: [] },
+      headers: new Headers(),
+    },
+    error: null,
+    isPending: false,
+  }),
   getListSpecsQueryKey: () => ['/api/v1/specs'],
+  getGetSpecQueryKey: (specId: string) => [`/api/v1/specs/${specId}`],
   getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
 }))
 
@@ -67,11 +78,12 @@ test('renders the home page and chrome at the root route', () => {
   expect(screen.getByText('AL')).toBeInTheDocument()
 })
 
-// FEAT-002 AC3: opening a card navigates to the editor route for that API.
+// FEAT-002 AC3: opening a card navigates to the editor route for that API — since FEAT-005,
+// the real editor (AC8's minimal honest display), no longer a placeholder.
 test('opening a card enters the editor', async () => {
   const user = userEvent.setup()
   renderApp()
   await user.click(screen.getByRole('link', { name: /Storefront API/ }))
-  expect(screen.getByRole('heading', { name: 'Editor' })).toBeInTheDocument()
-  expect(screen.getByText('b-1')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Storefront API' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'This API has no resources yet' })).toBeInTheDocument()
 })
