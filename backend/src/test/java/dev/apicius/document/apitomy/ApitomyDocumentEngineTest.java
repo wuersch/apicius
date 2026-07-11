@@ -9,10 +9,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.apicius.document.DocumentProjection;
+import dev.apicius.document.FieldView;
 import dev.apicius.document.ResourceView;
 import dev.apicius.document.SpecVersion;
 import dev.apicius.document.derivation.CanonicalDerivation;
 import dev.apicius.document.derivation.Capability;
+import dev.apicius.document.derivation.CoreType;
+import dev.apicius.document.derivation.FieldEdit;
+import dev.apicius.document.derivation.FieldKind;
+import dev.apicius.document.derivation.FieldVisibility;
+import dev.apicius.document.derivation.Refinement;
 import dev.apicius.document.derivation.ResourceDerivation;
 import java.util.EnumSet;
 import java.util.List;
@@ -304,6 +310,240 @@ class ApitomyDocumentEngineTest {
         assertEquals(List.of("Product", "Money"), projection.schemaNames());
         assertEquals(List.of("Product"),
                 projection.resources().stream().map(ResourceView::name).toList());
+    }
+
+    // ---------------------------------------------------------------- FEAT-006: fields
+
+    // AC1: a field is exactly its ADR-0011 constructs — type, description, required entry.
+    @Test
+    void addFieldWritesTheProperty() throws Exception {
+        JsonNode document = parse(engine.addField(addProduct(EnumSet.of(Capability.BROWSE)),
+                "Product", field("price", CoreType.DECIMAL_NUMBER, null, false, true,
+                        FieldVisibility.NORMAL, "Unit price in USD.")));
+
+        JsonNode price = document.path("components").path("schemas").path("Product")
+                .path("properties").path("price");
+        assertEquals("number", price.path("type").asText());
+        assertEquals("Unit price in USD.", price.path("description").asText());
+        assertFalse(price.has("format"));
+        assertFalse(price.has("readOnly"));
+        assertFalse(price.has("writeOnly"));
+        assertEquals(List.of("id", "price"), requiredOf(document, "Product"));
+    }
+
+    // AC4: a refinement is format on the type; a list is array + items — exactly per the table.
+    @Test
+    void addFieldWritesRefinementAndListPerTheTable() throws Exception {
+        String withEmail = engine.addField(addProduct(EnumSet.of(Capability.BROWSE)), "Product",
+                field("contact", CoreType.TEXT, Refinement.EMAIL, false, false,
+                        FieldVisibility.NORMAL, null));
+        JsonNode contact = parse(withEmail).path("components").path("schemas").path("Product")
+                .path("properties").path("contact");
+        assertEquals("string", contact.path("type").asText());
+        assertEquals("email", contact.path("format").asText());
+
+        JsonNode related = parse(engine.addField(withEmail, "Product",
+                field("relatedProducts", CoreType.TEXT, Refinement.UUID, true, false,
+                        FieldVisibility.NORMAL, null)))
+                .path("components").path("schemas").path("Product")
+                .path("properties").path("relatedProducts");
+        assertEquals("array", related.path("type").asText());
+        assertEquals("string", related.path("items").path("type").asText());
+        assertEquals("uuid", related.path("items").path("format").asText());
+        assertFalse(related.has("format"), "format belongs to the items, not the array");
+        assertFalse(related.path("items").has("required"));
+    }
+
+    // AC10 by construction, both writable halves: auto is readOnly, write-only is writeOnly —
+    // one value, so a property can never carry both.
+    @ParameterizedTest
+    @CsvSource({"NORMAL, false, false", "AUTO, true, false", "WRITE_ONLY, false, true"})
+    void addFieldWritesVisibilityAsOneConstruct(FieldVisibility visibility, boolean readOnly,
+            boolean writeOnly) throws Exception {
+        JsonNode token = parse(engine.addField(addProduct(EnumSet.of(Capability.BROWSE)),
+                "Product", field("syncToken", CoreType.TEXT, null, false, false, visibility, null)))
+                .path("components").path("schemas").path("Product")
+                .path("properties").path("syncToken");
+
+        assertEquals(readOnly, token.path("readOnly").asBoolean());
+        assertEquals(writeOnly, token.path("writeOnly").asBoolean());
+    }
+
+    // AC5, the override half: an explicit normal visibility on Text-as-password persists
+    // format: password without writeOnly — the writer never re-applies the house rule.
+    @Test
+    void addFieldHonorsAnOverriddenPasswordVisibility() throws Exception {
+        JsonNode password = parse(engine.addField(addProduct(EnumSet.of(Capability.BROWSE)),
+                "Product", field("password", CoreType.TEXT, Refinement.PASSWORD, false, false,
+                        FieldVisibility.NORMAL, null)))
+                .path("components").path("schemas").path("Product")
+                .path("properties").path("password");
+
+        assertEquals("password", password.path("format").asText());
+        assertFalse(password.has("writeOnly"));
+    }
+
+    // AC3: only ADR-0011 constructs are written — no x- extensions, and everything the edit
+    // does not own (info, paths, the other schema, sibling fields) is untouched.
+    @Test
+    void addFieldWritesNothingApiciusSpecificAndTouchesNothingElse() throws Exception {
+        String withReview = engine.addResource(addProduct(EnumSet.allOf(Capability.class)),
+                CanonicalDerivation.derive("Review", EnumSet.of(Capability.BROWSE)), null);
+        String withName = engine.addField(withReview, "Product",
+                field("name", CoreType.TEXT, null, false, true, FieldVisibility.NORMAL, null));
+        JsonNode before = parse(withName);
+
+        JsonNode after = parse(engine.addField(withName, "Product",
+                field("price", CoreType.DECIMAL_NUMBER, null, false, false,
+                        FieldVisibility.NORMAL, null)));
+
+        assertNoVendorExtensions(after);
+        assertEquals(before.path("info"), after.path("info"));
+        assertEquals(before.path("openapi"), after.path("openapi"));
+        assertEquals(before.path("paths"), after.path("paths"));
+        assertEquals(before.path("components").path("schemas").path("Review"),
+                after.path("components").path("schemas").path("Review"));
+        assertEquals(before.path("components").path("schemas").path("Product").path("properties")
+                .path("name"), after.path("components").path("schemas").path("Product")
+                .path("properties").path("name"));
+    }
+
+    // AC6: rewritten in place — a rename keeps the property's position, required membership
+    // follows the field, and stale constructs of the old kind do not survive the rewrite.
+    @Test
+    void updateFieldRewritesThePropertyInPlace() throws Exception {
+        String body = addProduct(EnumSet.of(Capability.BROWSE));
+        body = engine.addField(body, "Product", field("name", CoreType.TEXT, null, false, true,
+                FieldVisibility.NORMAL, null));
+        body = engine.addField(body, "Product", field("price", CoreType.TEXT, Refinement.EMAIL,
+                false, true, FieldVisibility.WRITE_ONLY, "Wrongly typed."));
+        body = engine.addField(body, "Product", field("inStock", CoreType.YES_NO, null, false,
+                false, FieldVisibility.NORMAL, null));
+        JsonNode before = parse(body);
+
+        JsonNode after = parse(engine.updateField(body, "Product", "price",
+                field("unitPrice", CoreType.DECIMAL_NUMBER, null, false, true,
+                        FieldVisibility.NORMAL, null)));
+
+        JsonNode properties = after.path("components").path("schemas").path("Product")
+                .path("properties");
+        assertEquals(List.of("id", "name", "unitPrice", "inStock"), keysOf(properties),
+                "the rename must keep the property's position");
+        JsonNode unitPrice = properties.path("unitPrice");
+        assertEquals("number", unitPrice.path("type").asText());
+        assertFalse(unitPrice.has("format"), "the old refinement must not survive the rewrite");
+        assertFalse(unitPrice.has("writeOnly"), "the old visibility must not survive the rewrite");
+        assertFalse(unitPrice.has("description"), "the old description must not survive the rewrite");
+        assertEquals(List.of("id", "name", "unitPrice"), requiredOf(after, "Product"),
+                "required membership follows the field, in place");
+        assertEquals(before.path("components").path("schemas").path("Product").path("properties")
+                .path("name"), properties.path("name"));
+    }
+
+    // AC6: dropping required on an update removes the entry; gaining it appends.
+    @Test
+    void updateFieldMovesRequiredMembershipWithTheChoice() throws Exception {
+        String body = engine.addField(addProduct(EnumSet.of(Capability.BROWSE)), "Product",
+                field("name", CoreType.TEXT, null, false, true, FieldVisibility.NORMAL, null));
+
+        JsonNode dropped = parse(engine.updateField(body, "Product", "name",
+                field("name", CoreType.TEXT, null, false, false, FieldVisibility.NORMAL, null)));
+        assertEquals(List.of("id"), requiredOf(dropped, "Product"));
+
+        JsonNode regained = parse(engine.updateField(
+                engine.updateField(body, "Product", "name",
+                        field("name", CoreType.TEXT, null, false, false, FieldVisibility.NORMAL, null)),
+                "Product", "name",
+                field("name", CoreType.TEXT, null, false, true, FieldVisibility.NORMAL, null)));
+        assertEquals(List.of("id", "name"), requiredOf(regained, "Product"));
+    }
+
+    // AC8: the property and its required entry are gone without other trace; a shape reduced
+    // to id alone remains valid and projects.
+    @Test
+    void removeFieldDropsThePropertyAndItsRequiredEntryOnly() throws Exception {
+        String body = engine.addField(addProduct(EnumSet.of(Capability.BROWSE)), "Product",
+                field("name", CoreType.TEXT, null, false, true, FieldVisibility.NORMAL, null));
+        JsonNode before = parse(body);
+
+        String reduced = engine.removeField(body, "Product", "name");
+        JsonNode after = parse(reduced);
+
+        assertEquals(List.of("id"), keysOf(after.path("components").path("schemas")
+                .path("Product").path("properties")));
+        assertEquals(List.of("id"), requiredOf(after, "Product"));
+        assertEquals(before.path("paths"), after.path("paths"));
+        assertEquals(before.path("info"), after.path("info"));
+        assertEquals(1, engine.project(reduced).resources().getFirst().fields().size());
+    }
+
+    // The dialect branch, extended to field constructs: identical output on every version
+    // (ADR-0011's table is deliberately dialect-stable; patterns.md's trigger stays unhit).
+    @ParameterizedTest
+    @EnumSource(SpecVersion.class)
+    void addFieldSerializesIdenticallyAcrossSpecVersions(SpecVersion version) throws Exception {
+        String empty = engine.createEmptyDocument(version, "Storefront API", null);
+        String body = engine.addResource(empty,
+                CanonicalDerivation.derive("Product", EnumSet.of(Capability.BROWSE)), null);
+
+        JsonNode tokens = parse(engine.addField(body, "Product",
+                field("tokens", CoreType.TEXT, Refinement.UUID, true, true,
+                        FieldVisibility.AUTO, "Server-issued tokens.")))
+                .path("components").path("schemas").path("Product").path("properties")
+                .path("tokens");
+
+        assertEquals(parse("""
+                {"type":"array","items":{"type":"string","format":"uuid"},
+                 "description":"Server-issued tokens.","readOnly":true}"""), tokens);
+    }
+
+    // AC11: what the field writer wrote, project reads back — the table read backwards, id
+    // included as an ordinary auto-visibility field.
+    @Test
+    void projectionRoundTripsAuthoredFields() {
+        String body = addProduct(EnumSet.of(Capability.BROWSE));
+        body = engine.addField(body, "Product", field("name", CoreType.TEXT, null, false, true,
+                FieldVisibility.NORMAL, null));
+        body = engine.addField(body, "Product", field("contact", CoreType.TEXT, Refinement.EMAIL,
+                false, false, FieldVisibility.NORMAL, "How to reach the seller."));
+        body = engine.addField(body, "Product", field("tags", CoreType.TEXT, null, true, false,
+                FieldVisibility.NORMAL, null));
+        body = engine.addField(body, "Product", field("createdAt", CoreType.DATE_TIME, null,
+                false, false, FieldVisibility.AUTO, null));
+
+        List<FieldView> fields = engine.project(body).resources().getFirst().fields();
+
+        assertEquals(List.of(
+                new FieldView("id", new FieldKind(CoreType.TEXT, null, false), true,
+                        FieldVisibility.AUTO, null),
+                new FieldView("name", new FieldKind(CoreType.TEXT, null, false), true,
+                        FieldVisibility.NORMAL, null),
+                new FieldView("contact", new FieldKind(CoreType.TEXT, Refinement.EMAIL, false),
+                        false, FieldVisibility.NORMAL, "How to reach the seller."),
+                new FieldView("tags", new FieldKind(CoreType.TEXT, null, true), false,
+                        FieldVisibility.NORMAL, null),
+                new FieldView("createdAt", new FieldKind(CoreType.DATE_TIME, null, false), false,
+                        FieldVisibility.AUTO, null)),
+                fields);
+    }
+
+    private static FieldEdit field(String propertyName, CoreType core, Refinement refinement,
+            boolean list, boolean required, FieldVisibility visibility, String description) {
+        return new FieldEdit(propertyName, new FieldKind(core, refinement, list), required,
+                visibility, description);
+    }
+
+    private static List<String> keysOf(JsonNode object) {
+        List<String> keys = new java.util.ArrayList<>();
+        object.fieldNames().forEachRemaining(keys::add);
+        return keys;
+    }
+
+    private static List<String> requiredOf(JsonNode document, String schemaName) {
+        List<String> required = new java.util.ArrayList<>();
+        document.path("components").path("schemas").path(schemaName).path("required")
+                .forEach(node -> required.add(node.asText()));
+        return required;
     }
 
     private String addProduct(Set<Capability> capabilities) {

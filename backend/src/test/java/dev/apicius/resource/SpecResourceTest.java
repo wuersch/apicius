@@ -3,6 +3,7 @@ package dev.apicius.resource;
 import static dev.apicius.test.JsonAssertions.assertNoVendorExtensions;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
@@ -26,6 +27,7 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManagerFactory;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CyclicBarrier;
@@ -706,6 +708,381 @@ class SpecResourceTest extends CleanDatabaseTest {
             assertEquals(2, spec.resourceCount);
             assertEquals(10, spec.operationCount);
         });
+    }
+
+    // ---- FEAT-006: edit a resource's shape ----
+
+    // AC1: the response is the derivation, the persisted schema carries exactly the ADR-0011
+    // constructs (the engine test owns the exhaustive table), and fields are addressable —
+    // Location points at the new property.
+    @Test
+    @AsAda
+    void addFieldDerivesThePropertyAndPersistsIt() {
+        UUID specId = productApi();
+
+        postField(specId, "Product", "{\"name\":\"First name\",\"coreType\":\"TEXT\","
+                + "\"required\":true,\"description\":\"The customer's given name.\"}")
+                .statusCode(201)
+                .header("Location", endsWith("/specs/" + specId + "/resources/Product/fields/firstName"))
+                .body("name", equalTo("firstName"))
+                .body("coreType", equalTo("TEXT"))
+                .body("refinement", nullValue())
+                .body("list", equalTo(false))
+                .body("required", equalTo(true))
+                .body("visibility", equalTo("NORMAL"))
+                .body("description", equalTo("The customer's given name."));
+
+        JsonNode schema = readBody(specId).path("components").path("schemas").path("Product");
+        assertEquals("string", schema.path("properties").path("firstName").path("type").asText());
+        assertEquals("The customer's given name.",
+                schema.path("properties").path("firstName").path("description").asText());
+        assertTrue(streamOf(schema.path("required")).contains("firstName"));
+    }
+
+    // AC2: a field edit changes the schema and nothing else — the ADR-0008 counts stay put;
+    // the jump-back-in pointer moves in the same transaction.
+    @Test
+    @AsAda
+    void addFieldLeavesCountsUntouchedAndMovesThePointer() {
+        UUID specId = productApi();
+
+        postField(specId, "Product", "{\"name\":\"Price\",\"coreType\":\"DECIMAL_NUMBER\"}")
+                .statusCode(201);
+
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("specId", equalTo(specId.toString()))
+                .body("capabilityName", nullValue());
+    }
+
+    // AC3: nothing Apicius-specific in the document after any field edit.
+    @Test
+    @AsAda
+    void fieldEditsPersistNothingApiciusSpecific() {
+        UUID specId = productApi();
+
+        postField(specId, "Product", "{\"name\":\"Tags\",\"coreType\":\"TEXT\",\"list\":true}")
+                .statusCode(201);
+        patchField(specId, "Product", "tags", "{\"name\":\"Labels\",\"coreType\":\"TEXT\","
+                + "\"list\":true}").statusCode(200);
+
+        assertNoVendorExtensions(readBody(specId));
+    }
+
+    // AC4: refinement and list serialize per the table — format on the type, array + items.
+    @Test
+    @AsAda
+    void addFieldSerializesRefinementAndListPerTheTable() {
+        UUID specId = productApi();
+
+        postField(specId, "Product", "{\"name\":\"Related products\",\"coreType\":\"TEXT\","
+                + "\"refinement\":\"UUID\",\"list\":true}")
+                .statusCode(201)
+                .body("name", equalTo("relatedProducts"))
+                .body("list", equalTo(true));
+
+        JsonNode property = readBody(specId).path("components").path("schemas").path("Product")
+                .path("properties").path("relatedProducts");
+        assertEquals("array", property.path("type").asText());
+        assertEquals("string", property.path("items").path("type").asText());
+        assertEquals("uuid", property.path("items").path("format").asText());
+    }
+
+    // AC5: Text as password defaults to write-only (the house rule, applied server-side so it
+    // holds for any client); an explicit override persists format: password without writeOnly.
+    @Test
+    @AsAda
+    void passwordDefaultsToWriteOnlyAndHonorsTheOverride() {
+        UUID specId = productApi();
+
+        postField(specId, "Product", "{\"name\":\"Password\",\"coreType\":\"TEXT\","
+                + "\"refinement\":\"PASSWORD\"}")
+                .statusCode(201)
+                .body("visibility", equalTo("WRITE_ONLY"));
+        JsonNode password = readBody(specId).path("components").path("schemas").path("Product")
+                .path("properties").path("password");
+        assertEquals("password", password.path("format").asText());
+        assertTrue(password.path("writeOnly").asBoolean());
+
+        patchField(specId, "Product", "password", "{\"name\":\"Password\",\"coreType\":\"TEXT\","
+                + "\"refinement\":\"PASSWORD\",\"visibility\":\"NORMAL\"}")
+                .statusCode(200)
+                .body("visibility", equalTo("NORMAL"));
+        JsonNode overridden = readBody(specId).path("components").path("schemas").path("Product")
+                .path("properties").path("password");
+        assertEquals("password", overridden.path("format").asText());
+        assertFalse(overridden.has("writeOnly"));
+    }
+
+    // AC6: one atomic save rewrites the property in place — position kept, required following,
+    // nothing else changed. A rename changes the field's address (the derived name is the
+    // identity); the old property name is gone.
+    @Test
+    @AsAda
+    void updateFieldRewritesThePropertyInPlace() {
+        UUID specId = productApi();
+        postField(specId, "Product", "{\"name\":\"Price\",\"coreType\":\"WHOLE_NUMBER\","
+                + "\"required\":true}").statusCode(201);
+        postField(specId, "Product", "{\"name\":\"In stock\",\"coreType\":\"YES_NO\"}")
+                .statusCode(201);
+
+        patchField(specId, "Product", "price", "{\"name\":\"Unit price\","
+                + "\"coreType\":\"DECIMAL_NUMBER\",\"required\":true}")
+                .statusCode(200)
+                .body("name", equalTo("unitPrice"))
+                .body("coreType", equalTo("DECIMAL_NUMBER"));
+
+        JsonNode schema = readBody(specId).path("components").path("schemas").path("Product");
+        assertEquals(List.of("id", "unitPrice", "inStock"),
+                fieldNamesOf(schema.path("properties")));
+        assertEquals("number", schema.path("properties").path("unitPrice").path("type").asText());
+        assertEquals(List.of("id", "unitPrice"), streamOf(schema.path("required")));
+    }
+
+    // AC6's identity edge: a rename that only re-cases the same field is legal — the field is
+    // exempt from colliding with itself.
+    @Test
+    @AsAda
+    void updateFieldAllowsRenamingAFieldToItself() {
+        UUID specId = productApi();
+        postField(specId, "Product", "{\"name\":\"First name\",\"coreType\":\"TEXT\"}")
+                .statusCode(201);
+
+        patchField(specId, "Product", "firstName", "{\"name\":\"First name\","
+                + "\"coreType\":\"TEXT\",\"required\":true}")
+                .statusCode(200)
+                .body("name", equalTo("firstName"))
+                .body("required", equalTo(true));
+    }
+
+    // AC7: no mutation can target id — 409, document untouched.
+    @Test
+    @AsAda
+    void identityFieldCannotBeChangedOrRemoved() {
+        UUID specId = productApi();
+
+        patchField(specId, "Product", "id", "{\"name\":\"Identifier\",\"coreType\":\"TEXT\"}")
+                .statusCode(409)
+                .contentType("application/problem+json")
+                .body("title", equalTo("Field not editable"));
+        deleteField(specId, "Product", "id")
+                .statusCode(409)
+                .contentType("application/problem+json")
+                .body("title", equalTo("Field not editable"));
+
+        JsonNode schema = readBody(specId).path("components").path("schemas").path("Product");
+        assertTrue(schema.path("properties").has("id"));
+        assertTrue(schema.path("properties").path("id").path("readOnly").asBoolean());
+    }
+
+    // AC8: removal drops the property and its required entry, nothing else; the shape falls
+    // back to id alone and stays valid.
+    @Test
+    @AsAda
+    void removeFieldDropsThePropertyAndItsRequiredEntry() {
+        UUID specId = productApi();
+        postField(specId, "Product", "{\"name\":\"Name\",\"coreType\":\"TEXT\","
+                + "\"required\":true}").statusCode(201);
+
+        deleteField(specId, "Product", "name").statusCode(204);
+
+        JsonNode schema = readBody(specId).path("components").path("schemas").path("Product");
+        assertEquals(List.of("id"), fieldNamesOf(schema.path("properties")));
+        assertEquals(List.of("id"), streamOf(schema.path("required")));
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resources[0].fields", hasSize(1));
+    }
+
+    // AC9, first half: a name that derives to nothing is a 400 naming the field; nothing
+    // persisted.
+    @Test
+    @AsAda
+    void addFieldRejectsANameThatDerivesToNothing() {
+        UUID specId = productApi();
+
+        postField(specId, "Product", "{\"name\":\"!!!\",\"coreType\":\"TEXT\"}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("name"));
+
+        assertProductFieldsUntouched(specId);
+    }
+
+    // AC9, second half: case-insensitive collision with any field of this shape — id included —
+    // is a 409; nothing persisted.
+    @Test
+    @AsAda
+    void addFieldRejectsACollidingName() {
+        UUID specId = productApi();
+        postField(specId, "Product", "{\"name\":\"First name\",\"coreType\":\"TEXT\"}")
+                .statusCode(201);
+
+        postField(specId, "Product", "{\"name\":\"FIRST NAME\",\"coreType\":\"TEXT\"}")
+                .statusCode(409)
+                .contentType("application/problem+json")
+                .body("title", equalTo("Name conflict"))
+                .body("violations[0].field", equalTo("name"));
+        postField(specId, "Product", "{\"name\":\"Id\",\"coreType\":\"TEXT\"}")
+                .statusCode(409)
+                .contentType("application/problem+json")
+                .body("detail", containsString("id"));
+
+        JsonNode schema = readBody(specId).path("components").path("schemas").path("Product");
+        assertEquals(List.of("id", "firstName"), fieldNamesOf(schema.path("properties")));
+    }
+
+    // The kind contract must hold for any client: a refinement outside its core type's row is
+    // a 400 (our UI cannot even construct one).
+    @Test
+    @AsAda
+    void addFieldRejectsAnIncompatibleRefinement() {
+        UUID specId = productApi();
+
+        postField(specId, "Product", "{\"name\":\"Count\",\"coreType\":\"WHOLE_NUMBER\","
+                + "\"refinement\":\"EMAIL\"}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("refinement"));
+
+        assertProductFieldsUntouched(specId);
+    }
+
+    // Bean validation guards the request shape itself.
+    @Test
+    @AsAda
+    void addFieldRejectsBlankNameAndMissingCoreType() {
+        UUID specId = productApi();
+
+        postField(specId, "Product", "{\"name\":\"   \",\"coreType\":\"TEXT\"}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("name"));
+        postField(specId, "Product", "{\"name\":\"Price\"}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("coreType"));
+
+        assertProductFieldsUntouched(specId);
+    }
+
+    // Unknown spec, resource, or field → 404 problem+json on every field endpoint.
+    @Test
+    @AsAda
+    void fieldEndpointsReturn404ForUnknownTargets() {
+        UUID specId = productApi();
+
+        postField(UUID.randomUUID(), "Product", "{\"name\":\"Price\",\"coreType\":\"TEXT\"}")
+                .statusCode(404)
+                .contentType("application/problem+json");
+        postField(specId, "Order", "{\"name\":\"Price\",\"coreType\":\"TEXT\"}")
+                .statusCode(404)
+                .contentType("application/problem+json")
+                .body("detail", containsString("Order"));
+        patchField(specId, "Product", "nope", "{\"name\":\"Price\",\"coreType\":\"TEXT\"}")
+                .statusCode(404)
+                .contentType("application/problem+json")
+                .body("detail", containsString("nope"));
+        deleteField(specId, "Product", "nope")
+                .statusCode(404)
+                .contentType("application/problem+json");
+    }
+
+    // Same 401 posture as every other endpoint (FEAT-001).
+    @Test
+    void unauthenticatedFieldEndpointsAreRejected() {
+        String base = "/api/v1/specs/" + UUID.randomUUID() + "/resources/Product/fields";
+        given().contentType("application/json").body("{\"name\":\"Price\",\"coreType\":\"TEXT\"}")
+                .when().post(base).then().statusCode(401);
+        given().contentType("application/json").body("{\"name\":\"Price\",\"coreType\":\"TEXT\"}")
+                .when().patch(base + "/price").then().statusCode(401);
+        given().when().delete(base + "/price").then().statusCode(401);
+    }
+
+    // AC11, backend half: the projection lists every field with its plain-language kind and
+    // attributes, id first as an ordinary auto-visibility field.
+    @Test
+    @AsAda
+    void getSpecProjectsFieldsInDocumentOrder() {
+        UUID specId = productApi();
+        postField(specId, "Product", "{\"name\":\"Name\",\"coreType\":\"TEXT\","
+                + "\"required\":true}").statusCode(201);
+        postField(specId, "Product", "{\"name\":\"Contact\",\"coreType\":\"TEXT\","
+                + "\"refinement\":\"EMAIL\",\"description\":\"How to reach the seller.\"}")
+                .statusCode(201);
+
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .statusCode(200)
+                .body("resources[0].fields", hasSize(3))
+                .body("resources[0].fields[0].name", equalTo("id"))
+                .body("resources[0].fields[0].coreType", equalTo("TEXT"))
+                .body("resources[0].fields[0].required", equalTo(true))
+                .body("resources[0].fields[0].visibility", equalTo("AUTO"))
+                .body("resources[0].fields[1].name", equalTo("name"))
+                .body("resources[0].fields[1].required", equalTo(true))
+                .body("resources[0].fields[2].name", equalTo("contact"))
+                .body("resources[0].fields[2].refinement", equalTo("EMAIL"))
+                .body("resources[0].fields[2].description", equalTo("How to reach the seller."));
+    }
+
+    /** An API with one Product resource (all capabilities) — the FEAT-006 test fixture. */
+    private UUID productApi() {
+        UUID specId = createApi("Storefront API");
+        postResource(specId, "{\"name\":\"Product\",\"capabilities\":" + ALL_CAPABILITIES + "}")
+                .statusCode(201);
+        return specId;
+    }
+
+    private io.restassured.response.ValidatableResponse postField(UUID specId, String schemaName,
+            String json) {
+        return given().contentType("application/json").body(json)
+                .when().post("/api/v1/specs/" + specId + "/resources/" + schemaName + "/fields")
+                .then();
+    }
+
+    private io.restassured.response.ValidatableResponse patchField(UUID specId, String schemaName,
+            String propertyName, String json) {
+        return given().contentType("application/json").body(json)
+                .when().patch("/api/v1/specs/" + specId + "/resources/" + schemaName + "/fields/"
+                        + propertyName)
+                .then();
+    }
+
+    private io.restassured.response.ValidatableResponse deleteField(UUID specId, String schemaName,
+            String propertyName) {
+        return given()
+                .when().delete("/api/v1/specs/" + specId + "/resources/" + schemaName + "/fields/"
+                        + propertyName)
+                .then();
+    }
+
+    /** "Nothing is persisted", field flavor: the shape still carries only id. */
+    private void assertProductFieldsUntouched(UUID specId) {
+        JsonNode schema = readBody(specId).path("components").path("schemas").path("Product");
+        assertEquals(List.of("id"), fieldNamesOf(schema.path("properties")));
+        assertEquals(List.of("id"), streamOf(schema.path("required")));
+    }
+
+    private static List<String> fieldNamesOf(JsonNode properties) {
+        List<String> names = new ArrayList<>();
+        properties.fieldNames().forEachRemaining(names::add);
+        return names;
+    }
+
+    private static List<String> streamOf(JsonNode array) {
+        List<String> values = new ArrayList<>();
+        array.forEach(node -> values.add(node.asText()));
+        return values;
     }
 
     private UUID createApi(String title) {

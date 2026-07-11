@@ -1,5 +1,6 @@
 package dev.apicius.document;
 
+import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.ResourceDerivation;
 
 /**
@@ -28,6 +29,28 @@ public interface DocumentEngine {
      * and uniqueness itself is the caller's rule. Touches nothing else in the document (AC3).
      */
     String addResource(String body, ResourceDerivation derivation, String description);
+
+    /**
+     * FEAT-006: appends one property to the named resource's schema, serialized per ADR-0011
+     * (with {@code required} membership per the edit), and returns the serialized result. A
+     * pure transformation, like {@link #addResource}: the edit arrives pre-derived and
+     * pre-validated — name uniqueness and the {@code id} guard are the caller's rules.
+     * Touches nothing else in the document (AC1, AC3).
+     */
+    String addField(String body, String schemaName, FieldEdit field);
+
+    /**
+     * FEAT-006: rewrites the property currently named {@code propertyName} in place — same
+     * position in the schema's {@code properties}, {@code required} membership following the
+     * field (a rename included) — and touches nothing else (AC6).
+     */
+    String updateField(String body, String schemaName, String propertyName, FieldEdit field);
+
+    /**
+     * FEAT-006: removes the property and its {@code required} entry with no other change; a
+     * shape reduced to {@code id} alone remains valid (AC8).
+     */
+    String removeField(String body, String schemaName, String propertyName);
 
     /**
      * The concept projection of a stored document (FEAT-005 AC8): schema names, path keys, and

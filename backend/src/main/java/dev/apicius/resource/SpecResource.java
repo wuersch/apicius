@@ -1,9 +1,12 @@
 package dev.apicius.resource;
 
+import dev.apicius.document.FieldView;
 import dev.apicius.document.ResourceView;
 import dev.apicius.domain.Spec;
 import dev.apicius.resource.dto.AddResourceRequest;
 import dev.apicius.resource.dto.CreateSpecRequest;
+import dev.apicius.resource.dto.FieldRequest;
+import dev.apicius.resource.dto.FieldResponse;
 import dev.apicius.resource.dto.LastEditedLocationResponse;
 import dev.apicius.resource.dto.ResourceResponse;
 import dev.apicius.resource.dto.SpecDetailResponse;
@@ -16,7 +19,9 @@ import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -108,6 +113,81 @@ public class SpecResource {
         // addressable sub-endpoint yet, and a Location that 404s is worse than none.
         return Response.status(Response.Status.CREATED)
                 .entity(ResourceResponse.from(resource)).build();
+    }
+
+    @POST
+    @Path("/{specId}/resources/{schemaName}/fields")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "addField",
+            summary = "Add a field to a resource's shape; the property name and constructs "
+                    + "derive per ADR-0011 (FEAT-006)")
+    @APIResponse(responseCode = "201", description = "Created",
+            content = @Content(schema = @Schema(implementation = FieldResponse.class)))
+    @APIResponse(responseCode = "400", description = "Validation failed",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API or resource",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409", description = "The name is already used by a field of this shape",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response addField(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName, @Valid FieldRequest request,
+            @Context UriInfo uriInfo) {
+        FieldView field = specService.addField(currentUser.require(), specId, schemaName,
+                request.draft());
+        // Unlike addResource's deliberate omission, fields are addressable — Location points
+        // at the PATCH/DELETE endpoint below.
+        URI location = uriInfo.getAbsolutePathBuilder().path(field.name()).build();
+        return Response.created(location).entity(FieldResponse.from(field)).build();
+    }
+
+    @PATCH
+    @Path("/{specId}/resources/{schemaName}/fields/{propertyName}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateField",
+            summary = "Rewrite a field in place — rename, retype, attributes, description as "
+                    + "one atomic save (FEAT-006). A rename changes the field's identity: it "
+                    + "is addressed by the new property name afterwards.")
+    @APIResponse(responseCode = "200", description = "The updated field",
+            content = @Content(schema = @Schema(implementation = FieldResponse.class)))
+    @APIResponse(responseCode = "400", description = "Validation failed",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or field",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409",
+            description = "The name is already used by a field of this shape, or the field is id",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public FieldResponse updateField(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("propertyName") String propertyName, @Valid FieldRequest request) {
+        return FieldResponse.from(specService.updateField(currentUser.require(), specId,
+                schemaName, propertyName, request.draft()));
+    }
+
+    @DELETE
+    @Path("/{specId}/resources/{schemaName}/fields/{propertyName}")
+    @Operation(operationId = "removeField",
+            summary = "Remove a field — the property and its required entry, nothing else "
+                    + "(FEAT-006)")
+    @APIResponse(responseCode = "204", description = "Removed")
+    @APIResponse(responseCode = "404", description = "No such API, resource, or field",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409", description = "The field is id",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response removeField(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("propertyName") String propertyName) {
+        specService.removeField(currentUser.require(), specId, schemaName, propertyName);
+        return Response.noContent().build();
     }
 
     @GET

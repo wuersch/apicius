@@ -3,11 +3,16 @@ package dev.apicius.document.apitomy;
 import dev.apicius.document.CapabilityView;
 import dev.apicius.document.DocumentEngine;
 import dev.apicius.document.DocumentProjection;
+import dev.apicius.document.FieldView;
 import dev.apicius.document.ResourceView;
 import dev.apicius.document.SpecVersion;
 import dev.apicius.document.derivation.CanonicalDerivation;
 import dev.apicius.document.derivation.Capability;
+import dev.apicius.document.derivation.CoreType;
 import dev.apicius.document.derivation.DerivedOperation;
+import dev.apicius.document.derivation.FieldEdit;
+import dev.apicius.document.derivation.FieldKind;
+import dev.apicius.document.derivation.FieldVisibility;
 import dev.apicius.document.derivation.ResourceDerivation;
 import io.apitomy.datamodels.Library;
 import io.apitomy.datamodels.models.Referenceable;
@@ -100,6 +105,38 @@ public class ApitomyDocumentEngine implements DocumentEngine {
     }
 
     @Override
+    public String addField(String body, String schemaName, FieldEdit field) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        OpenApiSchema schema = schemaOf(document, schemaName);
+        // New fields append — document order is preserved as-is (FEAT-006 non-goal).
+        schema.addProperty(field.propertyName(), propertySchema(schema, field));
+        rewriteRequired(schema, null, field.propertyName(), field.required());
+        return Library.writeDocumentToJSONString(document);
+    }
+
+    @Override
+    public String updateField(String body, String schemaName, String propertyName, FieldEdit field) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        OpenApiSchema schema = schemaOf(document, schemaName);
+        // Rewritten in place (AC6): a fresh schema at the old position, whether or not the
+        // name changed — replacing wholesale sidesteps clearing stale constructs one by one.
+        int position = List.copyOf(schema.getProperties().keySet()).indexOf(propertyName);
+        schema.removeProperty(propertyName);
+        schema.insertProperty(field.propertyName(), propertySchema(schema, field), position);
+        rewriteRequired(schema, propertyName, field.propertyName(), field.required());
+        return Library.writeDocumentToJSONString(document);
+    }
+
+    @Override
+    public String removeField(String body, String schemaName, String propertyName) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        OpenApiSchema schema = schemaOf(document, schemaName);
+        schema.removeProperty(propertyName);
+        rewriteRequired(schema, propertyName, null, false);
+        return Library.writeDocumentToJSONString(document);
+    }
+
+    @Override
     public DocumentProjection project(String body) {
         OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
         Map<String, OpenApiSchema> schemas = document.getComponents() == null
@@ -125,21 +162,87 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         return byPath;
     }
 
-    /** The resource's schema: its identity house rule and nothing more — fields come later. */
+    /**
+     * The identity house rule as a field (ADR-0010): the server assigns identity, so auto
+     * visibility ({@code readOnly}) keeps {@code id} out of what clients send and one schema
+     * serves request and response bodies. Projected like any other field (FEAT-006 AC11).
+     */
+    private static final FieldEdit IDENTITY_FIELD =
+            new FieldEdit("id", new FieldKind(CoreType.TEXT, null, false), true,
+                    FieldVisibility.AUTO, null);
+
+    /** The resource's schema: its identity house rule and nothing more — fields are edits. */
     private static OpenApiSchema resourceSchema(OpenApi3xComponents components, String description) {
         OpenApiSchema schema = components.createSchema();
         if (description != null) {
             schema.setDescription(description);
         }
         setType(schema, "object");
-        Schema id = schema.createSchema();
-        setType(id, "string");
-        // The server assigns identity: readOnly keeps id out of what clients send, so one
-        // schema serves request and response bodies (ADR-0010).
-        id.setReadOnly(true);
-        schema.addProperty("id", id);
+        schema.addProperty("id", propertySchema(schema, IDENTITY_FIELD));
         schema.setRequired(List.of("id"));
         return schema;
+    }
+
+    /** One property, serialized per ADR-0011's table — the single writer for field constructs. */
+    private static Schema propertySchema(OpenApiSchema parent, FieldEdit field) {
+        Schema property = parent.createSchema();
+        if (field.kind().list()) {
+            setType(property, "array");
+            Schema items = parent.createSchema();
+            writeScalar(items, field.kind());
+            ((OpenApi3xSchema) property).setItems((OpenApi3xSchema) items);
+        } else {
+            writeScalar(property, field.kind());
+        }
+        if (field.description() != null) {
+            property.setDescription(field.description());
+        }
+        // Visibility attaches to the field, list or not — readOnly is the same mechanism
+        // ADR-0010's id uses; the single-value model keeps both from ever appearing (AC10).
+        switch (field.visibility()) {
+            case AUTO -> property.setReadOnly(true);
+            case WRITE_ONLY -> ((OpenApi3xSchema) property).setWriteOnly(true);
+            case NORMAL -> { }
+        }
+        return property;
+    }
+
+    private static void writeScalar(Schema schema, FieldKind kind) {
+        setType(schema, kind.serializedType());
+        if (kind.serializedFormat() != null) {
+            schema.setFormat(kind.serializedFormat());
+        }
+    }
+
+    /**
+     * {@code required} membership follows the field (AC6, AC8): the one edited entry is
+     * replaced, added, or dropped in place; every other member keeps its position. Null out
+     * an emptied list — {@code required: []} is invalid in the 3.0 dialect.
+     */
+    private static void rewriteRequired(OpenApiSchema schema, String oldName, String newName,
+            boolean required) {
+        List<String> current = schema.getRequired() == null ? List.of() : schema.getRequired();
+        List<String> updated = new ArrayList<>();
+        boolean present = false;
+        for (String name : current) {
+            if (name.equals(oldName)) {
+                present = true;
+                if (required) {
+                    updated.add(newName);
+                }
+            } else {
+                updated.add(name);
+            }
+        }
+        if (!present && required && newName != null) {
+            updated.add(newName);
+        }
+        schema.setRequired(updated.isEmpty() ? null : updated);
+    }
+
+    /** The named schema; that it exists is the caller's (the service's) verified rule. */
+    private static OpenApiSchema schemaOf(OpenApi3xDocument document, String schemaName) {
+        return document.getComponents().getSchemas().get(schemaName);
     }
 
     private OpenApi3xOperation buildOperation(OpenApi3xPathItem pathItem, DerivedOperation derived,
@@ -270,7 +373,8 @@ public class ApitomyDocumentEngine implements DocumentEngine {
                     CanonicalDerivation.derive(String.join(" ", words), EnumSet.allOf(Capability.class)),
                     paths);
             if (!capabilities.isEmpty()) {
-                return Optional.of(new ResourceView(schemaName, schema.getDescription(), capabilities));
+                return Optional.of(new ResourceView(schemaName, schema.getDescription(),
+                        capabilities, fieldsOf(schema)));
             }
         }
         return Optional.empty();
@@ -289,6 +393,59 @@ public class ApitomyDocumentEngine implements DocumentEngine {
             capabilities.add(new CapabilityView(derived.capability(), label, derived.method(), derived.path()));
         }
         return capabilities;
+    }
+
+    /**
+     * The shape's fields, in document order, read back through ADR-0011's table — for fields,
+     * "recognition is derivation inverted" is a direct reverse lookup (the property name is
+     * the identity; nothing lossy to segment). A {@code (type, format)} outside the table
+     * cannot occur in an Apicius-authored document; until import (FEAT-004) owns displaying
+     * foreign pairs as-is, such a property is skipped rather than mangled (PRIN-003).
+     */
+    private static List<FieldView> fieldsOf(OpenApiSchema schema) {
+        Map<String, Schema> properties = schema.getProperties();
+        if (properties == null) {
+            return List.of();
+        }
+        List<String> required = schema.getRequired() == null ? List.of() : schema.getRequired();
+        List<FieldView> fields = new ArrayList<>();
+        for (Map.Entry<String, Schema> property : properties.entrySet()) {
+            fieldOf(property.getKey(), property.getValue(),
+                    required.contains(property.getKey())).ifPresent(fields::add);
+        }
+        return fields;
+    }
+
+    private static Optional<FieldView> fieldOf(String name, Schema property, boolean required) {
+        boolean list = "array".equals(typeOf(property));
+        Schema scalar = list ? ((OpenApi3xSchema) property).getItems() : property;
+        if (scalar == null) {
+            return Optional.empty();
+        }
+        return FieldKind.recognizeScalar(typeOf(scalar), scalar.getFormat())
+                .map(kind -> new FieldKind(kind.core(), kind.refinement(), list))
+                .map(kind -> new FieldView(name, kind, required, visibilityOf(property),
+                        property.getDescription()));
+    }
+
+    /** {@link #setType}'s read half: the 3.0 plain string, or the 3.1/3.2 union's string. */
+    private static String typeOf(Schema schema) {
+        if (schema instanceof OpenApi30Schema v30) {
+            return v30.getType();
+        }
+        var type = schema instanceof OpenApi31Schema v31
+                ? v31.getType() : ((OpenApi32Schema) schema).getType();
+        return type == null || !type.isString() ? null : type.asString();
+    }
+
+    private static FieldVisibility visibilityOf(Schema property) {
+        if (Boolean.TRUE.equals(property.isReadOnly())) {
+            return FieldVisibility.AUTO;
+        }
+        if (Boolean.TRUE.equals(((OpenApi3xSchema) property).isWriteOnly())) {
+            return FieldVisibility.WRITE_ONLY;
+        }
+        return FieldVisibility.NORMAL;
     }
 
     private static OpenApiOperation operationAt(OpenApiPathItem pathItem, String method) {
