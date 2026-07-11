@@ -10,3 +10,4 @@
 | FEAT-003 | Create a new empty API | shipped |
 | FEAT-004 | Import an existing OpenAPI document | specced |
 | FEAT-005 | Create a resource | shipped |
+| FEAT-006 | Edit a resource's shape (simple-typed fields) | proposed |
