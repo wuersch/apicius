@@ -14,9 +14,9 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.type.SqlTypes;
+import org.hibernate.dialect.type.PostgreSQLJsonPGObjectJsonType;
 
 /**
  * An API under design: the authoritative OpenAPI document ({@code body}, ADR-0004) plus the
@@ -61,9 +61,16 @@ public class Spec {
      * The parsed superset model plus the lossless preservation bag (ADR-0004). Written by
      * create/import (FEAT-003/004); the home path must never deserialize it (FEAT-002 AC5).
      * Mapped as {@code String} until the first writer settles the Java representation (ADR-0009).
+     *
+     * <p>{@code json}, not {@code jsonb}: jsonb normalizes away key order (FEAT-006 preserves
+     * field order), whitespace, and duplicates — textual fidelity is PRIN-003's point, and no
+     * query looks inside the body (ADR-0008). Revisit if in-database body queries ever land.
+     * The explicit {@code JdbcType} matters as much as the column type: Hibernate's default
+     * JSON binding on PostgreSQL sends the parameter typed {@code jsonb}, which normalizes
+     * server-side before the value ever reaches the {@code json} column.
      */
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
+    @JdbcType(PostgreSQLJsonPGObjectJsonType.class)
+    @Column(columnDefinition = "json")
     public String body;
 
     @CreationTimestamp
