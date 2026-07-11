@@ -352,7 +352,7 @@ export function FieldEditor({
                         aria-hidden
                         className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary"
                       >
-                        <span className="size-1.5 rounded-full bg-[#FBF4E9]" />
+                        <span className="size-1.5 rounded-full bg-primary-foreground" />
                       </span>
                     ) : (
                       <span

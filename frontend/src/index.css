@@ -177,6 +177,16 @@
         --text-faint: #9C8C6C;
         --chip-hover: #46392A;
         --dashed: #5E5138;
+        --surface: #3A3122;
+        --band: #453A24;
+        --band-border: #4A3F2D;
+        --control: #262019;
+        --control-border: #55482F;
+        --check-border: #6B5B3B;
+        --divider: #4A3F2D;
+        --mono-derived: #948364;
+        --hint: #948364;
+        --id-row: #2D261C;
         --olive: #97A860;
         --olive-chip: #3A4026;
         --olive-chip-foreground: #ABB97E;
