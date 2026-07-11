@@ -1,4 +1,14 @@
 # Apicius
+![License](https://img.shields.io/github/license/wuersch/apicius)
+![LOC](https://sloc.xyz/github/wuersch/apicius?category=code)
+![LOC](https://sloc.xyz/github/wuersch/apicius?category=cocomo)
+![LOC](https://sloc.xyz/github/wuersch/apicius?category=effort)
+
+[![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=fff)](#)
+[![Java](https://img.shields.io/badge/Java-%23ED8B00.svg?logo=openjdk&logoColor=white)](#)
+[![React](https://img.shields.io/badge/React-%2320232a.svg?logo=react&logoColor=%2361DAFB)](#)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-6BA539?logo=openapiinitiative&logoColor=white)](#)
+[![Postgres](https://img.shields.io/badge/Postgres-%23316192.svg?logo=postgresql&logoColor=white)](#)
 
 A concept-first, web-based **OpenAPI editor** — organized around what your API *is* (its
 resources / nouns) and what it *lets people do* (plain-language capabilities), not the spec's
