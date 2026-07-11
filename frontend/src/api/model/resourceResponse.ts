@@ -5,9 +5,11 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CapabilityResponse } from './capabilityResponse';
+import type { FieldResponse } from './fieldResponse';
 
 export interface ResourceResponse {
   name?: string;
   description?: string;
   capabilities?: CapabilityResponse[];
+  fields?: FieldResponse[];
 }
