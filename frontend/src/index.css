@@ -58,6 +58,17 @@
     --color-ochre: var(--ochre);
     --color-ochre-chip: var(--ochre-chip);
     --color-terracotta: var(--terracotta);
+    /* Field-editor surfaces (launcher-hybrid-v7 mockup, views 2c/2d) */
+    --color-surface: var(--surface);
+    --color-band: var(--band);
+    --color-band-border: var(--band-border);
+    --color-control: var(--control);
+    --color-control-border: var(--control-border);
+    --color-check-border: var(--check-border);
+    --color-divider: var(--divider);
+    --color-mono-derived: var(--mono-derived);
+    --color-hint: var(--hint);
+    --color-id-row: var(--id-row);
     /* Radii per the notes: 6px controls · 8px tiles · 10px cards · 12px panels */
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
@@ -108,6 +119,16 @@
     --text-faint: #6F6349;
     --chip-hover: #E8DCC4;
     --dashed: #BFB18D;
+    --surface: #F7EFDD;
+    --band: #F0E6D0;
+    --band-border: #E4D7BE;
+    --control: #FFFDF6;
+    --control-border: #D8CBAE;
+    --check-border: #C9BCA0;
+    --divider: #DCCFB2;
+    --mono-derived: #8A7B63;
+    --hint: #9A8F76;
+    --id-row: #F9F2E2;
     --olive: #5E6A3F;
     --olive-chip: #E6E7D4;
     --olive-chip-foreground: #57613A;
@@ -156,6 +177,16 @@
         --text-faint: #9C8C6C;
         --chip-hover: #46392A;
         --dashed: #5E5138;
+        --surface: #3A3122;
+        --band: #453A24;
+        --band-border: #4A3F2D;
+        --control: #262019;
+        --control-border: #55482F;
+        --check-border: #6B5B3B;
+        --divider: #4A3F2D;
+        --mono-derived: #948364;
+        --hint: #948364;
+        --id-row: #2D261C;
         --olive: #97A860;
         --olive-chip: #3A4026;
         --olive-chip-foreground: #ABB97E;

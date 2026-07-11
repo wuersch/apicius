@@ -74,7 +74,7 @@ export function EditorPage() {
           </div>
           <div className="mt-2.5 flex flex-col gap-3.5">
             {resources.map((resource) => (
-              <ResourceCard key={resource.name} resource={resource} />
+              <ResourceCard key={resource.name} specId={spec.id ?? ''} resource={resource} />
             ))}
           </div>
         </section>

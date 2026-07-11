@@ -1,10 +1,11 @@
 import type { ResourceResponse } from '@/api/model'
 import { METHOD_DOT_CLASS } from '@/components/editor/method-dot'
+import { ShapeSection } from '@/components/editor/ShapeSection'
 
 // FEAT-005 AC8: a created resource, shown by what it is (noun, description) and what it lets
 // people do — the plain-language label leads, the derived verb/path is the de-emphasized
-// mono column (PRIN-002).
-export function ResourceCard({ resource }: { resource: ResourceResponse }) {
+// mono column (PRIN-002). FEAT-006 adds the shape: the fields, edited inline.
+export function ResourceCard({ specId, resource }: { specId: string; resource: ResourceResponse }) {
   return (
     <article className="rounded-[10px] bg-card p-5 shadow-sm" aria-label={resource.name}>
       <div className="flex items-center gap-3">
@@ -39,6 +40,8 @@ export function ResourceCard({ resource }: { resource: ResourceResponse }) {
           </li>
         ))}
       </ul>
+
+      <ShapeSection specId={specId} resource={resource} />
     </article>
   )
 }

@@ -3,10 +3,16 @@ package dev.apicius.service;
 import dev.apicius.document.CapabilityView;
 import dev.apicius.document.DocumentEngine;
 import dev.apicius.document.DocumentProjection;
+import dev.apicius.document.FieldView;
 import dev.apicius.document.ResourceView;
 import dev.apicius.document.SpecVersion;
 import dev.apicius.document.derivation.CanonicalDerivation;
 import dev.apicius.document.derivation.Capability;
+import dev.apicius.document.derivation.CoreType;
+import dev.apicius.document.derivation.FieldEdit;
+import dev.apicius.document.derivation.FieldKind;
+import dev.apicius.document.derivation.FieldNameDerivation;
+import dev.apicius.document.derivation.FieldVisibility;
 import dev.apicius.document.derivation.ResourceDerivation;
 import dev.apicius.domain.AppUser;
 import dev.apicius.domain.Spec;
@@ -102,13 +108,7 @@ public class SpecService {
     @Transactional
     public ResourceView addResource(AppUser editor, UUID specId, String name, String description,
             List<Capability> capabilities) {
-        // Document mutations serialize per spec (unlike creates, which never contend): under
-        // the row lock the uniqueness check is race-free — a concurrent same-name add gets a
-        // deterministic 409 instead of an optimistic-lock 500.
-        Spec spec = specRepository.findById(specId, LockModeType.PESSIMISTIC_WRITE);
-        if (spec == null) {
-            throw new SpecNotFoundException(specId);
-        }
+        Spec spec = lockedSpec(specId);
         ResourceDerivation derivation =
                 CanonicalDerivation.derive(name.trim(), EnumSet.copyOf(capabilities));
         rejectConflicts(spec, derivation, name.trim());
@@ -120,6 +120,136 @@ public class SpecService {
 
         lastEditedLocationRepository.upsertForUser(editor.id, spec.id, null);
         return view(derivation, normalizedDescription);
+    }
+
+    /**
+     * FEAT-006: adds a field to a resource's shape — one atomic document mutation through the
+     * engine seam. One transaction covers the mutated document and the editor's jump-back-in
+     * pointer (AC2); the ADR-0008 counts are untouched — a shape edit changes the schema and
+     * nothing else. Any thrown rejection rolls everything back (AC9).
+     */
+    @Transactional
+    public FieldView addField(AppUser editor, UUID specId, String schemaName, FieldDraft draft) {
+        Spec spec = lockedSpec(specId);
+        ResourceView resource = resourceOf(spec, schemaName);
+        FieldEdit edit = derivedEdit(draft);
+        rejectFieldConflicts(resource, null, edit.propertyName(), draft.name());
+
+        spec.body = documentEngine.addField(spec.body, schemaName, edit);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, null);
+        return fieldView(edit);
+    }
+
+    /**
+     * FEAT-006 UC3: rewrites a field in place — rename, retype, attributes, description as
+     * one atomic save; {@code required} membership follows the field (AC6). The identity
+     * field is exempt (AC7): {@code id} short-circuits before the engine is ever called.
+     */
+    @Transactional
+    public FieldView updateField(AppUser editor, UUID specId, String schemaName,
+            String propertyName, FieldDraft draft) {
+        Spec spec = lockedSpec(specId);
+        ResourceView resource = resourceOf(spec, schemaName);
+        rejectIdentityField(propertyName);
+        rejectUnknownField(resource, propertyName);
+        FieldEdit edit = derivedEdit(draft);
+        rejectFieldConflicts(resource, propertyName, edit.propertyName(), draft.name());
+
+        spec.body = documentEngine.updateField(spec.body, schemaName, propertyName, edit);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, null);
+        return fieldView(edit);
+    }
+
+    /**
+     * FEAT-006 UC4: removes a field — the property and its {@code required} entry, no other
+     * trace (AC8); removing the last field beyond {@code id} is fine. {@code id} is exempt
+     * (AC7).
+     */
+    @Transactional
+    public void removeField(AppUser editor, UUID specId, String schemaName, String propertyName) {
+        Spec spec = lockedSpec(specId);
+        ResourceView resource = resourceOf(spec, schemaName);
+        rejectIdentityField(propertyName);
+        rejectUnknownField(resource, propertyName);
+
+        spec.body = documentEngine.removeField(spec.body, schemaName, propertyName);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, null);
+    }
+
+    /**
+     * Document mutations serialize per spec (unlike creates, which never contend): under the
+     * row lock the uniqueness checks are race-free — a concurrent same-name add gets a
+     * deterministic 409 instead of an optimistic-lock 500.
+     */
+    private Spec lockedSpec(UUID specId) {
+        Spec spec = specRepository.findById(specId, LockModeType.PESSIMISTIC_WRITE);
+        if (spec == null) {
+            throw new SpecNotFoundException(specId);
+        }
+        return spec;
+    }
+
+    /** The addressed resource, from a fresh projection — its fields back the conflict check. */
+    private ResourceView resourceOf(Spec spec, String schemaName) {
+        return documentEngine.project(spec.body).resources().stream()
+                .filter(resource -> resource.name().equals(schemaName))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(schemaName));
+    }
+
+    /**
+     * The pre-derived, pre-validated edit the engine trusts: kind compatibility, the AC9
+     * empty-derivation rule, and the AC5 visibility default all resolve here, before any
+     * document is touched.
+     */
+    private static FieldEdit derivedEdit(FieldDraft draft) {
+        if (draft.refinement() != null && draft.refinement().core() != draft.coreType()) {
+            throw new InvalidFieldKindException(draft.coreType(), draft.refinement());
+        }
+        String propertyName = FieldNameDerivation.derive(draft.name());
+        if (propertyName.isEmpty()) {
+            throw new UnderivableNameException("'" + draft.name()
+                    + "' derives to an empty property name — use letters or digits.");
+        }
+        return new FieldEdit(propertyName,
+                new FieldKind(draft.coreType(), draft.refinement(), draft.list()),
+                draft.required(), FieldVisibility.resolve(draft.visibility(), draft.refinement()),
+                normalize(draft.description()));
+    }
+
+    private static void rejectIdentityField(String propertyName) {
+        if (propertyName.equals("id")) {
+            throw new FieldNotEditableException();
+        }
+    }
+
+    private static void rejectUnknownField(ResourceView resource, String propertyName) {
+        if (resource.fields().stream().noneMatch(field -> field.name().equals(propertyName))) {
+            throw new FieldNotFoundException(resource.name(), propertyName);
+        }
+    }
+
+    /**
+     * AC9 — uniqueness case-insensitively on the derived property name, against every field
+     * of this shape including {@code id}; on an update the field itself is exempt, so a
+     * case-only rename stays legal.
+     */
+    private static void rejectFieldConflicts(ResourceView resource, String currentName,
+            String propertyName, String rawName) {
+        boolean collides = resource.fields().stream()
+                .map(FieldView::name)
+                .filter(existing -> !existing.equals(currentName))
+                .anyMatch(existing -> existing.equalsIgnoreCase(propertyName));
+        if (collides) {
+            throw new NameConflictException("'" + rawName + "' derives to '" + propertyName
+                    + "', which this shape already uses — id counts too.");
+        }
+    }
+
+    /** What the client sees is the derivation, same as a re-read would project (AC1). */
+    private static FieldView fieldView(FieldEdit edit) {
+        return new FieldView(edit.propertyName(), edit.kind(), edit.required(),
+                edit.visibility(), edit.description());
     }
 
     /**
@@ -148,7 +278,10 @@ public class SpecService {
                 .map(operation -> new CapabilityView(operation.capability(), operation.label(),
                         operation.method(), operation.path()))
                 .toList();
-        return new ResourceView(derivation.schemaName(), description, capabilities);
+        // The one field creation writes: the identity house rule, as a re-read projects it.
+        List<FieldView> fields = List.of(new FieldView("id",
+                new FieldKind(CoreType.TEXT, null, false), true, FieldVisibility.AUTO, null));
+        return new ResourceView(derivation.schemaName(), description, capabilities, fields);
     }
 
     /** Blank means "not provided": info.description is omitted, the projection column stays null (AC2). */

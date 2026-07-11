@@ -1,0 +1,60 @@
+{
+  "_comment": "Shared ADR-0011 field-derivation vectors — asserted by BOTH suites so the backend writer (FieldNameDerivation/FieldKind, FieldVectorsTest) and the frontend presentation mirror (frontend/src/lib/fieldDerivation.ts, fieldDerivation.test.ts) can never drift.",
+  "propertyNames": {
+    "valid": [
+      { "name": "First name", "propertyName": "firstName" },
+      { "name": "API key", "propertyName": "apiKey" },
+      { "name": "first_name", "propertyName": "first_name" },
+      { "name": "firstName", "propertyName": "firstName" },
+      { "name": "Quantity", "propertyName": "quantity" },
+      { "name": "Related products", "propertyName": "relatedProducts" },
+      { "name": "Sync token", "propertyName": "syncToken" },
+      { "name": "user API key", "propertyName": "userAPIKey" },
+      { "name": "In stock?", "propertyName": "inStock" },
+      { "name": "e-mail address", "propertyName": "emailAddress" },
+      { "name": "Address line 2", "propertyName": "addressLine2" },
+      { "name": "  padded  name ", "propertyName": "paddedName" },
+      { "name": "SKU", "propertyName": "sku" },
+      { "name": "SKU code", "propertyName": "skuCode" },
+      { "name": "2FA enabled", "propertyName": "2faEnabled" },
+      { "name": "Unit price (USD)", "propertyName": "unitPriceUSD" },
+      { "name": "name!!!", "propertyName": "name" },
+      { "name": "Created_At", "propertyName": "created_At" },
+      { "name": "Café price", "propertyName": "caféPrice" },
+      { "name": "𠮷 tag", "propertyName": "𠮷Tag" },
+      { "name": "id", "propertyName": "id" }
+    ],
+    "deriveToEmpty": ["", "   ", "!!!", "---", "()", " · "]
+  },
+  "kinds": [
+    { "coreType": "TEXT", "refinement": null, "list": false, "type": "string", "format": null },
+    { "coreType": "TEXT", "refinement": "EMAIL", "list": false, "type": "string", "format": "email" },
+    { "coreType": "TEXT", "refinement": "UUID", "list": false, "type": "string", "format": "uuid" },
+    { "coreType": "TEXT", "refinement": "URL", "list": false, "type": "string", "format": "uri" },
+    { "coreType": "TEXT", "refinement": "PASSWORD", "list": false, "type": "string", "format": "password" },
+    { "coreType": "WHOLE_NUMBER", "refinement": null, "list": false, "type": "integer", "format": null },
+    { "coreType": "WHOLE_NUMBER", "refinement": "INT32", "list": false, "type": "integer", "format": "int32" },
+    { "coreType": "WHOLE_NUMBER", "refinement": "INT64", "list": false, "type": "integer", "format": "int64" },
+    { "coreType": "DECIMAL_NUMBER", "refinement": null, "list": false, "type": "number", "format": null },
+    { "coreType": "DECIMAL_NUMBER", "refinement": "FLOAT", "list": false, "type": "number", "format": "float" },
+    { "coreType": "DECIMAL_NUMBER", "refinement": "DOUBLE", "list": false, "type": "number", "format": "double" },
+    { "coreType": "YES_NO", "refinement": null, "list": false, "type": "boolean", "format": null },
+    { "coreType": "DATE", "refinement": null, "list": false, "type": "string", "format": "date" },
+    { "coreType": "DATE_TIME", "refinement": null, "list": false, "type": "string", "format": "date-time" },
+    { "coreType": "TEXT", "refinement": "UUID", "list": true, "type": "string", "format": "uuid" },
+    { "coreType": "WHOLE_NUMBER", "refinement": null, "list": true, "type": "integer", "format": null }
+  ],
+  "incompatible": [
+    { "coreType": "WHOLE_NUMBER", "refinement": "EMAIL" },
+    { "coreType": "TEXT", "refinement": "INT32" },
+    { "coreType": "DECIMAL_NUMBER", "refinement": "UUID" },
+    { "coreType": "YES_NO", "refinement": "PASSWORD" },
+    { "coreType": "DATE", "refinement": "FLOAT" },
+    { "coreType": "DATE_TIME", "refinement": "DOUBLE" }
+  ],
+  "visibilityDefaults": [
+    { "refinement": "PASSWORD", "default": "WRITE_ONLY" },
+    { "refinement": "EMAIL", "default": "NORMAL" },
+    { "refinement": null, "default": "NORMAL" }
+  ]
+}

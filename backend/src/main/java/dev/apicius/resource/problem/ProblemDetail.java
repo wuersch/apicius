@@ -50,4 +50,18 @@ public record ProblemDetail(
                 detail,
                 List.of(new FieldViolation("name", detail)));
     }
+
+    /**
+     * A mutation aimed at a field the rules lock (FEAT-006 AC7 — the identity field):
+     * well-formed request, refused by the document's rules. No {@code violations} — the
+     * problem is the target, not an input field.
+     */
+    public static ProblemDetail fieldNotEditable(String detail) {
+        return new ProblemDetail(
+                "https://apicius.dev/problems/field-not-editable",
+                "Field not editable",
+                409,
+                detail,
+                null);
+    }
 }

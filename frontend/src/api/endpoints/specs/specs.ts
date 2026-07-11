@@ -26,6 +26,8 @@ import type {
 import type {
   AddResourceRequest,
   CreateSpecRequest,
+  FieldRequest,
+  FieldResponse,
   LastEditedLocationResponse,
   ProblemDetail,
   ResourceResponse,
@@ -647,4 +649,338 @@ export const useAddResource = <TError = ProblemDetail | void,
         TContext
       > => {
       return useMutation(getAddResourceMutationOptions(options), queryClient);
+    }
+    export type addFieldResponse201 = {
+  data: FieldResponse
+  status: 201
+}
+
+export type addFieldResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type addFieldResponse401 = {
+  data: void
+  status: 401
+}
+
+export type addFieldResponse403 = {
+  data: void
+  status: 403
+}
+
+export type addFieldResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type addFieldResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type addFieldResponseSuccess = (addFieldResponse201) & {
+  headers: Headers;
+};
+export type addFieldResponseError = (addFieldResponse400 | addFieldResponse401 | addFieldResponse403 | addFieldResponse404 | addFieldResponse409) & {
+  headers: Headers;
+};
+
+export type addFieldResponse = (addFieldResponseSuccess | addFieldResponseError)
+
+export const getAddFieldUrl = (specId: Uuid,
+    schemaName: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/fields`
+}
+
+/**
+ * @summary Add a field to a resource's shape; the property name and constructs derive per ADR-0011 (FEAT-006)
+ */
+export const addField = async (specId: Uuid,
+    schemaName: string,
+    fieldRequest: FieldRequest, options?: RequestInit): Promise<addFieldResponse> => {
+
+  return customFetch<addFieldResponse>(getAddFieldUrl(specId,schemaName),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(fieldRequest)
+  }
+);}
+
+
+
+
+
+export const getAddFieldMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addField>>, TError,{specId: Uuid;schemaName: string;data: FieldRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addField>>, TError,{specId: Uuid;schemaName: string;data: FieldRequest}, TContext> => {
+
+const mutationKey = ['addField'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addField>>, {specId: Uuid;schemaName: string;data: FieldRequest}> = (props) => {
+          const {specId,schemaName,data} = props ?? {};
+
+          return  addField(specId,schemaName,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddFieldMutationResult = NonNullable<Awaited<ReturnType<typeof addField>>>
+    export type AddFieldMutationBody = FieldRequest
+    export type AddFieldMutationError = ProblemDetail | void
+
+    /**
+ * @summary Add a field to a resource's shape; the property name and constructs derive per ADR-0011 (FEAT-006)
+ */
+export const useAddField = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addField>>, TError,{specId: Uuid;schemaName: string;data: FieldRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addField>>,
+        TError,
+        {specId: Uuid;schemaName: string;data: FieldRequest},
+        TContext
+      > => {
+      return useMutation(getAddFieldMutationOptions(options), queryClient);
+    }
+    export type updateFieldResponse200 = {
+  data: FieldResponse
+  status: 200
+}
+
+export type updateFieldResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type updateFieldResponse401 = {
+  data: void
+  status: 401
+}
+
+export type updateFieldResponse403 = {
+  data: void
+  status: 403
+}
+
+export type updateFieldResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type updateFieldResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type updateFieldResponseSuccess = (updateFieldResponse200) & {
+  headers: Headers;
+};
+export type updateFieldResponseError = (updateFieldResponse400 | updateFieldResponse401 | updateFieldResponse403 | updateFieldResponse404 | updateFieldResponse409) & {
+  headers: Headers;
+};
+
+export type updateFieldResponse = (updateFieldResponseSuccess | updateFieldResponseError)
+
+export const getUpdateFieldUrl = (specId: Uuid,
+    schemaName: string,
+    propertyName: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/fields/${propertyName}`
+}
+
+/**
+ * @summary Rewrite a field in place — rename, retype, attributes, description as one atomic save (FEAT-006). A rename changes the field's identity: it is addressed by the new property name afterwards.
+ */
+export const updateField = async (specId: Uuid,
+    schemaName: string,
+    propertyName: string,
+    fieldRequest: FieldRequest, options?: RequestInit): Promise<updateFieldResponse> => {
+
+  return customFetch<updateFieldResponse>(getUpdateFieldUrl(specId,schemaName,propertyName),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(fieldRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateFieldMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateField>>, TError,{specId: Uuid;schemaName: string;propertyName: string;data: FieldRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateField>>, TError,{specId: Uuid;schemaName: string;propertyName: string;data: FieldRequest}, TContext> => {
+
+const mutationKey = ['updateField'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateField>>, {specId: Uuid;schemaName: string;propertyName: string;data: FieldRequest}> = (props) => {
+          const {specId,schemaName,propertyName,data} = props ?? {};
+
+          return  updateField(specId,schemaName,propertyName,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFieldMutationResult = NonNullable<Awaited<ReturnType<typeof updateField>>>
+    export type UpdateFieldMutationBody = FieldRequest
+    export type UpdateFieldMutationError = ProblemDetail | void
+
+    /**
+ * @summary Rewrite a field in place — rename, retype, attributes, description as one atomic save (FEAT-006). A rename changes the field's identity: it is addressed by the new property name afterwards.
+ */
+export const useUpdateField = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateField>>, TError,{specId: Uuid;schemaName: string;propertyName: string;data: FieldRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateField>>,
+        TError,
+        {specId: Uuid;schemaName: string;propertyName: string;data: FieldRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateFieldMutationOptions(options), queryClient);
+    }
+    export type removeFieldResponse204 = {
+  data: void
+  status: 204
+}
+
+export type removeFieldResponse401 = {
+  data: void
+  status: 401
+}
+
+export type removeFieldResponse403 = {
+  data: void
+  status: 403
+}
+
+export type removeFieldResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type removeFieldResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type removeFieldResponseSuccess = (removeFieldResponse204) & {
+  headers: Headers;
+};
+export type removeFieldResponseError = (removeFieldResponse401 | removeFieldResponse403 | removeFieldResponse404 | removeFieldResponse409) & {
+  headers: Headers;
+};
+
+export type removeFieldResponse = (removeFieldResponseSuccess | removeFieldResponseError)
+
+export const getRemoveFieldUrl = (specId: Uuid,
+    schemaName: string,
+    propertyName: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/fields/${propertyName}`
+}
+
+/**
+ * @summary Remove a field — the property and its required entry, nothing else (FEAT-006)
+ */
+export const removeField = async (specId: Uuid,
+    schemaName: string,
+    propertyName: string, options?: RequestInit): Promise<removeFieldResponse> => {
+
+  return customFetch<removeFieldResponse>(getRemoveFieldUrl(specId,schemaName,propertyName),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveFieldMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeField>>, TError,{specId: Uuid;schemaName: string;propertyName: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeField>>, TError,{specId: Uuid;schemaName: string;propertyName: string}, TContext> => {
+
+const mutationKey = ['removeField'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeField>>, {specId: Uuid;schemaName: string;propertyName: string}> = (props) => {
+          const {specId,schemaName,propertyName} = props ?? {};
+
+          return  removeField(specId,schemaName,propertyName,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveFieldMutationResult = NonNullable<Awaited<ReturnType<typeof removeField>>>
+
+    export type RemoveFieldMutationError = void | ProblemDetail
+
+    /**
+ * @summary Remove a field — the property and its required entry, nothing else (FEAT-006)
+ */
+export const useRemoveField = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeField>>, TError,{specId: Uuid;schemaName: string;propertyName: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeField>>,
+        TError,
+        {specId: Uuid;schemaName: string;propertyName: string},
+        TContext
+      > => {
+      return useMutation(getRemoveFieldMutationOptions(options), queryClient);
     }

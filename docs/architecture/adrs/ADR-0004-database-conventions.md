@@ -20,7 +20,7 @@ inherited. A single engine holds both the document-shaped specs (JSONB) and the 
 ## Decision
 
 ### Storage model
-- A spec persists as a **JSONB document** — the parsed superset model plus the lossless
+- A spec persists as a **JSON document** — the parsed superset model plus the lossless
   preservation bag — **not** shredded into per-node relational tables. `resource`, `operation`,
   `schema`, etc. are **nodes inside that document**, never tables. This keeps round-trip faithful
   by construction: nothing is decomposed, so nothing is lost reassembling it (PRIN-003).
@@ -51,10 +51,19 @@ Mutable entities also: `version INTEGER NOT NULL DEFAULT 0` (optimistic locking 
 Enums as `VARCHAR` + check constraint, **not** PostgreSQL `ENUM` types (which need `ALTER TYPE`
 and can't drop values — migration-hostile).
 
-### JSONB
-Used for two things: the **spec body** (the document model + preservation bag — see Storage model)
-and **flexible snapshots without schema coupling** (e.g. `audit_log.before_state`/`after_state`).
-Not for relational data that needs indexing or foreign keys — that gets real columns.
+### JSON column types — `json` for the body, `jsonb` for snapshots
+- The **spec body** is a **`json`** column, not `jsonb`. PostgreSQL `jsonb` normalizes the
+  stored value — object keys are reordered (length, then bytes), whitespace and duplicate keys
+  are gone — so it is semantically lossless but **textually lossy**. Textual fidelity is the
+  point of this storage model: property order is what the editor's shape table renders and
+  what a designer authors (FEAT-006), and import → export must not rewrite a document's
+  ordering (PRIN-003). What `jsonb` buys — GIN indexing, in-database queries into the body —
+  is deliberately unused: list views read the projection columns, never the body (ADR-0008).
+  Revisit toward `jsonb` (one line + a migration) only if in-database body queries ever land,
+  e.g. if document edits stop flowing through the in-memory engine (ADR-0009).
+- **`jsonb`** remains right for **flexible snapshots without schema coupling** (e.g.
+  `audit_log.before_state`/`after_state`), where normalization is harmless.
+- Neither is for relational data that needs indexing or foreign keys — that gets real columns.
 
 ### Migrations — two phases
 - **Phase 1 (early):** Hibernate `drop-and-create`; Flyway disabled; change entity, restart;
@@ -64,7 +73,9 @@ Not for relational data that needs indexing or foreign keys — that gets real c
 
 ## Consequences
 - **Lossless by construction:** the spec is never decomposed, so import → export stays the
-  identity function for the whole document, not just unmodeled nodes.
+  identity function for the whole document, not just unmodeled nodes. The `json` column type
+  extends this to the text itself — key order survives storage, which `jsonb` would normalize
+  away (found by FEAT-006's rewrite-in-place tests).
 - **One engine:** document-shaped specs (JSONB) and relational data (users/sharing/audit) live in
   the same PostgreSQL instance — simpler self-hosting, and the audit row commits in the **same
   transaction** as the spec mutation (ADR-0003).
