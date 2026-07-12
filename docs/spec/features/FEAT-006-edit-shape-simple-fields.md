@@ -1,7 +1,7 @@
 # FEAT-006: Edit a resource's shape (simple-typed fields)
 
 **ID:** FEAT-006
-**Status:** building
+**Status:** shipped
 **Depends on:** PRIN-001, PRIN-002, PRIN-006, ADR-0004, ADR-0008, ADR-0009, ADR-0011
 **Mockup:** `docs/design/mockups/launcher-hybrid-v7.html` — views 2c (add a field),
 2d·1–2d·6 (field-editor states)
