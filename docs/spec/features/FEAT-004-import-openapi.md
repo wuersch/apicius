@@ -13,7 +13,10 @@ As an API designer, I want to import an existing OpenAPI document, so that I can
 it in Apicius's intent-first editor.
 
 ## Context / Notes
-Launched from the "My APIs" home (FEAT-002). **Lossless round-trip is the whole point** (PRIN-003):
+Launched from the "My APIs" home (FEAT-002). **A faithful round-trip is the whole point**
+(PRIN-003) — the exported document is **functionally equivalent** to the original (identical data
+to any OpenAPI consumer; textual decoration such as YAML comments, anchors, and formatting is
+consumed at parse and not reproduced):
 the parsed superset model plus a **preservation bag** for anything Apicius doesn't model first-class,
 stored in the spec's body JSONB (ADR-0004). The spec version is **detected** from the file, not
 chosen; title/description come from the imported `info`. Sources in v1 are **file upload + paste**.
@@ -62,10 +65,12 @@ chosen; title/description come from the imported `info`. Sources in v1 are **fil
 - **AC1 (UC1/UC2):** Given a valid OpenAPI 3.0–3.2 document via file or paste, when the designer imports
   it, then a new API is persisted and the editor opens on it, with title/description/version read from
   the document.
-- **AC2 (UC1 / lossless):** Given an imported document, when it is exported unchanged, then export
-  reproduces 100% of the original content — including nodes Apicius doesn't model (preservation bag,
-  S3/S4) — so `import → export` is faithful. Verified against representative real-world specs, not
-  just fixtures — this test is also ADR-0009's round-trip verification of the document engine.
+- **AC2 (UC1 / faithful):** Given an imported document, when it is exported unchanged, then the
+  export is **functionally equivalent** to the original — every node reproduced, including ones
+  Apicius doesn't model (preservation bag, S3/S4), in authored property order; textual decoration
+  (YAML comments, anchors, formatting) is not preserved. Verified against representative real-world
+  specs, not just fixtures — this test is also ADR-0009's round-trip verification of the document
+  engine.
 - **AC3 (UC3 / S1):** Given a Swagger 2.0 document, when import is attempted, then it is rejected with a
   clear "3.0–3.2 only" message and nothing is persisted.
 - **AC4 (UC3 / S2):** Given unparseable input, when import is attempted, then it is rejected with a

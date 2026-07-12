@@ -17,7 +17,7 @@ public class SpecRepository implements PanacheRepositoryBase<Spec, UUID> {
     public List<SpecSummaryProjection> listSummariesOrderedByTitle() {
         return getEntityManager().createQuery("""
                 select new dev.apicius.repository.projection.SpecSummaryProjection(
-                    s.id, s.title, s.description, s.apiVersion,
+                    s.id, s.title, s.description, s.apiVersion, s.specVersion,
                     s.resourceCount, s.operationCount, s.updatedAt)
                 from Spec s
                 order by lower(s.title)

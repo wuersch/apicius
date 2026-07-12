@@ -75,6 +75,35 @@ public class ApitomyDocumentEngine implements DocumentEngine {
     }
 
     @Override
+    public String updateInfo(String body, String title, String description, String version) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        // Mutate the existing info in place — recreating it would drop unmodeled members
+        // (contact, license, extensions) and violate the lossless rule (PRIN-003, AC1).
+        OpenApiInfo info = infoOf(document);
+        info.setTitle(title);
+        info.setVersion(version);
+        info.setDescription(description);
+        return Library.writeDocumentToJSONString(document);
+    }
+
+    @Override
+    public String retitle(String body, String title) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        infoOf(document).setTitle(title);
+        return Library.writeDocumentToJSONString(document);
+    }
+
+    /** Every Apicius-born document has an info; a pathological one gains an empty one to edit. */
+    private static OpenApiInfo infoOf(OpenApi3xDocument document) {
+        OpenApiInfo info = document.getInfo();
+        if (info == null) {
+            info = document.createInfo();
+            document.setInfo(info);
+        }
+        return info;
+    }
+
+    @Override
     public String addResource(String body, ResourceDerivation derivation, String description) {
         OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
 

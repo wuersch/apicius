@@ -12,6 +12,7 @@ export interface SpecSummaryResponse {
   title?: string;
   description?: string;
   apiVersion?: string;
+  specVersion?: string;
   resourceCount?: number;
   operationCount?: number;
   updatedAt?: Instant;

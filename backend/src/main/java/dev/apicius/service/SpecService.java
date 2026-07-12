@@ -72,6 +72,7 @@ public class SpecService {
         spec.title = title;
         spec.description = normalizedDescription;
         spec.apiVersion = "1.0.0"; // seeded info.version (FEAT-003) — not the OpenAPI spec version
+        spec.specVersion = version.latestPatch(); // the same value the engine pins as `openapi`
         spec.resourceCount = 0;
         spec.operationCount = 0;
         spec.body = documentEngine.createEmptyDocument(version, title, normalizedDescription);
@@ -82,6 +83,69 @@ public class SpecService {
         // Creating is editing: the pointer moves to the new API, at API level (no capability yet).
         lastEditedLocationRepository.upsertForUser(owner.id, spec.id, null);
         return spec;
+    }
+
+    /**
+     * FEAT-007 UC1: rewrites the document's {@code info} and the ADR-0008 projection columns in
+     * one transaction; nothing else in the document changes (AC1). {@code specVersion} is
+     * deliberately untouched — immutability is FEAT-003's rule (AC2). Editing details is
+     * editing: the pointer moves to this API (chokepoint convention).
+     */
+    @Transactional
+    public Spec updateDetails(AppUser editor, UUID specId, String title, String description,
+            String version) {
+        Spec spec = lockedSpec(specId);
+        String normalizedDescription = normalize(description);
+
+        spec.body = documentEngine.updateInfo(spec.body, title, normalizedDescription, version);
+        spec.title = title;
+        spec.description = normalizedDescription;
+        spec.apiVersion = version;
+
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, null);
+        return spec;
+    }
+
+    /**
+     * FEAT-007 UC2: a fork — the same design under a new identity (AC3). The one delta is
+     * {@code info.title}; everything else, unmodeled content and {@code info.version} included,
+     * rides along verbatim. The pointer is neither copied nor moved (managing is not editing);
+     * fresh UUID and timestamps come from the insert itself.
+     */
+    @Transactional
+    public Spec duplicate(AppUser duplicator, UUID specId) {
+        Spec original = specRepository.findById(specId);
+        if (original == null) {
+            throw new SpecNotFoundException(specId);
+        }
+
+        Spec copy = new Spec();
+        copy.owner = duplicator;
+        copy.title = original.title + " (copy)";
+        copy.description = original.description;
+        copy.apiVersion = original.apiVersion;
+        copy.specVersion = original.specVersion;
+        copy.resourceCount = original.resourceCount;
+        copy.operationCount = original.operationCount;
+        copy.body = documentEngine.retitle(original.body, copy.title);
+        specRepository.persist(copy);
+        return copy;
+    }
+
+    /**
+     * FEAT-007 UC3: terminal — no archive, no undo (the deliberate confirmation is the
+     * client's ritual; the endpoint trusts a confirmed request). Every user's jump-back-in
+     * pointer at this API is cleared first (AC5): children before parent — the schema has no
+     * cascade, and a dangling pointer would resurrect a deleted API on someone's home.
+     */
+    @Transactional
+    public void delete(UUID specId) {
+        Spec spec = specRepository.findById(specId);
+        if (spec == null) {
+            throw new SpecNotFoundException(specId);
+        }
+        lastEditedLocationRepository.deleteBySpecId(specId);
+        specRepository.delete(spec);
     }
 
     /**

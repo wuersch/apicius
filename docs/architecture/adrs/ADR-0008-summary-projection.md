@@ -25,7 +25,8 @@ is wasteful on exactly the path where latency is most visible.
 Maintain a **denormalized summary projection** alongside the authoritative document — the "metadata
 columns" ADR-0004 already anticipates on the `spec` table:
 
-- Projection fields: `title`, `description`, `api_version`, `resource_count`, `operation_count`,
+- Projection fields: `title`, `description`, `api_version`, `spec_version` (the document's
+  `openapi` string — FEAT-007 shows it locked), `resource_count`, `operation_count`,
   `updated_at`, `owner`, and a per-user **last-edited-location** (the API and, when available, the
   capability last edited — powers FEAT-002's jump-back-in).
 - The backend **writes the projection atomically on every create / import / save**, in the same

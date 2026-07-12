@@ -22,6 +22,9 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
   useListSpecs: vi.fn(),
   useGetLastEditedLocation: vi.fn(),
   useCreateSpec: vi.fn(),
+  useUpdateSpecDetails: () => ({ mutate: vi.fn(), isPending: false }),
+  useDuplicateSpec: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteSpec: () => ({ mutate: vi.fn(), isPending: false }),
   getListSpecsQueryKey: () => ['/api/v1/specs'],
   getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
 }))

@@ -28,6 +28,16 @@ public class LastEditedLocationRepository implements PanacheRepositoryBase<LastE
     }
 
     /**
+     * FEAT-007 delete: clears every user's pointer at the doomed spec — the workspace is
+     * global, so any designer may point here. Explicit by necessity and by convention: the
+     * schema has no {@code ON DELETE CASCADE} and the FK is NOT NULL, so these rows must go
+     * before the spec row, in the same transaction.
+     */
+    public long deleteBySpecId(UUID specId) {
+        return delete("spec.id = ?1", specId);
+    }
+
+    /**
      * Atomically records (insert-or-move) the user's single jump-back-in pointer. A native
      * {@code ON CONFLICT} upsert on purpose: a read-then-write upsert loses the race against
      * {@code uq_last_edited_location_user_id} when the same user creates twice concurrently,

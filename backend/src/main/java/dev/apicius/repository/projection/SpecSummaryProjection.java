@@ -13,6 +13,7 @@ public record SpecSummaryProjection(
         String title,
         String description,
         String apiVersion,
+        String specVersion,
         int resourceCount,
         int operationCount,
         Instant updatedAt) {
