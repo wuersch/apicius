@@ -43,7 +43,7 @@ permanent.
 - **Flow:** duplicates the API.
 - **Outcome:** a new, independent API exists alongside the original — same document (including
   `info.version` and anything Apicius doesn't model first-class), derived title
-  "<title> (copy)", owned by the duplicator. Edits to either no longer affect the other.
+  `"<title> (copy)"`, owned by the duplicator. Edits to either no longer affect the other.
 
 ### UC3: Delete an API
 - **Precondition:** designer has an API they no longer need.
@@ -63,7 +63,7 @@ permanent.
 - **AC2 (UC1):** Given the details surface, then the `openapi` spec version is visible but not
   editable — immutability is FEAT-003's rule; this feature offers no way around it.
 - **AC3 (UC2):** Given an API is duplicated, then a new API is persisted with its own UUID,
-  `owner` = the duplicating user, fresh timestamps, `info.title` = "<original title> (copy)",
+  `owner` = the duplicating user, fresh timestamps, `info.title` = `"<original title> (copy)"`,
   and a document otherwise functionally equivalent to the original — including unmodeled /
   preservation-bag content and the original `info.version`.
 - **AC4 (UC2):** Given the duplicate exists, then it appears on the home like any API, and
