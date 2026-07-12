@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,6 +16,7 @@ import {
   getListSpecsQueryKey,
   useDeleteSpec,
 } from '@/api/endpoints/specs/specs'
+import { downloadDocument } from '@/components/home/downloadDocument'
 import type { SpecSummaryResponse } from '@/api/model'
 
 // FEAT-007 UC3: deletion is permanent — no archive, no undo — so it earns the type-the-name
@@ -31,6 +33,7 @@ export function DeleteApiDialog({
 }) {
   const [typed, setTyped] = useState('')
   const [serverError, setServerError] = useState(false)
+  const [downloadError, setDownloadError] = useState(false)
 
   const queryClient = useQueryClient()
   const deleteSpec = useDeleteSpec()
@@ -42,7 +45,14 @@ export function DeleteApiDialog({
     if (!next) {
       setTyped('')
       setServerError(false)
+      setDownloadError(false)
     }
+  }
+
+  // The escape hatch: a download is a full backup (PRIN-003), offered at the moment of
+  // destruction — without disturbing the confirmation ritual.
+  async function handleDownload() {
+    setDownloadError(!(await downloadDocument(spec, 'yaml')))
   }
 
   const armed = typed === title
@@ -97,8 +107,27 @@ export function DeleteApiDialog({
             Something went wrong and the API wasn't deleted. Try again.
           </p>
         )}
+        {downloadError && (
+          <p role="alert" className="text-[12.5px] text-terracotta">
+            Something went wrong and the download didn't start. Try again.
+          </p>
+        )}
+
+        <p className="text-[12.5px] text-text-secondary">
+          Download a copy first if you might need it back.
+        </p>
 
         <DialogFooter>
+          {/* Quiet text button, left of the verdict pair — the backup offer, not a rival
+              action at the point of no return. */}
+          <button
+            type="button"
+            onClick={() => void handleDownload()}
+            className="mr-auto inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-secondary hover:underline"
+          >
+            <Download aria-hidden className="size-3.5" />
+            Download as YAML
+          </button>
           <DialogClose asChild>
             <Button type="button" variant="outline">
               Cancel

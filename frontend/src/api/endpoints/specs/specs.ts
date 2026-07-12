@@ -26,6 +26,7 @@ import type {
 import type {
   AddResourceRequest,
   CreateSpecRequest,
+  ExportSpecDocumentParams,
   FieldRequest,
   FieldResponse,
   LastEditedLocationResponse,
@@ -745,7 +746,161 @@ export const useDeleteSpec = <TError = void | ProblemDetail,
       > => {
       return useMutation(getDeleteSpecMutationOptions(options), queryClient);
     }
-    export type duplicateSpecResponse201 = {
+    export type exportSpecDocumentResponse200ApplicationYaml = {
+  data: string
+  status: 200
+}
+
+export type exportSpecDocumentResponse200ApplicationJson = {
+  data: string
+  status: 200
+}
+
+export type exportSpecDocumentResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type exportSpecDocumentResponse401 = {
+  data: void
+  status: 401
+}
+
+export type exportSpecDocumentResponse403 = {
+  data: void
+  status: 403
+}
+
+export type exportSpecDocumentResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type exportSpecDocumentResponseSuccess = (exportSpecDocumentResponse200ApplicationYaml | exportSpecDocumentResponse200ApplicationJson) & {
+  headers: Headers;
+};
+export type exportSpecDocumentResponseError = (exportSpecDocumentResponse400 | exportSpecDocumentResponse401 | exportSpecDocumentResponse403 | exportSpecDocumentResponse404) & {
+  headers: Headers;
+};
+
+export type exportSpecDocumentResponse = (exportSpecDocumentResponseSuccess | exportSpecDocumentResponseError)
+
+export const getExportSpecDocumentUrl = (specId: Uuid,
+    params: ExportSpecDocumentParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/specs/${specId}/document?${stringifiedParams}` : `/api/v1/specs/${specId}/document`
+}
+
+/**
+ * @summary Export the stored OpenAPI document, whole and order-faithful, as YAML or JSON — the PRIN-003 escape hatch (FEAT-008)
+ */
+export const exportSpecDocument = async (specId: Uuid,
+    params: ExportSpecDocumentParams, options?: RequestInit): Promise<exportSpecDocumentResponse> => {
+
+  return customFetch<exportSpecDocumentResponse>(getExportSpecDocumentUrl(specId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSpecDocumentQueryKey = (specId: Uuid,
+    params?: ExportSpecDocumentParams,) => {
+    return [
+    `/api/v1/specs/${specId}/document`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportSpecDocumentQueryOptions = <TData = Awaited<ReturnType<typeof exportSpecDocument>>, TError = ProblemDetail | void>(specId: Uuid,
+    params: ExportSpecDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSpecDocument>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSpecDocumentQueryKey(specId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSpecDocument>>> = ({ signal }) => exportSpecDocument(specId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: specId !== null && specId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSpecDocument>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportSpecDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof exportSpecDocument>>>
+export type ExportSpecDocumentQueryError = ProblemDetail | void
+
+
+export function useExportSpecDocument<TData = Awaited<ReturnType<typeof exportSpecDocument>>, TError = ProblemDetail | void>(
+ specId: Uuid,
+    params: ExportSpecDocumentParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSpecDocument>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSpecDocument>>,
+          TError,
+          Awaited<ReturnType<typeof exportSpecDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSpecDocument<TData = Awaited<ReturnType<typeof exportSpecDocument>>, TError = ProblemDetail | void>(
+ specId: Uuid,
+    params: ExportSpecDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSpecDocument>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSpecDocument>>,
+          TError,
+          Awaited<ReturnType<typeof exportSpecDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSpecDocument<TData = Awaited<ReturnType<typeof exportSpecDocument>>, TError = ProblemDetail | void>(
+ specId: Uuid,
+    params: ExportSpecDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSpecDocument>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Export the stored OpenAPI document, whole and order-faithful, as YAML or JSON — the PRIN-003 escape hatch (FEAT-008)
+ */
+
+export function useExportSpecDocument<TData = Awaited<ReturnType<typeof exportSpecDocument>>, TError = ProblemDetail | void>(
+ specId: Uuid,
+    params: ExportSpecDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSpecDocument>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportSpecDocumentQueryOptions(specId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type duplicateSpecResponse201 = {
   data: SpecSummaryResponse
   status: 201
 }

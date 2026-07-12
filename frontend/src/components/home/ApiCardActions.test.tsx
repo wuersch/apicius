@@ -11,12 +11,16 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
   getListSpecsQueryKey: () => ['/api/v1/specs'],
   getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
 }))
+vi.mock('./downloadDocument', () => ({
+  downloadDocument: vi.fn(),
+}))
 
 import {
   useDeleteSpec,
   useDuplicateSpec,
   useUpdateSpecDetails,
 } from '@/api/endpoints/specs/specs'
+import { downloadDocument } from './downloadDocument'
 
 const updateSpy = vi.fn()
 const duplicateSpy = vi.fn()
@@ -217,7 +221,77 @@ test('duplicate opens edit details pre-filled for the new copy', async () => {
   expect(screen.getByLabelText('Title')).toHaveValue('Payments API (copy)')
 })
 
+// ---- Download (FEAT-008) ----
+
+// UC1/UC2: two direct items, one per format — no intermediate dialog; the extension hint
+// names what lands on disk.
+test('downloads the document in the chosen format from the menu', async () => {
+  const user = userEvent.setup()
+  arrange()
+  vi.mocked(downloadDocument).mockResolvedValue(true)
+
+  await openMenu(user)
+  const yamlItem = await screen.findByRole('menuitem', { name: /Download as YAML/ })
+  expect(yamlItem).toHaveTextContent('.yaml')
+  await user.click(yamlItem)
+  expect(downloadDocument).toHaveBeenCalledWith(spec, 'yaml')
+
+  await openMenu(user)
+  const jsonItem = await screen.findByRole('menuitem', { name: /Download as JSON/ })
+  expect(jsonItem).toHaveTextContent('.json')
+  await user.click(jsonItem)
+  expect(downloadDocument).toHaveBeenCalledWith(spec, 'json')
+})
+
+// Menu downloads fail silently (the Duplicate precedent — the menu is already closed and
+// there is no toast surface); it must not crash or open anything.
+test('a failed menu download changes nothing', async () => {
+  const user = userEvent.setup()
+  arrange()
+  vi.mocked(downloadDocument).mockResolvedValue(false)
+
+  await openMenu(user)
+  await user.click(await screen.findByRole('menuitem', { name: /Download as YAML/ }))
+
+  expect(downloadDocument).toHaveBeenCalledWith(spec, 'yaml')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
 // ---- Delete (1g·3) ----
+
+// The escape hatch: a download is a full backup (PRIN-003), offered at the moment of
+// destruction — it downloads without disturbing the confirmation ritual.
+test('the delete dialog offers a YAML download escape hatch', async () => {
+  const user = userEvent.setup()
+  arrange()
+  vi.mocked(downloadDocument).mockResolvedValue(true)
+  await openDeleteDialog(user)
+
+  expect(
+    screen.getByText('Download a copy first if you might need it back.'),
+  ).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /Download as YAML/ }))
+
+  expect(downloadDocument).toHaveBeenCalledWith(spec, 'yaml')
+  expect(deleteSpy).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+// Silence is wrong at the moment of destruction — a failed backup download says so inline.
+test('a failed escape-hatch download shows an inline alert', async () => {
+  const user = userEvent.setup()
+  arrange()
+  vi.mocked(downloadDocument).mockResolvedValue(false)
+  await openDeleteDialog(user)
+
+  await user.click(screen.getByRole('button', { name: /Download as YAML/ }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    "Something went wrong and the download didn't start. Try again.",
+  )
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+})
 
 // AC5: the confirmation names the API, states the blast radius, and arms only on an exact match.
 test('delete arms only when the exact title is typed', async () => {

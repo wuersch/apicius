@@ -60,14 +60,20 @@ test('offers the card actions outside the link', () => {
   expect(screen.getByRole('link')).not.toContainElement(trigger)
 })
 
-// FEAT-007 scope: exactly the three management actions — the Download items are FEAT-008.
-test('the overflow menu shows the three management actions and nothing else', async () => {
+// The menu operates on the API as an object — manage it (FEAT-007), download it (FEAT-008),
+// in the mockup's order, with Delete isolated at the end.
+test('the overflow menu shows the management and download actions and nothing else', async () => {
   const user = userEvent.setup()
   renderCard()
 
   await user.click(screen.getByRole('button', { name: 'Actions for Storefront API' }))
 
   const items = await screen.findAllByRole('menuitem')
-  expect(items.map((item) => item.textContent)).toEqual(['Edit details…', 'Duplicate', 'Delete…'])
-  expect(screen.queryByText(/Download/)).not.toBeInTheDocument()
+  expect(items.map((item) => item.textContent)).toEqual([
+    'Edit details…',
+    'Duplicate',
+    'Download as YAML.yaml',
+    'Download as JSON.json',
+    'Delete…',
+  ])
 })
