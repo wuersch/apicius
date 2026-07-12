@@ -34,6 +34,7 @@ import type {
   SpecDetailResponse,
   SpecListResponse,
   SpecSummaryResponse,
+  UpdateSpecDetailsRequest,
   Uuid
 } from '../../model';
 
@@ -411,7 +412,112 @@ export function useGetLastEditedLocation<TData = Awaited<ReturnType<typeof getLa
 
 
 
-export type getSpecResponse200 = {
+export type updateSpecDetailsResponse200 = {
+  data: SpecSummaryResponse
+  status: 200
+}
+
+export type updateSpecDetailsResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type updateSpecDetailsResponse401 = {
+  data: void
+  status: 401
+}
+
+export type updateSpecDetailsResponse403 = {
+  data: void
+  status: 403
+}
+
+export type updateSpecDetailsResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type updateSpecDetailsResponseSuccess = (updateSpecDetailsResponse200) & {
+  headers: Headers;
+};
+export type updateSpecDetailsResponseError = (updateSpecDetailsResponse400 | updateSpecDetailsResponse401 | updateSpecDetailsResponse403 | updateSpecDetailsResponse404) & {
+  headers: Headers;
+};
+
+export type updateSpecDetailsResponse = (updateSpecDetailsResponseSuccess | updateSpecDetailsResponseError)
+
+export const getUpdateSpecDetailsUrl = (specId: Uuid,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}`
+}
+
+/**
+ * @summary Rewrite an API's details — info.title, info.version, info.description — never its contents (FEAT-007)
+ */
+export const updateSpecDetails = async (specId: Uuid,
+    updateSpecDetailsRequest: UpdateSpecDetailsRequest, options?: RequestInit): Promise<updateSpecDetailsResponse> => {
+
+  return customFetch<updateSpecDetailsResponse>(getUpdateSpecDetailsUrl(specId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateSpecDetailsRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateSpecDetailsMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSpecDetails>>, TError,{specId: Uuid;data: UpdateSpecDetailsRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSpecDetails>>, TError,{specId: Uuid;data: UpdateSpecDetailsRequest}, TContext> => {
+
+const mutationKey = ['updateSpecDetails'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSpecDetails>>, {specId: Uuid;data: UpdateSpecDetailsRequest}> = (props) => {
+          const {specId,data} = props ?? {};
+
+          return  updateSpecDetails(specId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSpecDetailsMutationResult = NonNullable<Awaited<ReturnType<typeof updateSpecDetails>>>
+    export type UpdateSpecDetailsMutationBody = UpdateSpecDetailsRequest
+    export type UpdateSpecDetailsMutationError = ProblemDetail | void
+
+    /**
+ * @summary Rewrite an API's details — info.title, info.version, info.description — never its contents (FEAT-007)
+ */
+export const useUpdateSpecDetails = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSpecDetails>>, TError,{specId: Uuid;data: UpdateSpecDetailsRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateSpecDetails>>,
+        TError,
+        {specId: Uuid;data: UpdateSpecDetailsRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateSpecDetailsMutationOptions(options), queryClient);
+    }
+    export type getSpecResponse200 = {
   data: SpecDetailResponse
   status: 200
 }
@@ -540,7 +646,205 @@ export function useGetSpec<TData = Awaited<ReturnType<typeof getSpec>>, TError =
 
 
 
-export type addResourceResponse201 = {
+export type deleteSpecResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteSpecResponse401 = {
+  data: void
+  status: 401
+}
+
+export type deleteSpecResponse403 = {
+  data: void
+  status: 403
+}
+
+export type deleteSpecResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type deleteSpecResponseSuccess = (deleteSpecResponse204) & {
+  headers: Headers;
+};
+export type deleteSpecResponseError = (deleteSpecResponse401 | deleteSpecResponse403 | deleteSpecResponse404) & {
+  headers: Headers;
+};
+
+export type deleteSpecResponse = (deleteSpecResponseSuccess | deleteSpecResponseError)
+
+export const getDeleteSpecUrl = (specId: Uuid,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}`
+}
+
+/**
+ * @summary Delete an API permanently — no archive, no undo; every user's jump-back-in pointer at it is cleared (FEAT-007)
+ */
+export const deleteSpec = async (specId: Uuid, options?: RequestInit): Promise<deleteSpecResponse> => {
+
+  return customFetch<deleteSpecResponse>(getDeleteSpecUrl(specId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteSpecMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSpec>>, TError,{specId: Uuid}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSpec>>, TError,{specId: Uuid}, TContext> => {
+
+const mutationKey = ['deleteSpec'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSpec>>, {specId: Uuid}> = (props) => {
+          const {specId} = props ?? {};
+
+          return  deleteSpec(specId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSpecMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSpec>>>
+
+    export type DeleteSpecMutationError = void | ProblemDetail
+
+    /**
+ * @summary Delete an API permanently — no archive, no undo; every user's jump-back-in pointer at it is cleared (FEAT-007)
+ */
+export const useDeleteSpec = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSpec>>, TError,{specId: Uuid}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSpec>>,
+        TError,
+        {specId: Uuid},
+        TContext
+      > => {
+      return useMutation(getDeleteSpecMutationOptions(options), queryClient);
+    }
+    export type duplicateSpecResponse201 = {
+  data: SpecSummaryResponse
+  status: 201
+}
+
+export type duplicateSpecResponse401 = {
+  data: void
+  status: 401
+}
+
+export type duplicateSpecResponse403 = {
+  data: void
+  status: 403
+}
+
+export type duplicateSpecResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type duplicateSpecResponseSuccess = (duplicateSpecResponse201) & {
+  headers: Headers;
+};
+export type duplicateSpecResponseError = (duplicateSpecResponse401 | duplicateSpecResponse403 | duplicateSpecResponse404) & {
+  headers: Headers;
+};
+
+export type duplicateSpecResponse = (duplicateSpecResponseSuccess | duplicateSpecResponseError)
+
+export const getDuplicateSpecUrl = (specId: Uuid,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/duplicate`
+}
+
+/**
+ * @summary Duplicate an API — a fork: the same document under a new identity, titled "<title> (copy)" and owned by the duplicator (FEAT-007)
+ */
+export const duplicateSpec = async (specId: Uuid, options?: RequestInit): Promise<duplicateSpecResponse> => {
+
+  return customFetch<duplicateSpecResponse>(getDuplicateSpecUrl(specId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDuplicateSpecMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof duplicateSpec>>, TError,{specId: Uuid}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof duplicateSpec>>, TError,{specId: Uuid}, TContext> => {
+
+const mutationKey = ['duplicateSpec'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof duplicateSpec>>, {specId: Uuid}> = (props) => {
+          const {specId} = props ?? {};
+
+          return  duplicateSpec(specId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DuplicateSpecMutationResult = NonNullable<Awaited<ReturnType<typeof duplicateSpec>>>
+
+    export type DuplicateSpecMutationError = void | ProblemDetail
+
+    /**
+ * @summary Duplicate an API — a fork: the same document under a new identity, titled "<title> (copy)" and owned by the duplicator (FEAT-007)
+ */
+export const useDuplicateSpec = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof duplicateSpec>>, TError,{specId: Uuid}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof duplicateSpec>>,
+        TError,
+        {specId: Uuid},
+        TContext
+      > => {
+      return useMutation(getDuplicateSpecMutationOptions(options), queryClient);
+    }
+    export type addResourceResponse201 = {
   data: ResourceResponse
   status: 201
 }

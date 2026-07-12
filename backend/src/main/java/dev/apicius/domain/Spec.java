@@ -50,6 +50,13 @@ public class Spec {
     @Column(name = "api_version", nullable = false)
     public String apiVersion;
 
+    /**
+     * Projection of the document's {@code openapi} version string (e.g. {@code 3.1.1}) — fixed
+     * after creation (FEAT-003 AC3); the details surface shows it locked (FEAT-007 AC2).
+     */
+    @Column(name = "spec_version", nullable = false)
+    public String specVersion;
+
     /** App-derived at write time (ADR-0008) — "resource" is an Apicius concept, not a spec field. */
     @Column(name = "resource_count", nullable = false)
     public int resourceCount;

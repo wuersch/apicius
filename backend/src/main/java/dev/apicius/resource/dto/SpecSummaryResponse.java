@@ -10,6 +10,7 @@ public record SpecSummaryResponse(
         String title,
         String description,
         String apiVersion,
+        String specVersion,
         int resourceCount,
         int operationCount,
         Instant updatedAt) {
@@ -20,6 +21,7 @@ public record SpecSummaryResponse(
                 summary.title(),
                 summary.description(),
                 summary.apiVersion(),
+                summary.specVersion(),
                 summary.resourceCount(),
                 summary.operationCount(),
                 summary.updatedAt());
@@ -32,6 +34,7 @@ public record SpecSummaryResponse(
                 spec.title,
                 spec.description,
                 spec.apiVersion,
+                spec.specVersion,
                 spec.resourceCount,
                 spec.operationCount,
                 spec.updatedAt);

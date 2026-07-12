@@ -23,5 +23,6 @@ export * from './resourceResponse';
 export * from './specDetailResponse';
 export * from './specListResponse';
 export * from './specSummaryResponse';
+export * from './updateSpecDetailsRequest';
 export * from './userResponse';
 export * from './uuid';

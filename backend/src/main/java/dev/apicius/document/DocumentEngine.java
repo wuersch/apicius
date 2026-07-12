@@ -53,6 +53,19 @@ public interface DocumentEngine {
     String removeField(String body, String schemaName, String propertyName);
 
     /**
+     * FEAT-007: rewrites {@code info.title}, {@code info.version}, and {@code info.description}
+     * ({@code null} removes the member) — the details save. Unmodeled {@code info} members
+     * (contact, license, extensions) and every other document node are untouched (AC1).
+     */
+    String updateInfo(String body, String title, String description, String version);
+
+    /**
+     * FEAT-007: rewrites {@code info.title} only — the duplicate's single delta from the
+     * original; {@code info.version} and everything else are preserved by construction (AC3).
+     */
+    String retitle(String body, String title);
+
+    /**
      * The concept projection of a stored document (FEAT-005 AC8): schema names, path keys, and
      * the recognized resources with their capabilities — "recognition is derivation inverted"
      * (ADR-0010), matching candidate segmentations of each schema name against the document's

@@ -12,6 +12,7 @@ import dev.apicius.resource.dto.ResourceResponse;
 import dev.apicius.resource.dto.SpecDetailResponse;
 import dev.apicius.resource.dto.SpecListResponse;
 import dev.apicius.resource.dto.SpecSummaryResponse;
+import dev.apicius.resource.dto.UpdateSpecDetailsRequest;
 import dev.apicius.resource.problem.ProblemDetail;
 import dev.apicius.security.CurrentUser;
 import dev.apicius.service.SpecService;
@@ -85,6 +86,61 @@ public class SpecResource {
                     schema = @Schema(implementation = ProblemDetail.class)))
     public SpecDetailResponse get(@PathParam("specId") UUID specId) {
         return SpecDetailResponse.from(specService.detail(specId));
+    }
+
+    @PATCH
+    @Path("/{specId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateSpecDetails",
+            summary = "Rewrite an API's details — info.title, info.version, info.description — "
+                    + "never its contents (FEAT-007)")
+    @APIResponse(responseCode = "200", description = "The updated summary",
+            content = @Content(schema = @Schema(implementation = SpecSummaryResponse.class)))
+    @APIResponse(responseCode = "400", description = "Validation failed",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public SpecSummaryResponse updateDetails(@PathParam("specId") UUID specId,
+            @Valid UpdateSpecDetailsRequest request) {
+        return SpecSummaryResponse.from(specService.updateDetails(currentUser.require(), specId,
+                request.title(), request.description(), request.version()));
+    }
+
+    @POST
+    @Path("/{specId}/duplicate")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "duplicateSpec",
+            summary = "Duplicate an API — a fork: the same document under a new identity, "
+                    + "titled \"<title> (copy)\" and owned by the duplicator (FEAT-007)")
+    @APIResponse(responseCode = "201", description = "Created",
+            content = @Content(schema = @Schema(implementation = SpecSummaryResponse.class)))
+    @APIResponse(responseCode = "404", description = "No such API",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response duplicate(@PathParam("specId") UUID specId, @Context UriInfo uriInfo) {
+        Spec copy = specService.duplicate(currentUser.require(), specId);
+        // Location addresses the new API itself — the absolute path would nest it under
+        // .../duplicate/{id}, which 404s.
+        URI location = uriInfo.getBaseUriBuilder().path(SpecResource.class)
+                .path(copy.id.toString()).build();
+        return Response.created(location).entity(SpecSummaryResponse.from(copy)).build();
+    }
+
+    @DELETE
+    @Path("/{specId}")
+    @Operation(operationId = "deleteSpec",
+            summary = "Delete an API permanently — no archive, no undo; every user's "
+                    + "jump-back-in pointer at it is cleared (FEAT-007)")
+    @APIResponse(responseCode = "204", description = "Deleted")
+    @APIResponse(responseCode = "404", description = "No such API",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response delete(@PathParam("specId") UUID specId) {
+        specService.delete(specId);
+        return Response.noContent().build();
     }
 
     @POST

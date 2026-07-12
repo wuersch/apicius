@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.apicius.domain.AppUser;
 import dev.apicius.domain.LastEditedLocation;
 import dev.apicius.domain.Spec;
@@ -1035,6 +1036,306 @@ class SpecResourceTest extends CleanDatabaseTest {
                 .body("resources[0].fields[2].description", equalTo("How to reach the seller."));
     }
 
+    // ---- FEAT-007: manage an API ----
+
+    // AC1: one save rewrites info.title / info.description / info.version and the ADR-0008
+    // projection; every other document node is untouched.
+    @Test
+    @AsAda
+    void updateDetailsRewritesInfoAndProjection() {
+        UUID specId = productApi();
+        JsonNode before = readBody(specId);
+
+        patchDetails(specId, "{\"title\":\"Storefront API v2\","
+                + "\"description\":\"Everything for the shop.\",\"version\":\"2.0.0\"}")
+                .statusCode(200)
+                .body("id", equalTo(specId.toString()))
+                .body("title", equalTo("Storefront API v2"))
+                .body("description", equalTo("Everything for the shop."))
+                .body("apiVersion", equalTo("2.0.0"))
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+
+        JsonNode after = readBody(specId);
+        assertEquals("Storefront API v2", after.path("info").path("title").asText());
+        assertEquals("Everything for the shop.", after.path("info").path("description").asText());
+        assertEquals("2.0.0", after.path("info").path("version").asText());
+        assertEquals(before.path("openapi"), after.path("openapi"));
+        assertEquals(before.path("paths"), after.path("paths"));
+        assertEquals(before.path("components"), after.path("components"));
+        given()
+                .when().get("/api/v1/specs")
+                .then()
+                .body("items[0].title", equalTo("Storefront API v2"))
+                .body("items[0].apiVersion", equalTo("2.0.0"));
+    }
+
+    // AC1: description is removable — blank means "not provided": the member leaves the
+    // document, the projection column goes null.
+    @Test
+    @AsAda
+    void updateDetailsWithBlankDescriptionRemovesIt() {
+        String id = given().contentType("application/json")
+                .body("{\"title\":\"Storefront API\",\"description\":\"Sell products online.\"}")
+                .when().post("/api/v1/specs").then().statusCode(201).extract().path("id");
+        UUID specId = UUID.fromString(id);
+
+        patchDetails(specId,
+                "{\"title\":\"Storefront API\",\"description\":\"   \",\"version\":\"1.0.0\"}")
+                .statusCode(200)
+                .body("description", nullValue());
+
+        assertFalse(readBody(specId).path("info").has("description"),
+                "info.description must be removed when blanked (AC1)");
+    }
+
+    // AC1 × PRIN-003: unmodeled info members (contact, extensions) and unknown root nodes
+    // survive a details save untouched — the save rewrites info's three fields, not info.
+    @Test
+    @AsAda
+    void updateDetailsPreservesUnmodeledContent() {
+        UUID specId = seedSpec("sub-ada", "Ada Lovelace", "Payments API", "Charges.", "2.3.0", 0, 0);
+        setBody(specId, "{\"openapi\":\"3.1.1\",\"x-internal\":true,"
+                + "\"info\":{\"title\":\"Payments API\",\"version\":\"2.3.0\","
+                + "\"contact\":{\"name\":\"Platform team\"},\"x-audience\":\"partners\"},"
+                + "\"paths\":{}}");
+
+        patchDetails(specId, "{\"title\":\"Payments API\",\"version\":\"2.4.0\"}")
+                .statusCode(200);
+
+        JsonNode body = readBody(specId);
+        assertEquals("2.4.0", body.path("info").path("version").asText());
+        assertEquals("Platform team", body.path("info").path("contact").path("name").asText());
+        assertEquals("partners", body.path("info").path("x-audience").asText());
+        assertTrue(body.path("x-internal").asBoolean());
+    }
+
+    // Editing details is editing: the pointer moves to the edited API (chokepoint convention).
+    @Test
+    @AsAda
+    void updateDetailsMovesTheEditorsPointer() {
+        UUID first = createApi("Storefront API");
+        createApi("Fleet API"); // the pointer now sits on the second create
+
+        patchDetails(first, "{\"title\":\"Storefront API\",\"version\":\"1.1.0\"}")
+                .statusCode(200);
+
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("specId", equalTo(first.toString()))
+                .body("capabilityName", nullValue());
+    }
+
+    // AC2: the openapi spec version is visible on the summary (the details surface shows it
+    // locked) and no details save can change it — immutability by omission (FEAT-003 AC3).
+    @Test
+    @AsAda
+    void specVersionIsProjectedAndImmutable() {
+        UUID specId = createApi("Storefront API");
+
+        given()
+                .when().get("/api/v1/specs")
+                .then()
+                .body("items[0].specVersion", equalTo("3.1.1"));
+        patchDetails(specId, "{\"title\":\"Storefront API\",\"version\":\"9.9.9\"}")
+                .statusCode(200)
+                .body("specVersion", equalTo("3.1.1"));
+        assertEquals("3.1.1", readBody(specId).path("openapi").asText());
+    }
+
+    // AC3: duplicate is a fork — new UUID, owner = the duplicator, fresh timestamps, derived
+    // "(copy)" title, and a document functionally equivalent in every other node, unmodeled
+    // content and info.version included.
+    @Test
+    @AsAda
+    void duplicateForksTheDocumentUnderANewIdentity() {
+        UUID specId = seedSpec("sub-grace", "Grace Hopper", "Payments API", "Charges.", "2.3.0", 9, 31);
+        setBody(specId, "{\"openapi\":\"3.1.1\",\"x-internal\":true,"
+                + "\"info\":{\"title\":\"Payments API\",\"version\":\"2.3.0\","
+                + "\"contact\":{\"name\":\"Platform team\"}},"
+                + "\"paths\":{\"/charges\":{\"get\":{\"summary\":\"Browse all charges\"}}}}");
+
+        var response = duplicateApi(specId)
+                .statusCode(201)
+                .body("title", equalTo("Payments API (copy)"))
+                .body("description", equalTo("Charges."))
+                .body("apiVersion", equalTo("2.3.0"))
+                .body("specVersion", equalTo("3.1.1"))
+                .body("resourceCount", equalTo(9))
+                .body("operationCount", equalTo(31))
+                .extract();
+        String copyId = response.path("id");
+        assertNotEquals(specId.toString(), copyId);
+        assertTrue(response.header("Location").endsWith("/api/v1/specs/" + copyId),
+                "Location must address the new API itself");
+
+        JsonNode original = readBody(specId);
+        JsonNode copy = readBody(UUID.fromString(copyId));
+        assertEquals("Payments API (copy)", copy.path("info").path("title").asText());
+        ((ObjectNode) copy.path("info")).put("title", "Payments API");
+        assertEquals(original, copy, "beyond info.title, the fork must be equivalent (AC3)");
+
+        QuarkusTransaction.requiringNew().run(() -> {
+            Spec originalSpec = specRepository.findById(specId);
+            Spec copySpec = specRepository.findById(UUID.fromString(copyId));
+            assertEquals("sub-ada", copySpec.owner.oidcSubject, "owner is the duplicator (AC3)");
+            assertTrue(copySpec.createdAt.isAfter(originalSpec.createdAt), "fresh timestamps (AC3)");
+        });
+    }
+
+    // The pointer is neither copied nor moved by a duplicate — managing is not editing.
+    @Test
+    @AsAda
+    void duplicateDoesNotMoveThePointer() {
+        UUID first = createApi("Storefront API");
+        UUID second = createApi("Fleet API"); // the pointer sits on Fleet API
+
+        duplicateApi(first).statusCode(201);
+
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("specId", equalTo(second.toString()));
+        assertEquals(1, lastEditedLocationRepository.count(), "no pointer row is copied");
+    }
+
+    // AC4: the fork is independent — editing the copy leaves the original untouched, and both
+    // appear on the home like any APIs.
+    @Test
+    @AsAda
+    void duplicateAndOriginalDivergeIndependently() {
+        UUID specId = productApi();
+        String copyId = duplicateApi(specId).statusCode(201).extract().path("id");
+        JsonNode originalBefore = readBody(specId);
+
+        postResource(UUID.fromString(copyId), "{\"name\":\"Review\",\"capabilities\":[\"ADD\"]}")
+                .statusCode(201);
+
+        assertEquals(originalBefore, readBody(specId), "the original never sees the copy's edits");
+        given()
+                .when().get("/api/v1/specs")
+                .then()
+                .body("total", equalTo(2))
+                .body("items[0].title", equalTo("Storefront API"))
+                .body("items[0].resourceCount", equalTo(1))
+                .body("items[1].title", equalTo("Storefront API (copy)"))
+                .body("items[1].resourceCount", equalTo(2));
+    }
+
+    // AC5: confirmed deletion is terminal — gone from the list, gone by ID.
+    @Test
+    @AsAda
+    void deleteRemovesTheApiFromListAndById() {
+        UUID specId = productApi();
+
+        deleteApi(specId).statusCode(204);
+
+        given().when().get("/api/v1/specs").then().body("total", equalTo(0));
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .statusCode(404)
+                .contentType("application/problem+json");
+        assertEquals(0, specRepository.count());
+    }
+
+    // AC5 × FEAT-002: every user's jump-back-in pointer at the deleted API is cleared — the
+    // workspace is global, so other designers may point here too; unrelated pointers survive.
+    @Test
+    @AsAda
+    void deleteClearsEveryUsersPointerAtTheSpec() {
+        UUID doomed = seedSpec("sub-ada", "Ada Lovelace", "Payments API", null, "1.0", 0, 0);
+        UUID kept = seedSpec("sub-ada", "Ada Lovelace", "Fleet API", null, "1.0", 0, 0);
+        seedLocation("sub-ada", doomed, null);
+        seedLocation("sub-grace", doomed, "Refund a payment");
+        seedLocation("sub-bob", kept, null);
+
+        deleteApi(doomed).statusCode(204);
+
+        given().when().get("/api/v1/specs/last-edited").then().statusCode(204);
+        assertEquals(1, lastEditedLocationRepository.count(), "only the unrelated pointer survives");
+    }
+
+    // AC6: a blank title is rejected through the problem contract; nothing is persisted.
+    @Test
+    @AsAda
+    void updateDetailsRejectsABlankTitle() {
+        UUID specId = createApi("Storefront API");
+
+        patchDetails(specId, "{\"title\":\"   \",\"version\":\"1.0.0\"}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("title"));
+
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("title", equalTo("Storefront API"));
+        assertEquals("Storefront API", readBody(specId).path("info").path("title").asText());
+    }
+
+    // AC6's sibling: info.version is REQUIRED by the OpenAPI spec — a blank one would make
+    // every save produce an invalid document, so it is rejected the same way.
+    @Test
+    @AsAda
+    void updateDetailsRejectsABlankVersion() {
+        UUID specId = createApi("Storefront API");
+
+        patchDetails(specId, "{\"title\":\"Storefront API\",\"version\":\"  \"}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("version"));
+        patchDetails(specId, "{\"title\":\"Storefront API\"}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("version"));
+
+        assertEquals("1.0.0", readBody(specId).path("info").path("version").asText());
+    }
+
+    // Unknown API → 404 problem+json on every management endpoint.
+    @Test
+    @AsAda
+    void manageEndpointsReturn404ForUnknownApi() {
+        UUID unknown = UUID.randomUUID();
+
+        patchDetails(unknown, "{\"title\":\"X\",\"version\":\"1.0.0\"}")
+                .statusCode(404)
+                .contentType("application/problem+json");
+        duplicateApi(unknown)
+                .statusCode(404)
+                .contentType("application/problem+json");
+        deleteApi(unknown)
+                .statusCode(404)
+                .contentType("application/problem+json");
+    }
+
+    // Same 401 posture as every other endpoint (FEAT-001).
+    @Test
+    void unauthenticatedManageEndpointsAreRejected() {
+        String base = "/api/v1/specs/" + UUID.randomUUID();
+        given().contentType("application/json").body("{\"title\":\"X\",\"version\":\"1.0.0\"}")
+                .when().patch(base).then().statusCode(401);
+        given().when().post(base + "/duplicate").then().statusCode(401);
+        given().when().delete(base).then().statusCode(401);
+    }
+
+    private io.restassured.response.ValidatableResponse patchDetails(UUID specId, String json) {
+        return given().contentType("application/json").body(json)
+                .when().patch("/api/v1/specs/" + specId).then();
+    }
+
+    private io.restassured.response.ValidatableResponse duplicateApi(UUID specId) {
+        return given().when().post("/api/v1/specs/" + specId + "/duplicate").then();
+    }
+
+    private io.restassured.response.ValidatableResponse deleteApi(UUID specId) {
+        return given().when().delete("/api/v1/specs/" + specId).then();
+    }
+
     /** An API with one Product resource (all capabilities) — the FEAT-006 test fixture. */
     private UUID productApi() {
         UUID specId = createApi("Storefront API");
@@ -1118,6 +1419,7 @@ class SpecResourceTest extends CleanDatabaseTest {
             spec.title = title;
             spec.description = description;
             spec.apiVersion = apiVersion;
+            spec.specVersion = "3.1.1";
             spec.resourceCount = resourceCount;
             spec.operationCount = operationCount;
             specRepository.persist(spec);
