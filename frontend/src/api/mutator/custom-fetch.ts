@@ -51,6 +51,12 @@ function isSameOrigin(url: string): boolean {
 }
 
 async function parseBody(response: Response): Promise<unknown> {
+  // An attachment is a file for the user, never structured data: JSON.parse would re-key
+  // objects (integer-like keys such as "200"/"404" reorder on re-serialization), and the
+  // downloaded file must be the exact text the server sent (FEAT-008 AC1).
+  if (response.headers.get('content-disposition')?.includes('attachment')) {
+    return response.text()
+  }
   const contentType = response.headers.get('content-type')
   // 'json' not 'application/json': structured suffixes like application/problem+json
   // (RFC 9457 errors) must parse as JSON too.

@@ -38,6 +38,7 @@ import java.net.URI;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
@@ -165,7 +166,7 @@ public class SpecResource {
             content = @Content(mediaType = "application/problem+json",
                     schema = @Schema(implementation = ProblemDetail.class)))
     public Response exportDocument(@PathParam("specId") UUID specId,
-            @NotNull @QueryParam("format") ExportFormat format) {
+            @Parameter(required = true) @NotNull @QueryParam("format") ExportFormat format) {
         SpecService.DocumentExport export = specService.exportDocument(specId, format);
         return Response.ok(export.content(), format.mediaType())
                 .header("Content-Disposition",

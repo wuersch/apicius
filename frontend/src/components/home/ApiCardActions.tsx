@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Copy, EllipsisVertical, Pencil, Trash2 } from 'lucide-react'
+import { Copy, Download, EllipsisVertical, Pencil, Trash2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,12 +10,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { DeleteApiDialog } from '@/components/home/DeleteApiDialog'
 import { EditApiDetailsDialog } from '@/components/home/EditApiDetailsDialog'
+import { downloadDocument } from '@/components/home/downloadDocument'
 import { getListSpecsQueryKey, useDuplicateSpec } from '@/api/endpoints/specs/specs'
 import type { SpecSummaryResponse } from '@/api/model'
 
-// FEAT-007: the card's ⋯ menu — the API as an object (details, copy, delete), never its
-// contents. Download items join when FEAT-008 lands. The dialogs are controlled siblings of
-// the menu, never children of its content, so closing the menu doesn't unmount them.
+// FEAT-007/008: the card's ⋯ menu — the API as an object (details, copy, download, delete),
+// never its contents. The dialogs are controlled siblings of the menu, never children of its
+// content, so closing the menu doesn't unmount them.
 export function ApiCardActions({ spec }: { spec: SpecSummaryResponse }) {
   // Non-null = the Edit dialog is open, pre-filled from exactly this summary — the card's own
   // spec, or the fresh copy a duplicate hands over (its card may not be rendered yet).
@@ -61,6 +62,19 @@ export function ApiCardActions({ spec }: { spec: SpecSummaryResponse }) {
           <DropdownMenuItem onSelect={duplicate}>
             <Copy aria-hidden className="text-text-secondary" />
             Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {/* FEAT-008: two direct items — a two-choice format pick doesn't earn a dialog.
+              Failures are silent, the Duplicate precedent: the menu is already closed. */}
+          <DropdownMenuItem onSelect={() => void downloadDocument(spec, 'yaml')}>
+            <Download aria-hidden className="text-text-secondary" />
+            Download as YAML
+            <span className="ml-auto font-mono text-[10.5px] text-text-faint">.yaml</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void downloadDocument(spec, 'json')}>
+            <Download aria-hidden className="text-text-secondary" />
+            Download as JSON
+            <span className="ml-auto font-mono text-[10.5px] text-text-faint">.json</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>

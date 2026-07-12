@@ -11,6 +11,8 @@ export * from './capabilityResponse';
 export * from './coreType';
 export * from './createSpecRequest';
 export * from './createSpecRequestSpecVersion';
+export * from './exportFormat';
+export * from './exportSpecDocumentParams';
 export * from './fieldRequest';
 export * from './fieldResponse';
 export * from './fieldViolation';

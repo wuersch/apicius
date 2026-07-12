@@ -46,4 +46,45 @@ describe('customFetch body parsing', () => {
     expect(thrown.status).toBe(400)
     expect(thrown.data).toEqual(problem)
   })
+
+  // FEAT-008 AC1: an attachment is a file for the user, never structured data. Parsing the
+  // JSON export and re-serializing it would reorder integer-like keys ("404" before "200"),
+  // so the downloaded file must pass through as the exact text the server sent.
+  it('returns attachment bodies as raw text even when they are JSON', async () => {
+    const document = '{"paths":{"/b":{},"/a":{}},"responses":{"404":{},"200":{}}}'
+    stubFetch(
+      new Response(document, {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+          'content-disposition': 'attachment; filename="Payments API.json"',
+        },
+      }),
+    )
+
+    const envelope = await customFetch<{ data: unknown }>(
+      '/api/v1/specs/x/document?format=json',
+      {},
+    )
+    expect(envelope.data).toBe(document)
+  })
+
+  it('returns yaml attachment bodies as text', async () => {
+    const document = 'openapi: "3.1.1"\n'
+    stubFetch(
+      new Response(document, {
+        status: 200,
+        headers: {
+          'content-type': 'application/yaml',
+          'content-disposition': 'attachment; filename="Payments API.yaml"',
+        },
+      }),
+    )
+
+    const envelope = await customFetch<{ data: unknown }>(
+      '/api/v1/specs/x/document?format=yaml',
+      {},
+    )
+    expect(envelope.data).toBe(document)
+  })
 })
