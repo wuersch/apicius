@@ -1,7 +1,7 @@
 # FEAT-008: Export an API document
 
 **ID:** FEAT-008
-**Status:** specced
+**Status:** building
 **Depends on:** PRIN-003, ADR-0004, ADR-0009
 **Mockup:** `docs/design/mockups/launcher-hybrid-v8.html` — frame `launcher 1g·1 — card overflow menu` (Download items), with design notes in `launcher-hybrid-v8-notes.md`.
 

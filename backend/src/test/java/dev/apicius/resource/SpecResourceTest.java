@@ -14,9 +14,12 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import dev.apicius.domain.AppUser;
 import dev.apicius.domain.LastEditedLocation;
 import dev.apicius.domain.Spec;
@@ -44,6 +47,17 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 @QuarkusTest
 class SpecResourceTest extends CleanDatabaseTest {
+
+    /** Exactness-preserving readers for the FEAT-008 AC1 equivalence checks. */
+    private static final ObjectMapper EXACT_JSON = JsonMapper.builder()
+            .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+            .enable(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS)
+            .build();
+
+    private static final ObjectMapper EXACT_YAML = YAMLMapper.builder()
+            .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+            .enable(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS)
+            .build();
 
     @Inject
     UserProvisioningService provisioningService;
@@ -1323,6 +1337,194 @@ class SpecResourceTest extends CleanDatabaseTest {
         given().when().delete(base).then().statusCode(401);
     }
 
+    // FEAT-008 AC1/AC3 (JSON): the export is the stored document itself — textually identical
+    // to the body column, so every node (unmodeled content included) rides along in authored
+    // order by construction.
+    @Test
+    @AsAda
+    void exportAsJsonStreamsTheStoredDocumentVerbatim() {
+        UUID specId = productApi();
+        postField(specId, "Product", "{\"name\":\"Unit price\",\"coreType\":\"DECIMAL_NUMBER\","
+                + "\"required\":true}").statusCode(201);
+
+        String exported = exportApi(specId, "json")
+                .statusCode(200)
+                .header("Content-Type", containsString("application/json"))
+                .extract().asString();
+
+        assertEquals(readRawBody(specId), exported,
+                "the JSON export must be the stored body, byte for byte (AC1)");
+    }
+
+    // FEAT-008 AC1 (YAML): every node in authored property order. JsonNode.equals ignores
+    // object key order, so both sides are normalized through one exact JSON writer and
+    // compared as strings — an order-sensitive equivalence.
+    @Test
+    @AsAda
+    void exportAsYamlIsFunctionallyEquivalentToTheStoredDocument() throws Exception {
+        UUID specId = productApi();
+        postField(specId, "Product", "{\"name\":\"First name\",\"coreType\":\"TEXT\"}")
+                .statusCode(201);
+
+        String exported = exportApi(specId, "yaml")
+                .statusCode(200)
+                .header("Content-Type", containsString("application/yaml"))
+                .extract().asString();
+
+        assertEquals(
+                EXACT_JSON.writeValueAsString(EXACT_JSON.readTree(readRawBody(specId))),
+                EXACT_JSON.writeValueAsString(EXACT_YAML.readTree(exported)),
+                "the YAML must carry every node in authored order (AC1)");
+    }
+
+    // FEAT-008 AC1 × PRIN-003: unmodeled nodes (extensions, foreign members) and deliberately
+    // unsorted keys — integer-like response codes included — survive both exports.
+    @Test
+    @AsAda
+    void exportCarriesUnmodeledContentInAuthoredOrder() throws Exception {
+        UUID specId = seedSpec("sub-ada", "Ada Lovelace", "Payments API", "Charges.", "2.3.0", 0, 0);
+        setBody(specId, "{\"openapi\":\"3.1.1\",\"x-internal\":true,"
+                + "\"info\":{\"title\":\"Payments API\",\"version\":\"2.3.0\","
+                + "\"contact\":{\"name\":\"Platform team\"}},"
+                + "\"paths\":{\"/z-charges\":{\"get\":{\"responses\":"
+                + "{\"404\":{\"description\":\"gone\"},\"200\":{\"description\":\"ok\"}}}},"
+                + "\"/a-refunds\":{}}}");
+
+        assertEquals(readRawBody(specId), exportApi(specId, "json").statusCode(200)
+                .extract().asString());
+
+        JsonNode yamlTree = EXACT_YAML.readTree(exportApi(specId, "yaml").statusCode(200)
+                .extract().asString());
+        assertTrue(yamlTree.path("x-internal").asBoolean(), "unmodeled root node (PRIN-003)");
+        assertEquals("Platform team", yamlTree.path("info").path("contact").path("name").asText());
+        assertEquals(List.of("/z-charges", "/a-refunds"), fieldNamesOf(yamlTree.path("paths")));
+        assertEquals(List.of("404", "200"), fieldNamesOf(yamlTree.path("paths")
+                .path("/z-charges").path("get").path("responses")));
+    }
+
+    // FEAT-008 AC1: strings a YAML parser would re-type when unquoted stay strings.
+    @Test
+    @AsAda
+    void exportAsYamlKeepsAmbiguousScalarsAsStrings() throws Exception {
+        UUID specId = seedSpec("sub-ada", "Ada Lovelace", "Ops API", null, "1.0", 0, 0);
+        setBody(specId, "{\"openapi\":\"3.1.1\",\"info\":{\"title\":\"Ops API\","
+                + "\"version\":\"1.0\",\"description\":\"on\"},\"paths\":{}}");
+
+        JsonNode info = EXACT_YAML.readTree(exportApi(specId, "yaml").statusCode(200)
+                .extract().asString()).path("info");
+
+        assertTrue(info.path("version").isTextual(), "\"1.0\" must not become a float");
+        assertEquals("1.0", info.path("version").asText());
+        assertTrue(info.path("description").isTextual(), "\"on\" must not become a boolean");
+    }
+
+    // FEAT-008 AC2/AC3: both formats for every stored spec version, and the exported
+    // `openapi` node is the stored one — no conversion.
+    @ParameterizedTest
+    @CsvSource({"3.0, 3.0.4, yaml", "3.0, 3.0.4, json", "3.1, 3.1.1, yaml", "3.1, 3.1.1, json",
+            "3.2, 3.2.0, yaml", "3.2, 3.2.0, json"})
+    @AsAda
+    void exportOffersBothFormatsAtTheStoredSpecVersion(String minor, String expectedPatch,
+            String format) throws Exception {
+        String id = given()
+                .contentType("application/json")
+                .body("{\"title\":\"Fleet API\",\"specVersion\":\"" + minor + "\"}")
+                .when().post("/api/v1/specs")
+                .then().statusCode(201).extract().path("id");
+
+        String exported = exportApi(UUID.fromString(id), format).statusCode(200)
+                .extract().asString();
+
+        ObjectMapper reader = format.equals("yaml") ? EXACT_YAML : EXACT_JSON;
+        assertEquals(expectedPatch, reader.readTree(exported).path("openapi").asText(),
+                "the export keeps the stored spec version (AC3)");
+    }
+
+    // FEAT-008 AC3: the file is named from the API's title with the format's extension.
+    @Test
+    @AsAda
+    void exportNamesTheFileFromTheTitle() {
+        UUID specId = createApi("Payments API");
+
+        exportApi(specId, "yaml").statusCode(200)
+                .header("Content-Disposition", equalTo("attachment;"
+                        + " filename=\"Payments API.yaml\";"
+                        + " filename*=UTF-8''Payments%20API.yaml"));
+        exportApi(specId, "json").statusCode(200)
+                .header("Content-Disposition", equalTo("attachment;"
+                        + " filename=\"Payments API.json\";"
+                        + " filename*=UTF-8''Payments%20API.json"));
+    }
+
+    // AC3's edge: hostile titles — quoted-string breakers, path separators, unicode — yield a
+    // safe ASCII filename plus an RFC 5987 filename* carrying the unicode.
+    @Test
+    @AsAda
+    void exportSanitizesTheFilenameFromAHostileTitle() {
+        String id = given().contentType("application/json")
+                .body("{\"title\":\"Payments/API: \\\"v2\\\" ✨\"}")
+                .when().post("/api/v1/specs").then().statusCode(201).extract().path("id");
+
+        exportApi(UUID.fromString(id), "yaml").statusCode(200)
+                .header("Content-Disposition", equalTo("attachment;"
+                        + " filename=\"Payments API v2.yaml\";"
+                        + " filename*=UTF-8''Payments%20API%20v2%20%E2%9C%A8.yaml"));
+    }
+
+    // Exporting is managing, not editing — the jump-back-in pointer stays put (FEAT-007
+    // precedent: duplicate/delete behave the same).
+    @Test
+    @AsAda
+    void exportDoesNotMoveThePointer() {
+        UUID first = createApi("Storefront API");
+        UUID second = createApi("Fleet API"); // the pointer sits on Fleet API
+
+        exportApi(first, "yaml").statusCode(200);
+
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("specId", equalTo(second.toString()));
+    }
+
+    // Unknown API → the same 404 problem contract as every other spec endpoint.
+    @Test
+    @AsAda
+    void exportReturns404ForUnknownApi() {
+        exportApi(UUID.randomUUID(), "yaml")
+                .statusCode(404)
+                .contentType("application/problem+json");
+    }
+
+    // The format is the request's one decision — never a silent default. Absent → 400 (bean
+    // validation, problem+json); unrecognized (case included, the enum is the contract) → 404,
+    // the status JAX-RS mandates for a query-param conversion failure. Both formats work, so
+    // the distinction never reaches the real client.
+    @Test
+    @AsAda
+    void exportRejectsAMissingOrUnknownFormat() {
+        UUID specId = createApi("Payments API");
+
+        given().when().get("/api/v1/specs/" + specId + "/document").then()
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("format"));
+        exportApi(specId, "xml").statusCode(404);
+        exportApi(specId, "YAML").statusCode(404);
+    }
+
+    // Same 401 posture as every other endpoint (FEAT-001).
+    @Test
+    void unauthenticatedExportIsRejected() {
+        given().when().get("/api/v1/specs/" + UUID.randomUUID() + "/document?format=yaml")
+                .then().statusCode(401);
+    }
+
+    private io.restassured.response.ValidatableResponse exportApi(UUID specId, String format) {
+        return given().when().get("/api/v1/specs/" + specId + "/document?format=" + format).then();
+    }
+
     private io.restassured.response.ValidatableResponse patchDetails(UUID specId, String json) {
         return given().contentType("application/json").body(json)
                 .when().patch("/api/v1/specs/" + specId).then();
@@ -1451,12 +1653,16 @@ class SpecResourceTest extends CleanDatabaseTest {
 
     /** The persisted document, parsed — create-path assertions read what actually hit the column. */
     private JsonNode readBody(UUID specId) {
-        String body = QuarkusTransaction.requiringNew()
-                .call(() -> specRepository.findById(specId).body);
         try {
-            return new ObjectMapper().readTree(body);
+            return new ObjectMapper().readTree(readRawBody(specId));
         } catch (Exception e) {
             throw new AssertionError("spec.body is not valid JSON", e);
         }
+    }
+
+    /** The persisted document as stored text — the FEAT-008 verbatim-export baseline. */
+    private String readRawBody(UUID specId) {
+        return QuarkusTransaction.requiringNew()
+                .call(() -> specRepository.findById(specId).body);
     }
 }
