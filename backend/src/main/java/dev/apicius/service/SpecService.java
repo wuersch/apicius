@@ -171,10 +171,6 @@ public class SpecService {
         return new DocumentExport(spec.title, content);
     }
 
-    /** A named export: the serialized document plus the title that names the file (AC3). */
-    public record DocumentExport(String title, String content) {
-    }
-
     /**
      * FEAT-005: one API for the editor — the spec row plus its recognized resources (AC8).
      * This read path deliberately hydrates {@code body}: it is the editor's document read, not

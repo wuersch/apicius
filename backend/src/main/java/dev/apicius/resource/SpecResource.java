@@ -16,6 +16,7 @@ import dev.apicius.resource.dto.SpecSummaryResponse;
 import dev.apicius.resource.dto.UpdateSpecDetailsRequest;
 import dev.apicius.resource.problem.ProblemDetail;
 import dev.apicius.security.CurrentUser;
+import dev.apicius.service.DocumentExport;
 import dev.apicius.service.SpecService;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
@@ -167,7 +168,7 @@ public class SpecResource {
                     schema = @Schema(implementation = ProblemDetail.class)))
     public Response exportDocument(@PathParam("specId") UUID specId,
             @Parameter(required = true) @NotNull @QueryParam("format") ExportFormat format) {
-        SpecService.DocumentExport export = specService.exportDocument(specId, format);
+        DocumentExport export = specService.exportDocument(specId, format);
         return Response.ok(export.content(), format.mediaType())
                 .header("Content-Disposition",
                         ContentDispositions.attachment(export.title(), format.extension()))
