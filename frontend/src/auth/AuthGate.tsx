@@ -1,13 +1,16 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useAuth, useAutoSignin } from 'react-oidc-context'
 import { configureApiAuth } from '@/api/mutator/custom-fetch'
+import { returnTo } from '@/auth/config'
 import { Button } from '@/components/ui/button'
 
 // FEAT-001: the app is fully gated — no anonymous surface. Unauthenticated visits
-// redirect to the IdP; useAutoSignin dedupes the redirect under StrictMode.
+// redirect to the IdP; useAutoSignin dedupes the redirect under StrictMode. Every
+// sign-in carries the current URL as OIDC state (returnTo), so the round-trip lands
+// back on the reloaded or deep-linked page — onSigninCallback restores it.
 export function AuthGate({ children }: { children: ReactNode }) {
   const auth = useAuth()
-  useAutoSignin()
+  useAutoSignin({ signinArgs: { state: returnTo() } })
 
   // At most one IdP redirect at a time — token-less 401s, session-expiry, and
   // re-renders must not stack up concurrent full-page navigations.
@@ -15,7 +18,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const redirectToSignin = () => {
     if (redirecting.current) return
     redirecting.current = true
-    void auth.signinRedirect()
+    void auth.signinRedirect({ state: returnTo() })
   }
 
   // Install the API token accessor during render, before any child effect runs
@@ -33,7 +36,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (sessionEnded && !redirecting.current) {
       redirecting.current = true
-      void auth.signinRedirect()
+      void auth.signinRedirect({ state: returnTo() })
     }
   }, [sessionEnded, auth])
 
