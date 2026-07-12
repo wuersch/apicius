@@ -23,7 +23,10 @@ beforeEach(() => {
 
 // FEAT-008 AC3: the server names the file — the Content-Disposition filename wins.
 test('downloads the export under the server-chosen filename', async () => {
-  const headers = new Headers({ 'content-disposition': 'attachment; filename="Payments API.yaml"' })
+  const headers = new Headers({
+    'content-disposition': 'attachment; filename="Payments API.yaml"',
+    'content-type': 'application/yaml',
+  })
   vi.mocked(exportSpecDocument).mockResolvedValue({
     status: 200,
     data: 'openapi: "3.1.1"\n',
@@ -44,8 +47,8 @@ test('downloads the export under the server-chosen filename', async () => {
   )
 })
 
-// A stripped header (an odd proxy) still downloads — named from the title client-side.
-test('falls back to a title-derived filename and the JSON mime for JSON', async () => {
+// Stripped headers (an odd proxy) still download — filename from the title, a neutral mime.
+test('falls back to a title-derived filename and a neutral mime', async () => {
   vi.mocked(exportSpecDocument).mockResolvedValue({
     status: 200,
     data: '{"openapi":"3.1.1"}',
@@ -58,7 +61,7 @@ test('falls back to a title-derived filename and the JSON mime for JSON', async 
   expect(triggerDownload).toHaveBeenCalledWith(
     '{"openapi":"3.1.1"}',
     'Payments API.json',
-    'application/json',
+    'application/octet-stream',
   )
 })
 

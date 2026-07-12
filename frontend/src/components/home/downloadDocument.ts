@@ -15,11 +15,9 @@ export async function downloadDocument(
     const filename =
       filenameFromContentDisposition(response.headers.get('content-disposition')) ??
       `${spec.title || 'api'}.${format}`
-    triggerDownload(
-      response.data,
-      filename,
-      format === 'yaml' ? 'application/yaml' : 'application/json',
-    )
+    // The server owns the media type too (ExportFormat.mediaType()) — read it, don't re-derive.
+    const mimeType = response.headers.get('content-type') ?? 'application/octet-stream'
+    triggerDownload(response.data, filename, mimeType)
     return true
   } catch {
     return false
