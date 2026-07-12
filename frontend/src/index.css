@@ -128,6 +128,8 @@
     --divider: #DCCFB2;
     --mono-derived: #8A7B63;
     --hint: #9A8F76;
+    /* Control drop-shadow color — the warm ink (#2B2118) at low alpha, not plain black. */
+    --shadow-ink: rgba(43, 33, 24, 0.2);
     --id-row: #F9F2E2;
     --olive: #5E6A3F;
     --olive-chip: #E6E7D4;
@@ -186,6 +188,9 @@
         --divider: #4A3F2D;
         --mono-derived: #948364;
         --hint: #948364;
+        /* Deeper and stronger than the light scrim — a 20% ink shadow vanishes on a dark
+           surface; the hue stays warm-black, never neutral black. */
+        --shadow-ink: rgba(18, 14, 9, 0.5);
         --id-row: #2D261C;
         --olive: #97A860;
         --olive-chip: #3A4026;
