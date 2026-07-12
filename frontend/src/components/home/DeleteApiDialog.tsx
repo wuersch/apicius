@@ -133,11 +133,15 @@ export function DeleteApiDialog({
               Cancel
             </Button>
           </DialogClose>
-          {/* Solid danger, unlike the soft destructive variant — this is the point of no return. */}
+          {/* Soft destructive while disarmed, solid danger once the typed name matches. The
+              global disabled:opacity-50 is skipped (in dark mode primary-foreground matches
+              the page background, so the faded pair sinks into the backdrop unreadably), and
+              the variant's dark:bg-destructive/20 must be re-overridden — dark: utilities
+              out-order the plain bg-destructive that makes the armed fill solid. */}
           <Button
             type="button"
             variant="destructive"
-            className="bg-destructive text-primary-foreground hover:bg-destructive/90 focus-visible:ring-destructive/40"
+            className="bg-destructive text-primary-foreground hover:bg-destructive/90 focus-visible:ring-destructive/40 dark:bg-destructive dark:hover:bg-destructive/90 disabled:bg-destructive/15 disabled:text-destructive disabled:opacity-100"
             disabled={!armed || deleteSpec.isPending}
             onClick={handleDelete}
           >
