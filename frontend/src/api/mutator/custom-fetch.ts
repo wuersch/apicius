@@ -42,6 +42,18 @@ export const customFetch = async <T>(url: string, options: RequestInit): Promise
   return envelope as T
 }
 
+/**
+ * TanStack Query retry policy for envelopes thrown above: a 4xx is deterministic — the
+ * request is wrong or the thing is gone, and asking again only delays the page's honest
+ * answer (a deleted API's "doesn't exist" sat behind ~7s of blank retries). Server errors
+ * and network failures (no envelope) keep the default three attempts.
+ */
+export function retryUnlessClientError(failureCount: number, error: unknown): boolean {
+  const status = (error as { status?: number } | null)?.status
+  if (status !== undefined && status >= 400 && status < 500) return false
+  return failureCount < 3
+}
+
 function isSameOrigin(url: string): boolean {
   try {
     return new URL(url, window.location.origin).origin === window.location.origin

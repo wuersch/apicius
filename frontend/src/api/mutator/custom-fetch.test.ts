@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { customFetch } from './custom-fetch'
+import { customFetch, retryUnlessClientError } from './custom-fetch'
 
 function stubFetch(response: Response) {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
@@ -86,5 +86,23 @@ describe('customFetch body parsing', () => {
       {},
     )
     expect(envelope.data).toBe(document)
+  })
+})
+
+describe('retryUnlessClientError', () => {
+  // A 4xx is deterministic — the request is wrong (or the thing is gone); asking again
+  // only delays the page's honest answer (e.g. ~7s of blank before "doesn't exist").
+  it('never retries client errors', () => {
+    for (const status of [400, 401, 403, 404, 409]) {
+      expect(retryUnlessClientError(0, { status })).toBe(false)
+    }
+  })
+
+  it('retries server errors and network failures up to three times', () => {
+    expect(retryUnlessClientError(0, { status: 500 })).toBe(true)
+    expect(retryUnlessClientError(2, { status: 503 })).toBe(true)
+    expect(retryUnlessClientError(3, { status: 500 })).toBe(false)
+    // fetch rejections (network down) carry no status envelope.
+    expect(retryUnlessClientError(0, new TypeError('Failed to fetch'))).toBe(true)
   })
 })

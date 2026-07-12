@@ -8,10 +8,13 @@ import './index.css'
 import App from './App.tsx'
 import { oidcConfig } from './auth/config.ts'
 import { AuthGate } from './auth/AuthGate.tsx'
+import { retryUnlessClientError } from './api/mutator/custom-fetch.ts'
 
 // TanStack Query is the only client-side data layer; it holds view state only —
 // the domain model lives server-side (ADR-0002, ADR-0006).
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: retryUnlessClientError } },
+})
 
 // The app is fully gated (FEAT-001): AuthProvider runs the OIDC code+PKCE flow,
 // AuthGate keeps everything below it authenticated-only.
