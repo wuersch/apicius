@@ -81,7 +81,7 @@ Nothing is edited here. The `v1.0` shown per card is the API version from each s
 - Rules/validation badge and activity roll-ups ("N need a look", "N active today") — depend on the
   rules engine (PRIN-006) and collaboration; future.
 - User-facing **sort** and **pagination / "Show all"** — future.
-- **Per-API actions** (rename / delete / duplicate) — so no delete or rename exists until the
-  "Manage an API" feature.
+- **Per-API actions** (edit details / duplicate / delete / download) — owned by FEAT-007
+  (Manage an API) and FEAT-008 (Export an API document).
 - **Table / condensed view** — card view only in v1.
 - Deriving `resource_count` for imported-but-unmodeled specs — owned by the resource-extraction feature.
