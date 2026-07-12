@@ -1,5 +1,6 @@
 package dev.apicius.resource;
 
+import dev.apicius.document.ExportFormat;
 import dev.apicius.document.FieldView;
 import dev.apicius.document.ResourceView;
 import dev.apicius.domain.Spec;
@@ -19,6 +20,7 @@ import dev.apicius.service.SpecService;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -27,6 +29,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -34,6 +37,7 @@ import jakarta.ws.rs.core.UriInfo;
 import java.net.URI;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
@@ -141,6 +145,32 @@ public class SpecResource {
     public Response delete(@PathParam("specId") UUID specId) {
         specService.delete(specId);
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/{specId}/document")
+    @Operation(operationId = "exportSpecDocument",
+            summary = "Export the stored OpenAPI document, whole and order-faithful, as YAML "
+                    + "or JSON — the PRIN-003 escape hatch (FEAT-008)")
+    @APIResponse(responseCode = "200", description = "The document, as a file download",
+            content = {
+                    @Content(mediaType = "application/yaml",
+                            schema = @Schema(type = SchemaType.STRING)),
+                    @Content(mediaType = MediaType.APPLICATION_JSON,
+                            schema = @Schema(type = SchemaType.STRING))})
+    @APIResponse(responseCode = "400", description = "Missing or unknown format",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response exportDocument(@PathParam("specId") UUID specId,
+            @NotNull @QueryParam("format") ExportFormat format) {
+        SpecService.DocumentExport export = specService.exportDocument(specId, format);
+        return Response.ok(export.content(), format.mediaType())
+                .header("Content-Disposition",
+                        ContentDispositions.attachment(export.title(), format.extension()))
+                .build();
     }
 
     @POST

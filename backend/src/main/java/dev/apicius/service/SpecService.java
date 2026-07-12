@@ -3,6 +3,8 @@ package dev.apicius.service;
 import dev.apicius.document.CapabilityView;
 import dev.apicius.document.DocumentEngine;
 import dev.apicius.document.DocumentProjection;
+import dev.apicius.document.DocumentTranscoder;
+import dev.apicius.document.ExportFormat;
 import dev.apicius.document.FieldView;
 import dev.apicius.document.ResourceView;
 import dev.apicius.document.SpecVersion;
@@ -40,6 +42,9 @@ public class SpecService {
 
     @Inject
     DocumentEngine documentEngine;
+
+    @Inject
+    DocumentTranscoder documentTranscoder;
 
     /**
      * All APIs as summary projections, alphabetical by title (FEAT-002 AC2). The list is
@@ -146,6 +151,28 @@ public class SpecService {
         }
         lastEditedLocationRepository.deleteBySpecId(specId);
         specRepository.delete(spec);
+    }
+
+    /**
+     * FEAT-008: the document as it leaves Apicius — whole and order-faithful (PRIN-003, AC1).
+     * JSON is the stored body verbatim: the body <em>is</em> the ADR-0009 engine's own
+     * serialization (ADR-0004 stores it textually, order intact), so nothing is re-said. YAML
+     * transcodes that same text. Exporting is managing, not editing: plain read, no lock, and
+     * the jump-back-in pointer stays put (the duplicate/delete convention).
+     */
+    @Transactional
+    public DocumentExport exportDocument(UUID specId, ExportFormat format) {
+        Spec spec = specRepository.findById(specId);
+        if (spec == null) {
+            throw new SpecNotFoundException(specId);
+        }
+        String content = format == ExportFormat.json
+                ? spec.body : documentTranscoder.toYaml(spec.body);
+        return new DocumentExport(spec.title, content);
+    }
+
+    /** A named export: the serialized document plus the title that names the file (AC3). */
+    public record DocumentExport(String title, String content) {
     }
 
     /**
