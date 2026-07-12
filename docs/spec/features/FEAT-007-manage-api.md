@@ -1,7 +1,7 @@
 # FEAT-007: Manage an API
 
 **ID:** FEAT-007
-**Status:** building
+**Status:** shipped
 **Depends on:** PRIN-003, ADR-0004, ADR-0008
 **Mockup:** `docs/design/mockups/launcher-hybrid-v8.html` — frames `launcher 1g·1 — card overflow menu`, `1g·2 — edit details dialog`, `1g·3 — delete confirm`, with design notes in `launcher-hybrid-v8-notes.md`.
 
