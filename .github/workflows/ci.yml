@@ -29,7 +29,7 @@ jobs:
       # the HTML report in the artifact. No thresholds on purpose.
       - run: npm run coverage
       - run: npm run build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage
           path: frontend/coverage/
@@ -50,7 +50,7 @@ jobs:
       # (skipITs=true). Postgres + Keycloak dev-services run on the runner's Docker.
       # JaCoCo report (plain unit + @QuarkusTest merged) falls out of verify.
       - run: ./mvnw -B verify -Dquarkus.analytics.disabled=true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: backend/target/jacoco-report/
