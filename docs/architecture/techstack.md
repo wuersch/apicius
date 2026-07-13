@@ -41,3 +41,4 @@
 - **Repo:** monorepo `backend/` + `frontend/` + `docs/` (+ `k8s/` later) — decided (ADR-0001).
 - **Contract flow:** code-first backend → orval-generated frontend client — decided (ADR-0002).
 - **Deployment:** two pods (nginx + Quarkus), UBI9 images, Helm, JVM mode — decided (ADR-0007).
+- **CI:** GitHub Actions — lint + test + build on every PR and push to `main` — proposed.
