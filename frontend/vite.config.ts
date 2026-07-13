@@ -25,5 +25,13 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    coverage: {
+      // Information, not a gate: no thresholds on purpose — the uncovered-lines
+      // report is for reading at PR time, not a percentage to satisfy.
+      include: ['src/**'],
+      // Generated (orval) and test-harness code would only pad the numbers.
+      exclude: ['src/api/**', 'src/test/**'],
+      reporter: ['text', 'html'],
+    },
   },
 })

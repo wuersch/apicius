@@ -7,3 +7,6 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
+
+# Coverage report (vitest --coverage)
+coverage/

@@ -21,6 +21,9 @@
 - **Auth:** quarkus-oidc + Keycloak (Dev Services) — decided (ADR-0005).
 - **Migrations:** Hibernate drop-and-create → Flyway later — decided (ADR-0004).
 - **Test:** JUnit 5 (`@QuarkusTest`) + REST-assured + Mockito — proposed.
+- **Coverage:** JaCoCo — quarkus-jacoco + jacoco-maven-plugin, plain-unit and `@QuarkusTest`
+  runs merged into one report (`target/jacoco-report`); information, not a threshold gate —
+  proposed.
 
 ## Frontend (`frontend/` — React + Vite, npm)
 - **Framework:** React + Vite + TypeScript — decided (ADR-0002).
@@ -35,6 +38,8 @@
 - **i18n:** react-i18next (`en` / `de`) — proposed.
 - **Canvas (later):** React Flow — proposed.
 - **Test:** Vitest + React Testing Library — proposed.
+- **Coverage:** Vitest V8 provider (`npm run coverage`), generated code excluded; information,
+  not a threshold gate — proposed.
 - **E2E:** Playwright (later) — proposed.
 
 ## Shared / ops

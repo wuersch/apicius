@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "generate": "orval --config orval.config.ts",
     "test": "vitest",
+    "coverage": "vitest run --coverage",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -39,6 +40,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.10",
     "jsdom": "^29.1.1",
     "orval": "^8.19.0",
     "oxlint": "^1.69.0",

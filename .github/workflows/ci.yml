@@ -25,8 +25,14 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npx vitest run
+      # Coverage is information, not a gate: the text summary lands in the log,
+      # the HTML report in the artifact. No thresholds on purpose.
+      - run: npm run coverage
       - run: npm run build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
 
   backend:
     runs-on: ubuntu-latest
@@ -42,4 +48,9 @@ jobs:
           cache: maven
       # verify with the pom defaults: unit + @QuarkusTest suites; ITs stay skipped
       # (skipITs=true). Postgres + Keycloak dev-services run on the runner's Docker.
+      # JaCoCo report (plain unit + @QuarkusTest merged) falls out of verify.
       - run: ./mvnw -B verify -Dquarkus.analytics.disabled=true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          path: backend/target/jacoco-report/
