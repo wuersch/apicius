@@ -73,8 +73,13 @@ export function EditorPage() {
             <span className="font-mono text-[11px] text-text-faint">{resources.length}</span>
           </div>
           <div className="mt-2.5 flex flex-col gap-3.5">
-            {resources.map((resource) => (
-              <ResourceCard key={resource.name} specId={spec.id ?? ''} resource={resource} />
+            {resources.map((resource, index) => (
+              <ResourceCard
+                key={resource.name}
+                specId={spec.id ?? ''}
+                resource={resource}
+                defaultOpen={index === 0}
+              />
             ))}
           </div>
         </section>
