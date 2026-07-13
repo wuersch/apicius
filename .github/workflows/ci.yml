@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
 
+# Least privilege for the GITHUB_TOKEN: the jobs only check out code and
+# upload artifacts (which has its own scope).
+permissions:
+  contents: read
+
 # A superseded push cancels the still-running verdict for the same ref.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
