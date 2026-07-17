@@ -23,6 +23,7 @@ export * from './fieldVisibility';
 export * from './headerLineResponse';
 export * from './instant';
 export * from './lastEditedLocationResponse';
+export * from './pagingFacetResponse';
 export * from './problemDetail';
 export * from './refinement';
 export * from './requestFacetResponse';

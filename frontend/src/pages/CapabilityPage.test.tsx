@@ -15,6 +15,8 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
   useGetCapabilityContract: vi.fn(),
   useAdoptStandardErrors: vi.fn(),
   useRemoveStandardErrors: vi.fn(),
+  useEnablePaging: vi.fn(),
+  useDisablePaging: vi.fn(),
   getGetSpecQueryKey: (specId: string) => [`/api/v1/specs/${specId}`],
   getListSpecsQueryKey: () => ['/api/v1/specs'],
   getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
@@ -25,6 +27,8 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
 
 import {
   useAdoptStandardErrors,
+  useDisablePaging,
+  useEnablePaging,
   useGetCapabilityContract,
   useGetSpec,
   useRemoveStandardErrors,
@@ -84,6 +88,8 @@ function arrange(
   route = '/apis/spec-1/resources/Product/capabilities/LOOK_UP',
   adoptMutate = vi.fn(),
   removeMutate = vi.fn(),
+  enableMutate = vi.fn(),
+  disableMutate = vi.fn(),
 ) {
   vi.mocked(useGetSpec).mockReturnValue({
     data: spec,
@@ -102,6 +108,16 @@ function arrange(
   } as never)
   vi.mocked(useRemoveStandardErrors).mockReturnValue({
     mutate: removeMutate,
+    isPending: false,
+    isError: false,
+  } as never)
+  vi.mocked(useEnablePaging).mockReturnValue({
+    mutate: enableMutate,
+    isPending: false,
+    isError: false,
+  } as never)
+  vi.mocked(useDisablePaging).mockReturnValue({
+    mutate: disableMutate,
     isPending: false,
     isError: false,
   } as never)
@@ -258,6 +274,101 @@ test('switches present answers off via remove', async () => {
     expect.anything(),
   )
   expect(adoptMutate).not.toHaveBeenCalled()
+})
+
+const browseContract: CapabilityContractResponse = {
+  capability: { capability: 'BROWSE', label: 'Browse all products', method: 'GET', path: '/products' },
+  singularNoun: 'product',
+  paging: { on: true, conflicts: [] },
+  headers: [{ name: 'Accept', value: 'application/json', derived: true }],
+  answers: {
+    successStatus: '200',
+    successDescription: 'A paged list of products',
+    failures: [
+      { status: '400', present: true },
+      { status: '401', present: true },
+      { status: '422', present: true },
+      { status: '429', present: true },
+      { status: '500', present: true },
+    ],
+  },
+}
+
+const browseRoute = '/apis/spec-1/resources/Product/capabilities/BROWSE'
+
+// FEAT-010 UC1: paging is stated as built-in behavior in plain language — the wrapped-list
+// answer with the pagination member, the toggle on.
+test('presents paging as built in on a paged list capability', () => {
+  arrange(browseContract, browseRoute)
+
+  const paging = screen.getByRole('region', { name: 'Paging' })
+  expect(within(paging).getByText('Built in')).toBeInTheDocument()
+  expect(within(paging).getByRole('switch', { name: 'Paging' })).toBeChecked()
+  expect(within(paging).getByText(/Results come back 20 at a time/)).toBeInTheDocument()
+  expect(within(paging).getByText(/pagination:/)).toBeInTheDocument()
+  expect(within(paging).getByText(/…the products…/)).toBeInTheDocument()
+})
+
+// AC2 (FEAT-009) reused: paging doesn't apply to a non-list capability — the facet is
+// absent, never an empty card, and no toggle exists to misfire.
+test('omits the Paging facet where paging does not apply', () => {
+  arrange(lookUpContract)
+
+  expect(screen.queryByRole('region', { name: 'Paging' })).not.toBeInTheDocument()
+})
+
+// UC2: switching off fires the disable mutation — plain, no confirm.
+test('switches paging off via disable', async () => {
+  const user = userEvent.setup()
+  const enableMutate = vi.fn()
+  const disableMutate = vi.fn()
+  arrange(browseContract, browseRoute, vi.fn(), vi.fn(), enableMutate, disableMutate)
+
+  await user.click(screen.getByRole('switch', { name: 'Paging' }))
+
+  expect(disableMutate).toHaveBeenCalledWith(
+    { specId: 'spec-1', schemaName: 'Product', capability: 'BROWSE' },
+    expect.anything(),
+  )
+  expect(enableMutate).not.toHaveBeenCalled()
+})
+
+// UC3/UC4: the opted-out (or pre-FEAT-010) card is dashed/neutral with the consequence
+// stated and no "Built in" badge; switching on is the one-action adopt.
+test('shows paging off with the consequence and switches on via enable', async () => {
+  const user = userEvent.setup()
+  const enableMutate = vi.fn()
+  arrange(
+    { ...browseContract, paging: { on: false, conflicts: [] } },
+    browseRoute,
+    vi.fn(),
+    vi.fn(),
+    enableMutate,
+  )
+
+  const paging = screen.getByRole('region', { name: 'Paging' })
+  const toggle = within(paging).getByRole('switch', { name: 'Paging' })
+  expect(toggle).not.toBeChecked()
+  expect(within(paging).getByText(/whole list in one response/)).toBeInTheDocument()
+  // Off removes the built-in badge entirely — never dimmed.
+  expect(within(paging).queryByText('Built in')).not.toBeInTheDocument()
+  await user.click(toggle)
+
+  expect(enableMutate).toHaveBeenCalledWith(
+    { specId: 'spec-1', schemaName: 'Product', capability: 'BROWSE' },
+    expect.anything(),
+  )
+})
+
+// UC5: a designer-authored page/limit parameter blocks enabling — the switch locks and the
+// copy names the conflict.
+test('locks the paging toggle while an authored parameter claims the name', () => {
+  arrange({ ...browseContract, paging: { on: false, conflicts: ['page'] } }, browseRoute)
+
+  const paging = screen.getByRole('region', { name: 'Paging' })
+  expect(within(paging).getByRole('switch', { name: 'Paging' })).toBeDisabled()
+  expect(within(paging).getByText(/Can't switch on/)).toBeInTheDocument()
+  expect(within(paging).getByText('page')).toBeInTheDocument()
 })
 
 // An unknown capability is stated honestly, with the way back to the API.

@@ -1,11 +1,12 @@
 import type { CapabilityContractResponse } from '@/api/model'
 import { AnswersFacet } from '@/components/capability/AnswersFacet'
+import { PagingFacet } from '@/components/capability/PagingFacet'
 import { FieldRow } from '@/components/editor/FieldRow'
 
 // FEAT-009 AC1: the contract in the stable facet order — identity, description, Request,
-// Headers, Answers — plain language primary, serialized detail secondary (PRIN-002). A
-// facet that doesn't apply is absent, never shown empty (AC2). Everything rendered is the
-// backend's projection of the document.
+// Paging (FEAT-010), Headers, Answers — plain language primary, serialized detail secondary
+// (PRIN-002). A facet that doesn't apply is absent, never shown empty (AC2). Everything
+// rendered is the backend's projection of the document.
 export function CapabilityContract({
   specId,
   schemaName,
@@ -17,6 +18,9 @@ export function CapabilityContract({
 }) {
   const identity = contract.capability
   const noun = contract.singularNoun ?? ''
+  // The plural, read from the derived collection path ("/order-items" → "order items") —
+  // projected, not re-pluralized client-side.
+  const pluralNoun = identity?.path?.split('/')[1]?.replace(/-/g, ' ') ?? ''
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3.5">
@@ -60,6 +64,16 @@ export function CapabilityContract({
             </>
           )}
         </section>
+      )}
+
+      {contract.paging && (
+        <PagingFacet
+          specId={specId}
+          schemaName={schemaName}
+          capability={contract.capability?.capability ?? 'BROWSE'}
+          pluralNoun={pluralNoun}
+          paging={contract.paging}
+        />
       )}
 
       <section aria-label="Headers" className="rounded-[10px] bg-card px-5 py-[17px] shadow-sm">

@@ -1256,7 +1256,228 @@ export function useGetCapabilityContract<TData = Awaited<ReturnType<typeof getCa
 
 
 
-export type removeStandardErrorsResponse204 = {
+export type enablePagingResponse200 = {
+  data: CapabilityContractResponse
+  status: 200
+}
+
+export type enablePagingResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type enablePagingResponse401 = {
+  data: void
+  status: 401
+}
+
+export type enablePagingResponse403 = {
+  data: void
+  status: 403
+}
+
+export type enablePagingResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type enablePagingResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type enablePagingResponseSuccess = (enablePagingResponse200) & {
+  headers: Headers;
+};
+export type enablePagingResponseError = (enablePagingResponse400 | enablePagingResponse401 | enablePagingResponse403 | enablePagingResponse404 | enablePagingResponse409) & {
+  headers: Headers;
+};
+
+export type enablePagingResponse = (enablePagingResponseSuccess | enablePagingResponseError)
+
+export const getEnablePagingUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/paging`
+}
+
+/**
+ * @summary Switch paging on for this list capability — the page/limit query parameters and the wrapper's required pagination member, exactly per the contract (FEAT-010 UC3/UC4)
+ */
+export const enablePaging = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability, options?: RequestInit): Promise<enablePagingResponse> => {
+
+  return customFetch<enablePagingResponse>(getEnablePagingUrl(specId,schemaName,capability),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEnablePagingMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enablePaging>>, TError,{specId: Uuid;schemaName: string;capability: Capability}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enablePaging>>, TError,{specId: Uuid;schemaName: string;capability: Capability}, TContext> => {
+
+const mutationKey = ['enablePaging'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enablePaging>>, {specId: Uuid;schemaName: string;capability: Capability}> = (props) => {
+          const {specId,schemaName,capability} = props ?? {};
+
+          return  enablePaging(specId,schemaName,capability,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnablePagingMutationResult = NonNullable<Awaited<ReturnType<typeof enablePaging>>>
+
+    export type EnablePagingMutationError = ProblemDetail | void
+
+    /**
+ * @summary Switch paging on for this list capability — the page/limit query parameters and the wrapper's required pagination member, exactly per the contract (FEAT-010 UC3/UC4)
+ */
+export const useEnablePaging = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enablePaging>>, TError,{specId: Uuid;schemaName: string;capability: Capability}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof enablePaging>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability},
+        TContext
+      > => {
+      return useMutation(getEnablePagingMutationOptions(options), queryClient);
+    }
+    export type disablePagingResponse204 = {
+  data: void
+  status: 204
+}
+
+export type disablePagingResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type disablePagingResponse401 = {
+  data: void
+  status: 401
+}
+
+export type disablePagingResponse403 = {
+  data: void
+  status: 403
+}
+
+export type disablePagingResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type disablePagingResponseSuccess = (disablePagingResponse204) & {
+  headers: Headers;
+};
+export type disablePagingResponseError = (disablePagingResponse400 | disablePagingResponse401 | disablePagingResponse403 | disablePagingResponse404) & {
+  headers: Headers;
+};
+
+export type disablePagingResponse = (disablePagingResponseSuccess | disablePagingResponseError)
+
+export const getDisablePagingUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/paging`
+}
+
+/**
+ * @summary Switch paging off for this list capability — the whole list comes in one response; the wrapper keeps data, and enabling switches paging back on (FEAT-010 UC2)
+ */
+export const disablePaging = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability, options?: RequestInit): Promise<disablePagingResponse> => {
+
+  return customFetch<disablePagingResponse>(getDisablePagingUrl(specId,schemaName,capability),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisablePagingMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disablePaging>>, TError,{specId: Uuid;schemaName: string;capability: Capability}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disablePaging>>, TError,{specId: Uuid;schemaName: string;capability: Capability}, TContext> => {
+
+const mutationKey = ['disablePaging'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disablePaging>>, {specId: Uuid;schemaName: string;capability: Capability}> = (props) => {
+          const {specId,schemaName,capability} = props ?? {};
+
+          return  disablePaging(specId,schemaName,capability,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisablePagingMutationResult = NonNullable<Awaited<ReturnType<typeof disablePaging>>>
+
+    export type DisablePagingMutationError = ProblemDetail | void
+
+    /**
+ * @summary Switch paging off for this list capability — the whole list comes in one response; the wrapper keeps data, and enabling switches paging back on (FEAT-010 UC2)
+ */
+export const useDisablePaging = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disablePaging>>, TError,{specId: Uuid;schemaName: string;capability: Capability}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof disablePaging>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability},
+        TContext
+      > => {
+      return useMutation(getDisablePagingMutationOptions(options), queryClient);
+    }
+    export type removeStandardErrorsResponse204 = {
   data: void
   status: 204
 }
