@@ -56,7 +56,7 @@ export function CapabilityPage() {
   // The rail sits flush left under the masthead's breadcrumb (mockup View 3); the facet
   // column is capped so cards keep the mockup's measure on wide screens.
   return (
-    <div className="flex w-full gap-10 px-11 py-3">
+    <div className="flex w-full gap-[34px] px-11 pt-2.5 pb-12">
       {resource && (
         <CapabilityRail specId={id ?? ''} resource={resource} current={capability ?? ''} />
       )}

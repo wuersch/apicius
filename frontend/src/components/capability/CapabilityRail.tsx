@@ -15,11 +15,11 @@ export function CapabilityRail({
   current: string
 }) {
   return (
-    <nav aria-label={`Capabilities of ${resource.name}`} className="w-52 shrink-0">
-      <div className="text-[11px] font-semibold tracking-[.1em] text-text-tertiary uppercase">
+    <nav aria-label={`Capabilities of ${resource.name}`} className="w-[198px] shrink-0">
+      <div className="px-[11px] pt-1 pb-2 text-[11px] font-semibold tracking-[.1em] text-text-tertiary uppercase">
         {resource.name} can…
       </div>
-      <ul className="mt-2 flex flex-col gap-0.5">
+      <ul className="flex flex-col">
         {resource.capabilities?.map((capability) => {
           const active = capability.capability === current
           return (
@@ -27,8 +27,12 @@ export function CapabilityRail({
               <Link
                 to={`/apis/${specId}/resources/${resource.name}/capabilities/${capability.capability}`}
                 aria-current={active ? 'page' : undefined}
-                className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${
-                  active ? 'bg-accent font-semibold' : 'font-medium hover:bg-accent/60'
+                // The open capability lifts on the card surface (View 3); siblings rest
+                // quiet and warm on hover.
+                className={`flex items-center gap-[11px] rounded-md px-[11px] py-[9px] text-sm transition-colors ${
+                  active
+                    ? 'bg-card font-semibold shadow-sm'
+                    : 'text-text-secondary hover:bg-input'
                 }`}
               >
                 <span

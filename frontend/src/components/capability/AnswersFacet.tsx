@@ -65,17 +65,17 @@ export function AnswersFacet({
         Answers
       </h2>
 
-      <div className="mt-3 flex items-baseline gap-3">
-        <span className="rounded-[5px] bg-olive-chip px-2 py-px font-mono text-[12px] font-bold text-olive-chip-foreground">
+      <div className="mt-2.5 flex items-center gap-[11px] py-1.5">
+        <span className="rounded-[5px] bg-olive-chip px-[9px] py-[3px] font-mono text-[12px] font-bold text-olive-chip-foreground">
           {answers.successStatus}
         </span>
-        <span className="text-sm">{answers.successDescription}</span>
+        <span className="text-[13.5px]">{answers.successDescription}</span>
       </div>
 
       {failures.length > 0 && (
         // The View 3 Answers card's thin rule separates the success answer from the
         // standard-errors row.
-        <div className="mt-3.5 border-t border-border pt-3.5">
+        <div className="mt-2 border-t border-border pt-3">
           <div className="flex items-center gap-2">
             <span className="text-[12px] font-semibold text-mono-derived">
               Standard errors
@@ -96,17 +96,19 @@ export function AnswersFacet({
               className="ml-auto data-[state=checked]:bg-olive"
             />
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
             {failures.map((failure) => (
               <span
                 key={failure.status}
-                className={`rounded-[5px] px-2 py-px text-[11px] whitespace-nowrap ${
+                className={`rounded-md px-2.5 py-1 font-mono text-[12px] whitespace-nowrap ${
                   failure.present
-                    ? 'bg-input font-semibold text-text-secondary'
+                    ? 'bg-input'
                     : 'border border-dashed border-ring text-text-faint'
                 }`}
               >
-                <span className={`font-mono ${failureCodeColor(failure.status ?? '')}`}>
+                <span
+                  className={failure.present ? `font-bold ${failureCodeColor(failure.status ?? '')}` : 'font-bold'}
+                >
                   {failure.status}
                 </span>{' '}
                 {failureName(failure.status ?? '', singularNoun)}
