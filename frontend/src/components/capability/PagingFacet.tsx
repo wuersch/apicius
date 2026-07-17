@@ -1,14 +1,7 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { Switch } from '@/components/ui/switch'
-import {
-  getGetCapabilityContractQueryKey,
-  getGetLastEditedLocationQueryKey,
-  getGetSpecQueryKey,
-  getListSpecsQueryKey,
-  useDisablePaging,
-  useEnablePaging,
-} from '@/api/endpoints/specs/specs'
+import { useDisablePaging, useEnablePaging } from '@/api/endpoints/specs/specs'
 import type { Capability, PagingFacetResponse } from '@/api/model'
+import { useContractInvalidation } from '@/components/capability/useContractInvalidation'
 
 // FEAT-010: how the list pages — built-in behavior (PRIN-006), never parameters the designer
 // authors. The ON/OFF toggle is the deliberate per-capability opt-out (UC2/UC3): plain, no
@@ -29,22 +22,12 @@ export function PagingFacet({
   pluralNoun: string
   paging: PagingFacetResponse
 }) {
-  const queryClient = useQueryClient()
   const enable = useEnablePaging()
   const disable = useDisablePaging()
   const on = paging.on ?? false
   const conflicts = paging.conflicts ?? []
   const pending = enable.isPending || disable.isPending
-
-  function invalidate() {
-    // The page re-renders from the invalidated projections — nothing echoed locally.
-    queryClient.invalidateQueries({
-      queryKey: getGetCapabilityContractQueryKey(specId, schemaName, capability),
-    })
-    queryClient.invalidateQueries({ queryKey: getGetSpecQueryKey(specId) })
-    queryClient.invalidateQueries({ queryKey: getListSpecsQueryKey() })
-    queryClient.invalidateQueries({ queryKey: getGetLastEditedLocationQueryKey() })
-  }
+  const invalidate = useContractInvalidation(specId, schemaName, capability)
 
   function handleToggle(next: boolean) {
     const mutation = next ? enable : disable

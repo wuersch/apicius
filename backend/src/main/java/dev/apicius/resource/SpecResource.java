@@ -285,8 +285,8 @@ public class SpecResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(operationId = "getCapabilityContract",
             summary = "One capability's full contract — identity, description, Request, "
-                    + "Headers, Answers, in stable facet order, projected from the document "
-                    + "(FEAT-009)")
+                    + "Paging (FEAT-010), Headers, Answers, in stable facet order, projected "
+                    + "from the document (FEAT-009)")
     @APIResponse(responseCode = "200", description = "The contract",
             content = @Content(schema = @Schema(implementation = CapabilityContractResponse.class)))
     @APIResponse(responseCode = "404", description = "No such API, resource, or capability",

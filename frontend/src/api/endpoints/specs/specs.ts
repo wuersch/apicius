@@ -1151,7 +1151,7 @@ export const getGetCapabilityContractUrl = (specId: Uuid,
 }
 
 /**
- * @summary One capability's full contract — identity, description, Request, Headers, Answers, in stable facet order, projected from the document (FEAT-009)
+ * @summary One capability's full contract — identity, description, Request, Paging (FEAT-010), Headers, Answers, in stable facet order, projected from the document (FEAT-009)
  */
 export const getCapabilityContract = async (specId: Uuid,
     schemaName: string,
@@ -1234,7 +1234,7 @@ export function useGetCapabilityContract<TData = Awaited<ReturnType<typeof getCa
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary One capability's full contract — identity, description, Request, Headers, Answers, in stable facet order, projected from the document (FEAT-009)
+ * @summary One capability's full contract — identity, description, Request, Paging (FEAT-010), Headers, Answers, in stable facet order, projected from the document (FEAT-009)
  */
 
 export function useGetCapabilityContract<TData = Awaited<ReturnType<typeof getCapabilityContract>>, TError = void | ProblemDetail>(

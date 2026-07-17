@@ -358,12 +358,9 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         OpenApiSchema wrapper = wrapperSchemaOf(operation, derived);
         wrapper.removeProperty(Paging.PAGINATION_MEMBER);
         wrapper.addProperty(Paging.PAGINATION_MEMBER, paginationSchema(wrapper));
-        List<String> required = wrapper.getRequired() == null
-                ? new ArrayList<>() : new ArrayList<>(wrapper.getRequired());
-        if (!required.contains(Paging.PAGINATION_MEMBER)) {
-            required.add(Paging.PAGINATION_MEMBER);
-        }
-        wrapper.setRequired(required);
+        // oldName = newName: the no-rename case — on a re-enable the entry already exists
+        // and must be matched in place, not appended again (a null oldName would duplicate).
+        rewriteRequired(wrapper, Paging.PAGINATION_MEMBER, Paging.PAGINATION_MEMBER, true);
     }
 
     /** The opt-out's exact removal set (FEAT-010 AC2) — data and everything else untouched. */
@@ -372,11 +369,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         removeQueryParameters(operation);
         OpenApiSchema wrapper = wrapperSchemaOf(operation, derived);
         wrapper.removeProperty(Paging.PAGINATION_MEMBER);
-        if (wrapper.getRequired() != null) {
-            List<String> required = new ArrayList<>(wrapper.getRequired());
-            required.remove(Paging.PAGINATION_MEMBER);
-            wrapper.setRequired(required.isEmpty() ? null : required);
-        }
+        rewriteRequired(wrapper, Paging.PAGINATION_MEMBER, null, false);
     }
 
     /**
@@ -928,6 +921,11 @@ public class ApitomyDocumentEngine implements DocumentEngine {
      * decays to {@code 1.0} on every write — FEAT-010's paging bounds and an import's own
      * integer bounds alike. Whole-valued bounds are normalized back to whole numbers: same
      * validation semantics, and the serialized document reads like the hand-written reference.
+     *
+     * <p>The walk is name-based, not schema-scoped: any key named like a bound is touched,
+     * wherever it sits. Safe while Apicius alone writes these keywords; the day pass-through
+     * user content can carry one (imports' examples, FEAT-011-era values), scope this to
+     * schema positions rather than widen the keyword list.
      */
     private static String serialize(Document document) {
         ObjectNode json = Library.writeDocument(document);
