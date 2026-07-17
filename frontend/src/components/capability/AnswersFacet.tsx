@@ -11,12 +11,11 @@ import {
 import type { AnswersFacetResponse, Capability } from '@/api/model'
 import { failureName } from '@/lib/errorAnswers'
 
-// The mockup's status palette: 2xx olive, 4xx ochre, 5xx rust — the code carries the
-// color, the phrase stays neutral.
-function statusColor(status: string): string {
-  if (status.startsWith('2')) return 'text-olive'
-  if (status.startsWith('5')) return 'text-terracotta'
-  return 'text-ochre'
+// The mockup's status palette (View 3 Answers card): the success badge wears the olive
+// chip pairing; failure codes color 4xx ochre / 5xx rust inside neutral badges, phrases
+// staying neutral.
+function failureCodeColor(status: string): string {
+  return status.startsWith('5') ? 'text-terracotta' : 'text-ochre'
 }
 
 // FEAT-009: what comes back — the success answer the document declares, then the standard
@@ -67,9 +66,7 @@ export function AnswersFacet({
       </h2>
 
       <div className="mt-3 flex items-baseline gap-3">
-        <span
-          className={`rounded-[5px] bg-input px-2 py-px font-mono text-[12px] font-semibold ${statusColor(answers.successStatus ?? '')}`}
-        >
+        <span className="rounded-[5px] bg-olive-chip px-2 py-px font-mono text-[12px] font-bold text-olive-chip-foreground">
           {answers.successStatus}
         </span>
         <span className="text-sm">{answers.successDescription}</span>
@@ -100,7 +97,7 @@ export function AnswersFacet({
                     : 'border border-dashed border-ring text-text-faint'
                 }`}
               >
-                <span className={`font-mono ${statusColor(failure.status ?? '')}`}>
+                <span className={`font-mono ${failureCodeColor(failure.status ?? '')}`}>
                   {failure.status}
                 </span>{' '}
                 {failureName(failure.status ?? '', singularNoun)}
