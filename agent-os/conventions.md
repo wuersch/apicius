@@ -6,7 +6,10 @@ The wiring that makes progressive disclosure work. Small, stable, rarely changes
 Format `PREFIX-NNN`, zero-padded to 3 (ADRs use 4: `ADR-0007`).
 - `PRIN-` design/UX principle — `docs/product/constitution.md`
 - `FEAT-` feature spec — `docs/spec/features/`
-- `ADR-`  architecture decision — `docs/architecture/adrs/`
+- `ADR-`  architecture decision — `docs/architecture/adrs/`. Architecture means *how the
+  system is built* (structure, storage, protocols, layering). Decisions about the *product's
+  output* — contracts, derivations, conventions users can observe — are requirements and live
+  in the feature spec that introduces them, however non-obvious they are.
 
 IDs are permanent. Never renumber. Retire by marking `superseded`, not by deleting.
 

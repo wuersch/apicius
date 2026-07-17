@@ -26,7 +26,9 @@ drop mock-up elements.
    `Status → specced` once the spec's decisions are settled — no `[NEEDS CLARIFICATION]`
    markers may remain at this gate.
 3. **Decide** — if a non-obvious technical choice appears, log an ADR
-   (`agent-os/templates/_adr.md`) and cite it from the feature.
+   (`agent-os/templates/_adr.md`) and cite it from the feature. Log an ADR only if the
+   choice is about how the system is built; a non-obvious choice about what the system
+   *produces* belongs in the feature spec (non-obvious ≠ architectural).
 4. **Build** — branch first (`feat/FEAT-NNN-slug`, or `fix/slug` for fixes); never commit to
    `main` directly. Implement in the real stack; do **not** paste mock-up HTML. Keep the domain
    model lossless. `Status → building`.
