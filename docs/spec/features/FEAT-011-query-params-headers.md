@@ -3,8 +3,10 @@
 **ID:** FEAT-011
 **Status:** specced
 **Depends on:** PRIN-001, PRIN-002, PRIN-006, ADR-0009, FEAT-006, FEAT-009, FEAT-010
-**Mockup:** `docs/design/mockups/launcher-hybrid-v9.html` — View 3 (Filters card; the card's
-UI label is design's business — this spec says *query parameter*)
+**Mockup:** `docs/design/mockups/launcher-hybrid-v10.html` — View 3 (Filters and Request
+Headers cards; card labels are design's business — this spec says *query parameter*), state
+3·5 (response headers in the success answer's expansion), state 3·6 (inline row editing;
+its scope prompt belongs to the deferred header-scopes feature, see Non-Goals)
 
 > **Type:** Deterministic — behavior is fixed and verifiable. Every requirement maps to a
 > pass/fail test.
@@ -36,7 +38,9 @@ line (FEAT-009), which is display, not document content.
   time) plus **"one of …"** — a fixed set of distinct text values. The serialized form is
   derived, never typed.
 - **Ordering invariant:** name first, then kind, then attributes; serialization is derived.
-  A declaration belongs to exactly one capability and one location.
+  A declaration belongs to exactly one capability and one location. In FEAT-009's stable
+  facet order, query parameters sit between Request and Paging; the Headers facet holds
+  request headers only; response headers surface with the success answer they ship with.
 - **Projection direction:** each add/change/remove is one atomic document mutation through
   the engine seam (ADR-0009); what is shown is projected back from the document.
 - **Escape hatch:** none yet (source peek is future). The guarantee it inherits: an edit
@@ -145,3 +149,8 @@ when they arrive, will be usable here too.
   granularity.
 - The "add a field to Product…" escape hatch from the mockup's filter picker — shape editing
   keeps one home (FEAT-006).
+- Header scopes beyond the capability — the mockup's noun tier ("every Product capability"),
+  whole-API/guideline tier, and override machinery (states 3·3/3·6) — a future feature;
+  OpenAPI's path-level parameters will get their import/export mapping when it lands.
+- The mockup's "Headers for all Responses" card — with no built-in headers nothing occupies
+  it, and fanning a header onto the shared failure answers would break AC3.

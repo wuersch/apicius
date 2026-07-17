@@ -3,7 +3,7 @@
 **ID:** FEAT-012
 **Status:** specced
 **Depends on:** PRIN-002, ADR-0009, FEAT-005, FEAT-009
-**Mockup:** `docs/design/mockups/launcher-hybrid-v9.html` — state 3·3 (quiet descriptions);
+**Mockup:** `docs/design/mockups/launcher-hybrid-v10.html` — state 3·7 (quiet descriptions);
 View 3 (capability description)
 
 > **Type:** Deterministic — behavior is fixed and verifiable. Every requirement maps to a
