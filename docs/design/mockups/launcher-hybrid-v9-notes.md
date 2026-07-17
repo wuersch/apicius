@@ -88,7 +88,11 @@ adding chrome**:
   uses the body font, 12px semibold, muted brown (#8A7B63) — not mono, not uppercase —
   and carries the <b>RFC 9457</b> badge when enabled; when toggled off the badge
   is removed entirely (the guarantee no longer holds — the consequence line explains
-  it), never dimmed.
+  it), never dimmed. Disabled sections must recede, not shout: faint dashed border
+  (#D8CAAE-weight, not a dark heavy dash), muted text, no bold phrases; ideally a
+  disabled card collapses to one quiet line ("Paging — off · whole list in one
+  response" + toggle) and shows the full consequence copy only on hover/focus. An
+  off card should never be the most prominent element on the page.
 - All v8 open questions carry over.
 - Action capabilities (#10): page layout, section set, HTTP mapping (verb-as-subresource
   vs. POST on the id segment) — undesigned.
