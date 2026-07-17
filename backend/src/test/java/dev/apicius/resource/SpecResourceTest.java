@@ -459,7 +459,7 @@ class SpecResourceTest extends CleanDatabaseTest {
         assertEquals("#/components/schemas/Product",
                 body.path("paths").path("/products").path("get").path("responses").path("200")
                         .path("content").path("application/json").path("schema")
-                        .path("properties").path("items").path("items").path("$ref").asText());
+                        .path("properties").path("data").path("items").path("$ref").asText());
     }
 
     // AC2: the projection columns and the jump-back-in pointer move in the same transaction

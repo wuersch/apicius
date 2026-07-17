@@ -557,9 +557,10 @@ public class ApitomyDocumentEngine implements DocumentEngine {
     }
 
     /**
-     * Browse's 200: an <em>inline</em> {@code {items: [X]}} wrapper, never a bare array or a
-     * named schema — evolvable (page fields can be added compatibly) without polluting
-     * {@code components/schemas} with derived plumbing (ADR-0010).
+     * Browse's 200: an <em>inline</em> {@code {data: [X]}} wrapper — {@code data} required,
+     * never a bare array or a named schema — evolvable (FEAT-010's {@code pagination} member
+     * arrives compatibly) without polluting {@code components/schemas} with derived plumbing
+     * (FEAT-005 § Derivation, keyed per the modern-petstore reference).
      */
     private static OpenApiMediaType pagedWrapper(OpenApi3xResponse response, String schemaName) {
         OpenApiMediaType mediaType = response.createMediaType();
@@ -570,7 +571,8 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         Schema itemRef = wrapper.createSchema();
         ((Referenceable) itemRef).set$ref("#/components/schemas/" + schemaName);
         ((OpenApi3xSchema) items).setItems((OpenApi3xSchema) itemRef);
-        wrapper.addProperty("items", items);
+        wrapper.addProperty("data", items);
+        wrapper.setRequired(List.of("data"));
         mediaType.setSchema(wrapper);
         return mediaType;
     }

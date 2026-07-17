@@ -125,12 +125,14 @@ class ApitomyDocumentEngineTest {
         JsonNode item = document.path("paths").path("/products/{id}");
         String ref = "#/components/schemas/Product";
 
-        // Browse: 200 with the inline {items: [X]} wrapper — no named wrapper schema exists.
+        // Browse: 200 with the inline {data: [X]} wrapper, data required (the modern-petstore
+        // key) — no named wrapper schema exists.
         JsonNode wrapper = collection.path("get").path("responses").path("200")
                 .path("content").path("application/json").path("schema");
         assertEquals("object", wrapper.path("type").asText());
-        assertEquals("array", wrapper.path("properties").path("items").path("type").asText());
-        assertEquals(ref, wrapper.path("properties").path("items").path("items").path("$ref").asText());
+        assertEquals("array", wrapper.path("properties").path("data").path("type").asText());
+        assertEquals(ref, wrapper.path("properties").path("data").path("items").path("$ref").asText());
+        assertEquals(List.of("data"), textsOf(wrapper.path("required")));
         assertEquals(2, document.path("components").path("schemas").size(),
                 "the wrapper must be inline, never a named schema — only the resource and "
                         + "the FEAT-009 Error furniture exist");
@@ -861,6 +863,12 @@ class ApitomyDocumentEngineTest {
         List<String> keys = new java.util.ArrayList<>();
         object.fieldNames().forEachRemaining(keys::add);
         return keys;
+    }
+
+    private static List<String> textsOf(JsonNode array) {
+        List<String> texts = new java.util.ArrayList<>();
+        array.forEach(node -> texts.add(node.asText()));
+        return texts;
     }
 
     private static List<String> requiredOf(JsonNode document, String schemaName) {
