@@ -77,7 +77,7 @@ export function AnswersFacet({
         // standard-errors row.
         <div className="mt-3.5 border-t border-border pt-3.5">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] font-semibold tracking-[.1em] text-text-tertiary uppercase">
+            <span className="text-[12px] font-semibold text-mono-derived">
               Standard errors
             </span>
             {on && (
