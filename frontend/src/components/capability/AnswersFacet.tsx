@@ -1,14 +1,7 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { Switch } from '@/components/ui/switch'
-import {
-  getGetCapabilityContractQueryKey,
-  getGetLastEditedLocationQueryKey,
-  getGetSpecQueryKey,
-  getListSpecsQueryKey,
-  useAdoptStandardErrors,
-  useRemoveStandardErrors,
-} from '@/api/endpoints/specs/specs'
+import { useAdoptStandardErrors, useRemoveStandardErrors } from '@/api/endpoints/specs/specs'
 import type { AnswersFacetResponse, Capability } from '@/api/model'
+import { useContractInvalidation } from '@/components/capability/useContractInvalidation'
 import { failureName } from '@/lib/errorAnswers'
 
 // The mockup's status palette (View 3 Answers card): the success badge wears the olive
@@ -37,22 +30,12 @@ export function AnswersFacet({
   singularNoun: string
   answers: AnswersFacetResponse
 }) {
-  const queryClient = useQueryClient()
   const adopt = useAdoptStandardErrors()
   const remove = useRemoveStandardErrors()
   const failures = answers.failures ?? []
   const on = failures.every((failure) => failure.present)
   const pending = adopt.isPending || remove.isPending
-
-  function invalidate() {
-    // The page re-renders from the invalidated projections — nothing echoed locally.
-    queryClient.invalidateQueries({
-      queryKey: getGetCapabilityContractQueryKey(specId, schemaName, capability),
-    })
-    queryClient.invalidateQueries({ queryKey: getGetSpecQueryKey(specId) })
-    queryClient.invalidateQueries({ queryKey: getListSpecsQueryKey() })
-    queryClient.invalidateQueries({ queryKey: getGetLastEditedLocationQueryKey() })
-  }
+  const invalidate = useContractInvalidation(specId, schemaName, capability)
 
   function handleToggle(next: boolean) {
     const mutation = next ? adopt : remove

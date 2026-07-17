@@ -16,6 +16,7 @@ import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.FieldKind;
 import dev.apicius.document.derivation.FieldNameDerivation;
 import dev.apicius.document.derivation.FieldVisibility;
+import dev.apicius.document.derivation.Paging;
 import dev.apicius.document.derivation.ResourceDerivation;
 import dev.apicius.document.derivation.StandardErrors;
 import dev.apicius.domain.AppUser;
@@ -313,6 +314,57 @@ public class SpecService {
 
         spec.body = documentEngine.removeStandardErrors(spec.body, schemaName, capability);
         lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+    }
+
+    /**
+     * FEAT-010 UC3/UC4: the list capability pages — one atomic document mutation through the
+     * engine seam writing exactly the paging constructs (AC5). Enabling is blocked while a
+     * designer-authored query parameter claims {@code page}/{@code limit} (UC5/AC6) — the
+     * projection names the claimants, and under the row lock the check is race-free. The
+     * ADR-0008 counts are untouched (AC4); the jump-back-in pointer moves to this API and
+     * capability in the same transaction.
+     */
+    @Transactional
+    public CapabilityContractView enablePaging(AppUser editor, UUID specId, String schemaName,
+            Capability capability) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+        requirePageable(capability);
+        List<String> conflicts = documentEngine
+                .capabilityContract(spec.body, schemaName, capability).paging().conflicts();
+        if (!conflicts.isEmpty()) {
+            throw new NameConflictException("Paging can't switch on: the query parameter "
+                    + String.join(" and ", conflicts.stream().map(name -> "'" + name + "'").toList())
+                    + " already exists on this capability.");
+        }
+
+        spec.body = documentEngine.enablePaging(spec.body, schemaName, capability);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+        return documentEngine.capabilityContract(spec.body, schemaName, capability);
+    }
+
+    /**
+     * FEAT-010 UC2: the opt-out — the document loses exactly the paging constructs; the
+     * wrapper keeps {@code data} and is never a bare array (AC2). Cheap and reversible by
+     * design: {@link #enablePaging} is the way back (AC3). Same chokepoint conventions as
+     * enable, the capability-level pointer included.
+     */
+    @Transactional
+    public void disablePaging(AppUser editor, UUID specId, String schemaName,
+            Capability capability) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+        requirePageable(capability);
+
+        spec.body = documentEngine.disablePaging(spec.body, schemaName, capability);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+    }
+
+    /** Paging is a list-capability concern (FEAT-010) — anything else is a 400, not a 409. */
+    private static void requirePageable(Capability capability) {
+        if (!Paging.appliesTo(capability)) {
+            throw new PagingNotApplicableException(capability);
+        }
     }
 
     /** The addressed capability, from the recognized resource — 404 when it isn't there. */

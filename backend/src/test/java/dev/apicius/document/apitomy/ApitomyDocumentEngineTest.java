@@ -15,6 +15,7 @@ import dev.apicius.document.DocumentProjection;
 import dev.apicius.document.FailureAnswerView;
 import dev.apicius.document.FieldView;
 import dev.apicius.document.HeaderLineView;
+import dev.apicius.document.PagingFacetView;
 import dev.apicius.document.RequestFacetView;
 import dev.apicius.document.ResourceView;
 import dev.apicius.document.SpecVersion;
@@ -125,12 +126,14 @@ class ApitomyDocumentEngineTest {
         JsonNode item = document.path("paths").path("/products/{id}");
         String ref = "#/components/schemas/Product";
 
-        // Browse: 200 with the inline {items: [X]} wrapper — no named wrapper schema exists.
+        // Browse: 200 with the inline {data: [X]} wrapper, data required (the modern-petstore
+        // key) — no named wrapper schema exists. FEAT-010 adds the required pagination member.
         JsonNode wrapper = collection.path("get").path("responses").path("200")
                 .path("content").path("application/json").path("schema");
         assertEquals("object", wrapper.path("type").asText());
-        assertEquals("array", wrapper.path("properties").path("items").path("type").asText());
-        assertEquals(ref, wrapper.path("properties").path("items").path("items").path("$ref").asText());
+        assertEquals("array", wrapper.path("properties").path("data").path("type").asText());
+        assertEquals(ref, wrapper.path("properties").path("data").path("items").path("$ref").asText());
+        assertEquals(List.of("data", "pagination"), textsOf(wrapper.path("required")));
         assertEquals(2, document.path("components").path("schemas").size(),
                 "the wrapper must be inline, never a named schema — only the resource and "
                         + "the FEAT-009 Error furniture exist");
@@ -821,6 +824,159 @@ class ApitomyDocumentEngineTest {
                 projection.resources().stream().map(ResourceView::name).toList());
     }
 
+    // ------------------------------------------------------------------- FEAT-010: paging
+
+    // AC1: Browse pages from birth — the two optional query parameters and the wrapper's
+    // required pagination member, exactly per the contract (bounds, defaults, whole numbers).
+    @Test
+    void addResourceDerivesPagingFromBirth() throws Exception {
+        JsonNode get = parse(addProduct(EnumSet.of(Capability.BROWSE)))
+                .path("paths").path("/products").path("get");
+
+        assertEquals(parse("""
+                [{"name":"page","in":"query","description":"The page to return.",
+                  "required":false,"schema":{"type":"integer","minimum":1,"default":1}},
+                 {"name":"limit","in":"query","description":"How many results per page.",
+                  "required":false,
+                  "schema":{"type":"integer","minimum":1,"maximum":100,"default":20}}]"""),
+                get.path("parameters"));
+        JsonNode wrapper = get.path("responses").path("200")
+                .path("content").path("application/json").path("schema");
+        assertEquals(parse("""
+                {"required":["page","limit","totalItems","totalPages"],
+                 "type":"object",
+                 "properties":{
+                   "page":{"type":"integer","minimum":1,
+                     "description":"The page this answer is for."},
+                   "limit":{"type":"integer","minimum":1,
+                     "description":"How many results per page."},
+                   "totalItems":{"type":"integer","minimum":0,
+                     "description":"How many results exist in all."},
+                   "totalPages":{"type":"integer","minimum":0,
+                     "description":"How many pages exist in all."}}}"""),
+                wrapper.path("properties").path("pagination"));
+        assertEquals(List.of("data", "pagination"), textsOf(wrapper.path("required")));
+    }
+
+    // Paging is a list concern: no other capability's operation gains parameters (the {id}
+    // path parameter lives at the path-item level, not on operations).
+    @ParameterizedTest
+    @EnumSource(value = Capability.class, names = "BROWSE", mode = EnumSource.Mode.EXCLUDE)
+    void addResourceDerivesNoPagingElsewhere(Capability capability) throws Exception {
+        JsonNode document = parse(addProduct(EnumSet.of(capability)));
+        DerivedOperation derived = CanonicalDerivation
+                .derive("Product", EnumSet.of(capability)).operations().getFirst();
+
+        assertFalse(document.path("paths").path(derived.path())
+                .path(derived.method().toLowerCase()).has("parameters"));
+    }
+
+    // UC2/AC2: the opt-out removes exactly the paging constructs — the result is
+    // byte-for-byte the born document minus page, limit, pagination, and its required entry;
+    // data stays, the wrapper is never a bare array.
+    @Test
+    void disablePagingRemovesExactlyThePagingConstructs() throws Exception {
+        String born = addProduct(EnumSet.allOf(Capability.class));
+
+        JsonNode off = parse(engine.disablePaging(born, "Product", Capability.BROWSE));
+
+        assertEquals(parse(stripPaging(born)), off);
+        JsonNode wrapper = off.path("paths").path("/products").path("get")
+                .path("responses").path("200").path("content").path("application/json")
+                .path("schema");
+        assertEquals(List.of("data"), keysOf(wrapper.path("properties")));
+        assertEquals(List.of("data"), textsOf(wrapper.path("required")));
+        assertFalse(off.path("paths").path("/products").path("get").has("parameters"),
+                "no empty parameters leftover (AC2)");
+        assertNoVendorExtensions(off);
+    }
+
+    // AC3: off then on restores the born document; disabling when off is a no-op; enabling
+    // when on is idempotent.
+    @Test
+    void disablePagingRoundTripsWithEnable() throws Exception {
+        String born = addProduct(EnumSet.of(Capability.BROWSE));
+
+        String off = engine.disablePaging(born, "Product", Capability.BROWSE);
+        String offTwice = engine.disablePaging(off, "Product", Capability.BROWSE);
+        String backOn = engine.enablePaging(off, "Product", Capability.BROWSE);
+        String onTwice = engine.enablePaging(backOn, "Product", Capability.BROWSE);
+
+        assertEquals(parse(off), parse(offTwice), "disabling absent paging must be a no-op");
+        assertEquals(parse(born), parse(backOn), "off then on must restore the born document");
+        assertEquals(parse(backOn), parse(onTwice), "enable must be idempotent");
+    }
+
+    // UC4/AC5: adopting on a pre-FEAT-010 Browse writes exactly the paging constructs —
+    // sibling operations and everything else stay untouched.
+    @Test
+    void enablePagingRetrofitsALegacyOperation() throws Exception {
+        String legacy = stripPaging(addProduct(EnumSet.allOf(Capability.class)));
+        JsonNode before = parse(legacy);
+
+        JsonNode after = parse(engine.enablePaging(legacy, "Product", Capability.BROWSE));
+
+        assertEquals(parse(addProduct(EnumSet.allOf(Capability.class))), after,
+                "adoption must yield exactly the born-paged document");
+        assertEquals(before.path("paths").path("/products").path("post"),
+                after.path("paths").path("/products").path("post"));
+        assertEquals(before.path("paths").path("/products/{id}"),
+                after.path("paths").path("/products/{id}"));
+        assertNoVendorExtensions(after);
+    }
+
+    // The Paging facet: on for a born Browse, absent (null) wherever paging doesn't apply.
+    @Test
+    void capabilityContractProjectsThePagingFacet() {
+        String body = addProduct(EnumSet.allOf(Capability.class));
+
+        assertEquals(new PagingFacetView(true, List.of()),
+                engine.capabilityContract(body, "Product", Capability.BROWSE).paging());
+        for (Capability other : EnumSet.complementOf(EnumSet.of(Capability.BROWSE))) {
+            assertEquals(null, engine.capabilityContract(body, "Product", other).paging());
+        }
+    }
+
+    // UC4: a pre-FEAT-010 Browse shows paging as available-but-absent — off, no conflicts.
+    @Test
+    void capabilityContractShowsLegacyPagingAsOff() throws Exception {
+        String legacy = stripPaging(addProduct(EnumSet.of(Capability.BROWSE)));
+
+        assertEquals(new PagingFacetView(false, List.of()),
+                engine.capabilityContract(legacy, "Product", Capability.BROWSE).paging());
+    }
+
+    // UC5: a designer-authored query parameter claiming page/limit is named as a conflict —
+    // paging reads off, and the claimant is what blocks enabling (AC6 is the service's rule).
+    @Test
+    void capabilityContractNamesAuthoredPageOrLimitAsConflicts() throws Exception {
+        String legacy = stripPaging(addProduct(EnumSet.of(Capability.BROWSE)));
+        ObjectNode document = (ObjectNode) parse(legacy);
+        ObjectNode get = (ObjectNode) document.path("paths").path("/products").path("get");
+        ObjectNode authored = get.putArray("parameters").addObject();
+        authored.put("name", "page").put("in", "query");
+        authored.putObject("schema").put("type", "string");
+
+        assertEquals(new PagingFacetView(false, List.of("page")),
+                engine.capabilityContract(mapper.writeValueAsString(document), "Product",
+                        Capability.BROWSE).paging());
+    }
+
+    /**
+     * A pre-FEAT-010 document: the paging constructs stripped from every Browse — what
+     * derivation produced before this feature shipped.
+     */
+    private String stripPaging(String body) throws Exception {
+        ObjectNode document = (ObjectNode) parse(body);
+        ObjectNode get = (ObjectNode) document.path("paths").path("/products").path("get");
+        get.remove("parameters");
+        ObjectNode wrapper = (ObjectNode) get.path("responses").path("200")
+                .path("content").path("application/json").path("schema");
+        ((ObjectNode) wrapper.path("properties")).remove("pagination");
+        wrapper.putArray("required").add("data");
+        return mapper.writeValueAsString(document);
+    }
+
     /**
      * A pre-FEAT-009 document: the shared furniture removed and the born failure answers
      * stripped back to FEAT-005's inline noun-specific 404 — what derivation produced before
@@ -861,6 +1017,12 @@ class ApitomyDocumentEngineTest {
         List<String> keys = new java.util.ArrayList<>();
         object.fieldNames().forEachRemaining(keys::add);
         return keys;
+    }
+
+    private static List<String> textsOf(JsonNode array) {
+        List<String> texts = new java.util.ArrayList<>();
+        array.forEach(node -> texts.add(node.asText()));
+        return texts;
     }
 
     private static List<String> requiredOf(JsonNode document, String schemaName) {

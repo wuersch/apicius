@@ -7,6 +7,7 @@
 import type { AnswersFacetResponse } from './answersFacetResponse';
 import type { CapabilityResponse } from './capabilityResponse';
 import type { HeaderLineResponse } from './headerLineResponse';
+import type { PagingFacetResponse } from './pagingFacetResponse';
 import type { RequestFacetResponse } from './requestFacetResponse';
 
 export interface CapabilityContractResponse {
@@ -14,6 +15,7 @@ export interface CapabilityContractResponse {
   description?: string;
   singularNoun?: string;
   request?: RequestFacetResponse;
+  paging?: PagingFacetResponse;
   headers?: HeaderLineResponse[];
   answers?: AnswersFacetResponse;
 }

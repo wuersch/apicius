@@ -1,7 +1,7 @@
 # FEAT-010: Paging on list capabilities
 
 **ID:** FEAT-010
-**Status:** specced
+**Status:** building
 **Depends on:** PRIN-002, PRIN-006, ADR-0009, FEAT-005, FEAT-009
 **Mockup:** `docs/design/mockups/launcher-hybrid-v9.html` — View 3 (Paging card) and state
 3·2 (paging off)
@@ -68,7 +68,7 @@ errors).
 - **Flow:** the designer creates a resource whose capabilities include Browse (FEAT-005).
 - **Outcome:** Browse pages from birth: the paging parameters and `pagination` member exist
   per the contract above, and the capability's contract view states the behavior in plain
-  language ("results come back 20 at a time").
+  language ("results come back in pages").
 
 ### UC2: Opt a capability out of paging (alternate)
 - **Precondition:** a paged list capability.

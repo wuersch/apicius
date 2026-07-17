@@ -79,9 +79,9 @@ irregular yields a wrong-but-consistent plural until a per-resource path overrid
   later without changing the operation's structure. Update is PATCH-only as a deliberate
   nudge away from the PUT-vs-PATCH confusion; a Replace capability later is an additive
   table row.
-- **Wrapped list:** Browse's 200 body is an **inline** object `{ "data": [X] }`, never a bare
-  array — the wrapper's job is evolvability (FEAT-010 adds paging to it without a breaking
-  change; a bare array cannot offer that). It is inline, not a named schema, so
+- **Wrapped list:** Browse's 200 body is an **inline** object `{ "data": [X] }` with `data`
+  required, never a bare array — the wrapper's job is evolvability (FEAT-010 adds paging to
+  it without a breaking change; a bare array cannot offer that). It is inline, not a named schema, so
   `components/schemas` contains only user-meaningful datatypes — the shared-data view
   projects straight from it.
 - **Failure answers:** owned by FEAT-009 — every derived operation carries its standard

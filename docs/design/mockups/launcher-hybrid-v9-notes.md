@@ -70,6 +70,25 @@ adding chrome**:
 
 ## Open questions
 
+- **Implementation correction (from first Claude Code pass):** standard errors are a
+  house rule (PRIN-006) — they are *built in by default*, rendered as resting chips
+  inside Answers ("400 we couldn't read the request" …), never behind an
+  "Add standard errors" button or an "available — not answered yet" state. If an
+  opt-out is ever wanted, reuse the paging ON/OFF toggle pattern. Dashed borders mean
+  "off/empty" in this vocabulary (see 3·2) — don't wrap present content in them.
+  When the list wraps to multiple lines, the codes lose their column rhythm — render
+  each error as a discrete chip (code + phrase in one pill, as in the mockup's Answers
+  card) laid out with flex + gap, so wrapping stays tidy; don't rely on text-flow
+  spacing between code/label pairs. Keep the mockup's separator line between the 200
+  answer row and the standard-errors row (thin border-top, see the Answers card in
+  View 3). Status codes are color-coded as in the mockup: <b>200</b> olive green
+  (#5E6A3F on its tint), <b>4xx</b> ochre (#9A6B33), <b>500</b> rust (#A65532) — the
+  code number carries the color, the label stays neutral. Rule-toggles use the olive
+  green ON state (#5E6A3F), same as the paging toggle. The "Standard errors" row label
+  uses the body font, 12px semibold, muted brown (#8A7B63) — not mono, not uppercase —
+  and carries the <b>RFC 9457</b> badge when enabled; when toggled off the badge
+  is removed entirely (the guarantee no longer holds — the consequence line explains
+  it), never dimmed.
 - All v8 open questions carry over.
 - Action capabilities (#10): page layout, section set, HTTP mapping (verb-as-subresource
   vs. POST on the id segment) — undesigned.
