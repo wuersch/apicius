@@ -68,7 +68,7 @@ errors).
 - **Flow:** the designer creates a resource whose capabilities include Browse (FEAT-005).
 - **Outcome:** Browse pages from birth: the paging parameters and `pagination` member exist
   per the contract above, and the capability's contract view states the behavior in plain
-  language ("results come back 20 at a time").
+  language ("results come back in pages").
 
 ### UC2: Opt a capability out of paging (alternate)
 - **Precondition:** a paged list capability.

@@ -72,10 +72,10 @@ export function PagingFacet({
       {on ? (
         <>
           <p className="mt-2 text-sm text-olive-chip-foreground">
-            Results come back 20 at a time — a <b>wrapped list</b>, never a bare array, so
-            answers can grow without breaking anyone. Visitors pass{' '}
+            Results come back <b>in pages</b> — visitors pass{' '}
             <span className="font-mono text-[12.5px]">page</span> &{' '}
-            <span className="font-mono text-[12.5px]">limit</span>.
+            <span className="font-mono text-[12.5px]">limit</span> (default 20, up to 100 per
+            page).
           </p>
           <div className="mt-2.5 rounded-lg bg-card px-3.5 py-3 font-mono text-[12px] leading-[1.85] text-olive-chip-foreground">
             {'{'}
@@ -92,9 +92,8 @@ export function PagingFacet({
         </>
       ) : (
         <p className="mt-2 text-sm text-text-tertiary">
-          Visitors get the <b>whole list in one response</b> — still wrapped, just not in
-          pages. Fine for a small, bounded set; risky as the {pluralNoun} grow. Flip it back
-          on any time.
+          Visitors get the <b>whole list in one response</b>. Fine for a small, bounded set;
+          risky as the {pluralNoun} grow. Flip it back on any time.
         </p>
       )}
 

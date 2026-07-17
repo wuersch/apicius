@@ -1,7 +1,7 @@
 # FEAT-009: View a capability's contract
 
 **ID:** FEAT-009
-**Status:** building
+**Status:** shipped
 **Depends on:** PRIN-001, PRIN-002, PRIN-006, ADR-0008, ADR-0009, FEAT-005
 **Mockup:** `docs/design/mockups/launcher-hybrid-v9.html` — View 3 (operation — Browse all
 products)
