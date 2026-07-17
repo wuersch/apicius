@@ -305,7 +305,6 @@ test('presents paging as built in on a paged list capability', () => {
   expect(within(paging).getByText('Built in')).toBeInTheDocument()
   expect(within(paging).getByRole('switch', { name: 'Paging' })).toBeChecked()
   expect(within(paging).getByText(/Results come back/)).toBeInTheDocument()
-  expect(within(paging).getByText(/default 20, up to 100/)).toBeInTheDocument()
   expect(within(paging).getByText(/pagination:/)).toBeInTheDocument()
   expect(within(paging).getByText(/…the products…/)).toBeInTheDocument()
 })

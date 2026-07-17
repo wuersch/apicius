@@ -74,8 +74,7 @@ export function PagingFacet({
           <p className="mt-2 text-sm text-olive-chip-foreground">
             Results come back <b>in pages</b> — visitors pass{' '}
             <span className="font-mono text-[12.5px]">page</span> &{' '}
-            <span className="font-mono text-[12.5px]">limit</span> (default 20, up to 100 per
-            page).
+            <span className="font-mono text-[12.5px]">limit</span>.
           </p>
           <div className="mt-2.5 rounded-lg bg-card px-3.5 py-3 font-mono text-[12px] leading-[1.85] text-olive-chip-foreground">
             {'{'}
@@ -93,7 +92,7 @@ export function PagingFacet({
       ) : (
         <p className="mt-2 text-sm text-text-tertiary">
           Visitors get the <b>whole list in one response</b>. Fine for a small, bounded set;
-          risky as the {pluralNoun} grow. Flip it back on any time.
+          risky as the {pluralNoun} grow.
         </p>
       )}
 
