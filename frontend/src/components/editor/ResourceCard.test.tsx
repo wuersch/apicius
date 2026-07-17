@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { ResourceResponse } from '@/api/model'
 import { ResourceCard } from './ResourceCard'
@@ -31,9 +32,11 @@ function arrange(defaultOpen?: boolean, resource: ResourceResponse = product) {
   vi.mocked(useUpdateField).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
   vi.mocked(useRemoveField).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
   return render(
-    <QueryClientProvider client={new QueryClient()}>
-      <ResourceCard specId="spec-1" resource={resource} defaultOpen={defaultOpen} />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={new QueryClient()}>
+        <ResourceCard specId="spec-1" resource={resource} defaultOpen={defaultOpen} />
+      </QueryClientProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -88,6 +91,20 @@ test('hides the method dots while open', () => {
   const { container } = arrange(true)
 
   expect(methodDots(container)).toHaveLength(0)
+})
+
+// FEAT-009 UC1: each capability row is the entry point to its contract view.
+test('capability rows link to the contract view', () => {
+  arrange(true)
+
+  expect(screen.getByRole('link', { name: /See all products/ })).toHaveAttribute(
+    'href',
+    '/apis/spec-1/resources/Product/capabilities/BROWSE',
+  )
+  expect(screen.getByRole('link', { name: /Add a product/ })).toHaveAttribute(
+    'href',
+    '/apis/spec-1/resources/Product/capabilities/ADD',
+  )
 })
 
 test('clicking the header toggles the body', async () => {

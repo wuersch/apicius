@@ -5,4 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type Instant = string;
+export interface HeaderLineResponse {
+  name?: string;
+  value?: string;
+  derived?: boolean;
+}

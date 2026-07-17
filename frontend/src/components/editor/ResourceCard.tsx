@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router'
 import type { ResourceResponse } from '@/api/model'
 import { METHOD_DOT_CLASS } from '@/components/editor/method-dot'
 import { ShapeSection } from '@/components/editor/ShapeSection'
@@ -68,18 +69,22 @@ export function ResourceCard({
           </div>
           <ul className="mt-1.5">
             {resource.capabilities?.map((capability) => (
-              <li
-                key={capability.capability}
-                className="flex items-center gap-2.5 rounded-md px-2 py-1.5"
-              >
-                <span
-                  aria-hidden
-                  className={`size-2 shrink-0 rounded-full ${METHOD_DOT_CLASS[capability.method ?? ''] ?? 'bg-ring'}`}
-                />
-                <span className="flex-1 text-sm font-medium">{capability.label}</span>
-                <span className="font-mono text-[11.5px] text-text-tertiary">
-                  {capability.method} {capability.path}
-                </span>
+              // FEAT-009 UC1: each capability opens its contract view — the entry point is
+              // the noun's "can do" list, never a path or method inventory.
+              <li key={capability.capability}>
+                <Link
+                  to={`/apis/${specId}/resources/${resource.name}/capabilities/${capability.capability}`}
+                  className="flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
+                >
+                  <span
+                    aria-hidden
+                    className={`size-2 shrink-0 rounded-full ${METHOD_DOT_CLASS[capability.method ?? ''] ?? 'bg-ring'}`}
+                  />
+                  <span className="flex-1 text-sm font-medium">{capability.label}</span>
+                  <span className="font-mono text-[11.5px] text-text-tertiary">
+                    {capability.method} {capability.path}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
