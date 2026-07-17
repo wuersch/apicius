@@ -4,12 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.IntNode;
 import com.fasterxml.jackson.databind.node.LongNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import dev.apicius.document.AnswersFacetView;
 import dev.apicius.document.CapabilityContractView;
 import dev.apicius.document.CapabilityView;
+import dev.apicius.document.DeclarationView;
 import dev.apicius.document.DocumentEngine;
 import dev.apicius.document.FailureAnswerView;
 import dev.apicius.document.HeaderLineView;
+import dev.apicius.document.HeadersFacetView;
 import dev.apicius.document.PagingFacetView;
 import dev.apicius.document.RequestFacetView;
 import dev.apicius.document.DocumentProjection;
@@ -19,11 +22,14 @@ import dev.apicius.document.SpecVersion;
 import dev.apicius.document.derivation.CanonicalDerivation;
 import dev.apicius.document.derivation.Capability;
 import dev.apicius.document.derivation.CoreType;
+import dev.apicius.document.derivation.DeclarationEdit;
+import dev.apicius.document.derivation.DeclarationLocation;
 import dev.apicius.document.derivation.DerivedOperation;
 import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.FieldKind;
 import dev.apicius.document.derivation.FieldVisibility;
 import dev.apicius.document.derivation.Paging;
+import dev.apicius.document.derivation.ParameterKind;
 import dev.apicius.document.derivation.ResourceDerivation;
 import dev.apicius.document.derivation.StandardErrors;
 import io.apitomy.datamodels.Library;
@@ -31,6 +37,8 @@ import io.apitomy.datamodels.models.Document;
 import io.apitomy.datamodels.models.Referenceable;
 import io.apitomy.datamodels.models.Schema;
 import io.apitomy.datamodels.models.ModelType;
+import io.apitomy.datamodels.models.openapi.OpenApiHeader;
+import io.apitomy.datamodels.models.openapi.OpenApiHeadersParent;
 import io.apitomy.datamodels.models.openapi.OpenApiInfo;
 import io.apitomy.datamodels.models.openapi.OpenApiMediaType;
 import io.apitomy.datamodels.models.openapi.OpenApiOperation;
@@ -43,6 +51,7 @@ import io.apitomy.datamodels.models.openapi.OpenApiResponses;
 import io.apitomy.datamodels.models.openapi.OpenApiSchema;
 import io.apitomy.datamodels.models.openapi.v3x.OpenApi3xComponents;
 import io.apitomy.datamodels.models.openapi.v3x.OpenApi3xDocument;
+import io.apitomy.datamodels.models.openapi.v3x.OpenApi3xHeader;
 import io.apitomy.datamodels.models.openapi.v3x.OpenApi3xMediaType;
 import io.apitomy.datamodels.models.openapi.v3x.OpenApi3xOperation;
 import io.apitomy.datamodels.models.openapi.v3x.OpenApi3xPathItem;
@@ -207,10 +216,13 @@ public class ApitomyDocumentEngine implements DocumentEngine {
                 operation.getDescription(),
                 located.derivation().singularNoun(),
                 requestFacet(document, schemaName, capability),
+                queryParameterDeclarations(operation, derived, capability),
                 pagingFacet(operation, derived, capability),
-                List.of(new HeaderLineView("Accept", JSON, true)),
+                new HeadersFacetView(List.of(new HeaderLineView("Accept", JSON, true)),
+                        headerDeclarations(operation)),
                 new AnswersFacetView(derived.successStatus(),
                         success == null ? derived.successDescription() : success.getDescription(),
+                        responseHeaderDeclarations(success),
                         List.copyOf(failures)));
     }
 
@@ -312,12 +324,14 @@ public class ApitomyDocumentEngine implements DocumentEngine {
 
     /** The operation's query parameter of that name, or null — path parameters never match. */
     private static OpenApiParameter queryParameter(OpenApi3xOperation operation, String name) {
-        List<OpenApiParameter> parameters = ((OpenApiParametersParent) operation).getParameters();
-        if (parameters == null) {
-            return null;
-        }
-        for (OpenApiParameter parameter : parameters) {
-            if (name.equals(parameter.getName()) && "query".equals(parameter.getIn())) {
+        return parameterAt(operation, "query", name);
+    }
+
+    /** The operation's parameter at {@code (in, name)}, or null — exact match: the derived name is the identity. */
+    private static OpenApiParameter parameterAt(OpenApi3xOperation operation, String in,
+            String name) {
+        for (OpenApiParameter parameter : parametersOf(operation)) {
+            if (name.equals(parameter.getName()) && in.equals(parameter.getIn())) {
                 return parameter;
             }
         }
@@ -430,6 +444,217 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         Schema property = describedProperty(parent, "integer", description);
         property.setMinimum(minimum);
         return property;
+    }
+
+    @Override
+    public String addDeclaration(String body, String schemaName, Capability capability,
+            DeclarationLocation location, DeclarationEdit edit) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+        if (location == DeclarationLocation.RESPONSE_HEADER) {
+            OpenApiHeadersParent success = successAnswerOf(located);
+            success.addHeader(edit.name(), responseHeader(success, edit));
+        } else {
+            OpenApiParametersParent parent = (OpenApiParametersParent) located.operation();
+            parent.addParameter(declarationParameter(parent, location.parameterIn(), edit));
+        }
+        return serialize(document);
+    }
+
+    @Override
+    public String updateDeclaration(String body, String schemaName, Capability capability,
+            DeclarationLocation location, String currentName, DeclarationEdit edit) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+        // Rewritten in place (AC5): a fresh construct at the old position, whether or not the
+        // name changed — the updateField idiom, replacing wholesale over clearing one by one.
+        if (location == DeclarationLocation.RESPONSE_HEADER) {
+            OpenApiHeadersParent success = successAnswerOf(located);
+            int position = List.copyOf(success.getHeaders().keySet()).indexOf(currentName);
+            success.removeHeader(currentName);
+            success.insertHeader(edit.name(), responseHeader(success, edit), position);
+        } else {
+            OpenApiParametersParent parent = (OpenApiParametersParent) located.operation();
+            OpenApiParameter current =
+                    parameterAt(located.operation(), location.parameterIn(), currentName);
+            int position = parent.getParameters().indexOf(current);
+            parent.removeParameter(current);
+            parent.insertParameter(
+                    declarationParameter(parent, location.parameterIn(), edit), position);
+        }
+        return serialize(document);
+    }
+
+    @Override
+    public String removeDeclaration(String body, String schemaName, Capability capability,
+            DeclarationLocation location, String name) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+        // An emptied container goes with the last member — no empty leftover (AC5), the
+        // removeQueryParameters idiom.
+        if (location == DeclarationLocation.RESPONSE_HEADER) {
+            OpenApiHeadersParent success = successAnswerOf(located);
+            success.removeHeader(name);
+            if (success.getHeaders() != null && success.getHeaders().isEmpty()) {
+                success.clearHeaders();
+            }
+        } else {
+            OpenApiParametersParent parent = (OpenApiParametersParent) located.operation();
+            parent.removeParameter(
+                    parameterAt(located.operation(), location.parameterIn(), name));
+            if (parent.getParameters() != null && parent.getParameters().isEmpty()) {
+                parent.clearParameters();
+            }
+        }
+        return serialize(document);
+    }
+
+    /**
+     * The success answer as a headers parent (FEAT-011 AC3): response headers attach to what
+     * the capability sends back on success — the shared failure answers are references and
+     * are never touched. That the success answer exists is true of every Apicius-authored
+     * operation ({@link #buildOperation}).
+     */
+    private static OpenApiHeadersParent successAnswerOf(Located located) {
+        return (OpenApiHeadersParent) located.operation().getResponses()
+                .getItem(located.derived().successStatus());
+    }
+
+    /** One query parameter or request header, serialized per the kind — the single writer. */
+    private static OpenApiParameter declarationParameter(OpenApiParametersParent parent,
+            String in, DeclarationEdit edit) {
+        OpenApiParameter parameter = parent.createParameter();
+        parameter.setName(edit.name());
+        parameter.setIn(in);
+        if (edit.description() != null) {
+            parameter.setDescription(edit.description());
+        }
+        parameter.setRequired(edit.required());
+        OpenApiSchema schema = parameter.createSchema();
+        writeDeclarationSchema(schema, edit.kind());
+        parameter.setSchema(schema);
+        return parameter;
+    }
+
+    /** One response header (Header Object): the description and the kind's schema. */
+    private static OpenApiHeader responseHeader(OpenApiHeadersParent parent, DeclarationEdit edit) {
+        OpenApi3xHeader header = (OpenApi3xHeader) parent.createHeader();
+        if (edit.description() != null) {
+            header.setDescription(edit.description());
+        }
+        OpenApi3xSchema schema = header.createSchema();
+        writeDeclarationSchema(schema, edit.kind());
+        header.setSchema(schema);
+        return header;
+    }
+
+    /**
+     * A declaration's schema: the scalar table for a kind, {@code type: string} plus the
+     * inline value list for "one of" — identical output across dialects, so no version
+     * branch (patterns.md's trigger unmet).
+     */
+    private static void writeDeclarationSchema(Schema schema, ParameterKind kind) {
+        switch (kind) {
+            case ParameterKind.Scalar scalar -> writeScalar(schema, scalar.kind());
+            case ParameterKind.OneOf oneOf -> {
+                setType(schema, "string");
+                schema.setEnum(oneOf.values().stream()
+                        .map(value -> (JsonNode) TextNode.valueOf(value)).toList());
+            }
+        }
+    }
+
+    /**
+     * The Filters facet's rows: the operation's query parameters in document order — minus
+     * the canonical paging pair while paging is on, which the Paging facet owns (with paging
+     * off, an authored {@code page}/{@code limit} is a filter, and what blocks re-enabling).
+     */
+    private static List<DeclarationView> queryParameterDeclarations(OpenApi3xOperation operation,
+            DerivedOperation derived, Capability capability) {
+        boolean paged = Paging.appliesTo(capability) && isPaged(operation, derived);
+        List<DeclarationView> declarations = new ArrayList<>();
+        for (OpenApiParameter parameter : parametersOf(operation)) {
+            if (!"query".equals(parameter.getIn())) {
+                continue;
+            }
+            if (paged && (Paging.PAGE_PARAMETER.equals(parameter.getName())
+                    || Paging.LIMIT_PARAMETER.equals(parameter.getName()))) {
+                continue;
+            }
+            declarationOf(parameter.getName(), parameter.getSchema(),
+                    Boolean.TRUE.equals(parameter.isRequired()), parameter.getDescription())
+                    .ifPresent(declarations::add);
+        }
+        return declarations;
+    }
+
+    /** The Headers facet's authored rows: the operation's header parameters, document order. */
+    private static List<DeclarationView> headerDeclarations(OpenApi3xOperation operation) {
+        List<DeclarationView> declarations = new ArrayList<>();
+        for (OpenApiParameter parameter : parametersOf(operation)) {
+            if ("header".equals(parameter.getIn())) {
+                declarationOf(parameter.getName(), parameter.getSchema(),
+                        Boolean.TRUE.equals(parameter.isRequired()), parameter.getDescription())
+                        .ifPresent(declarations::add);
+            }
+        }
+        return declarations;
+    }
+
+    /** The success answer's response headers; {@code required} is always false (inputs-only). */
+    private static List<DeclarationView> responseHeaderDeclarations(OpenApiResponse success) {
+        if (success == null) {
+            return List.of();
+        }
+        Map<String, OpenApiHeader> headers = ((OpenApiHeadersParent) success).getHeaders();
+        if (headers == null) {
+            return List.of();
+        }
+        List<DeclarationView> declarations = new ArrayList<>();
+        for (Map.Entry<String, OpenApiHeader> entry : headers.entrySet()) {
+            OpenApi3xHeader header = (OpenApi3xHeader) entry.getValue();
+            declarationOf(entry.getKey(), header.getSchema(), false, header.getDescription())
+                    .ifPresent(declarations::add);
+        }
+        return declarations;
+    }
+
+    private static Optional<DeclarationView> declarationOf(String name, Schema schema,
+            boolean required, String description) {
+        return declarationKindOf(schema)
+                .map(kind -> new DeclarationView(name, kind, required, description));
+    }
+
+    /**
+     * The kind table read backwards for declarations — the value list first (an enum'd string
+     * is "one of", never plain Text), then the scalar table. A schema outside both — foreign
+     * types, non-text enums, a broken value set — is skipped rather than mangled (PRIN-003),
+     * the {@link #fieldsOf} stance.
+     */
+    private static Optional<ParameterKind> declarationKindOf(Schema schema) {
+        if (schema == null) {
+            return Optional.empty();
+        }
+        List<JsonNode> enumValues = schema.getEnum();
+        if (enumValues != null && !enumValues.isEmpty()) {
+            if (!"string".equals(typeOf(schema))
+                    || !enumValues.stream().allMatch(JsonNode::isTextual)) {
+                return Optional.empty();
+            }
+            try {
+                return Optional.of(new ParameterKind.OneOf(
+                        enumValues.stream().map(JsonNode::asText).toList()));
+            } catch (IllegalArgumentException foreign) {
+                return Optional.empty();
+            }
+        }
+        return FieldKind.recognizeScalar(typeOf(schema), schema.getFormat())
+                .map(ParameterKind.Scalar::new);
+    }
+
+    private static List<OpenApiParameter> parametersOf(OpenApi3xOperation operation) {
+        List<OpenApiParameter> parameters = ((OpenApiParametersParent) operation).getParameters();
+        return parameters == null ? List.of() : parameters;
     }
 
     /** One capability's operation plus the derivation that locates it. */

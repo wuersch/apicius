@@ -1,6 +1,8 @@
 package dev.apicius.document;
 
 import dev.apicius.document.derivation.Capability;
+import dev.apicius.document.derivation.DeclarationEdit;
+import dev.apicius.document.derivation.DeclarationLocation;
 import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.ResourceDerivation;
 
@@ -70,11 +72,14 @@ public interface DocumentEngine {
      * FEAT-009: one capability's full contract, projected from the document (AC1–AC5) — the
      * identity (label preferring the operation's {@code summary}), the description, the
      * Request facet (Add: the shape's fields; Update: merge-patch semantics; absent
-     * otherwise), the Paging facet (FEAT-010 — list capabilities only, its on/off state
-     * derived structurally), the derived content-negotiation header line, and the Answers
-     * facet: the success answer as the document declares it plus each applicable standard
-     * failure answer's structural present/absent state. A pure read — never mutates (AC4).
-     * That the resource and capability exist is the caller's verified rule.
+     * otherwise), the authored query parameters (FEAT-011 — the canonical paging pair is the
+     * Paging facet's, not a filter), the Paging facet (FEAT-010 — list capabilities only,
+     * its on/off state derived structurally), the Headers facet (the derived
+     * content-negotiation line plus authored request headers), and the Answers facet: the
+     * success answer as the document declares it — with its response headers — plus each
+     * applicable standard failure answer's structural present/absent state. A pure read —
+     * never mutates (AC4). That the resource and capability exist is the caller's verified
+     * rule.
      */
     CapabilityContractView capabilityContract(String body, String schemaName, Capability capability);
 
@@ -111,6 +116,32 @@ public interface DocumentEngine {
      * (AC2). A no-op on an operation that doesn't page.
      */
     String disablePaging(String body, String schemaName, Capability capability);
+
+    /**
+     * FEAT-011 UC1–UC3: adds one declaration to the capability — a query parameter or request
+     * header as a Parameter Object on the operation, a response header as a Header Object on
+     * each success answer — serialized per the kind, and returns the serialized result. A pure
+     * transformation like {@link #addField}: the edit arrives pre-derived and pre-validated —
+     * uniqueness, reservations, and the "one of" rules are the caller's. Touches nothing else
+     * in the document (AC1–AC4); the shared failure answers are byte-identical before and
+     * after a response-header edit (AC3).
+     */
+    String addDeclaration(String body, String schemaName, Capability capability,
+            DeclarationLocation location, DeclarationEdit edit);
+
+    /**
+     * FEAT-011 UC4: rewrites the declaration currently named {@code currentName} in place —
+     * same position among its siblings, a rename included — and touches nothing else (AC5).
+     */
+    String updateDeclaration(String body, String schemaName, Capability capability,
+            DeclarationLocation location, String currentName, DeclarationEdit edit);
+
+    /**
+     * FEAT-011 UC4: removes the declaration's constructs with no other trace (AC5) — an
+     * emptied {@code parameters} or {@code headers} container goes with it.
+     */
+    String removeDeclaration(String body, String schemaName, Capability capability,
+            DeclarationLocation location, String name);
 
     /**
      * The concept projection of a stored document (FEAT-005 AC8): schema names, path keys, and

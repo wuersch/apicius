@@ -1,7 +1,7 @@
 # FEAT-011: Query parameters & headers
 
 **ID:** FEAT-011
-**Status:** specced
+**Status:** shipped
 **Depends on:** PRIN-001, PRIN-002, PRIN-006, ADR-0009, FEAT-006, FEAT-009, FEAT-010
 **Mockup:** `docs/design/mockups/launcher-hybrid-v10.html` — View 3 (Filters and Request
 Headers cards; card labels are design's business — this spec says *query parameter*), state

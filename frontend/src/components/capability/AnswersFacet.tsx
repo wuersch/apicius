@@ -1,113 +1,91 @@
-import { Switch } from '@/components/ui/switch'
-import { useAdoptStandardErrors, useRemoveStandardErrors } from '@/api/endpoints/specs/specs'
+import { useState } from 'react'
+import { ChevronDown, Plus } from 'lucide-react'
 import type { AnswersFacetResponse, Capability } from '@/api/model'
-import { useContractInvalidation } from '@/components/capability/useContractInvalidation'
-import { failureName } from '@/lib/errorAnswers'
+import { DeclarationList, type Editing } from '@/components/capability/DeclarationList'
 
-// The mockup's status palette (View 3 Answers card): the success badge wears the olive
-// chip pairing; failure codes color 4xx ochre / 5xx rust inside neutral badges, phrases
-// staying neutral.
-function failureCodeColor(status: string): string {
-  return status.startsWith('5') ? 'text-terracotta' : 'text-ochre'
-}
-
-// FEAT-009: what comes back — the success answer the document declares, then the standard
-// failures as resting badges (the FieldRow chip idiom): derived furniture, not a feature
-// banner. The ON/OFF
-// toggle is the built-in default's deliberate override (UC5, PRIN-006) — plain, no
-// confirm, reversible; OFF leaves the chips dashed and faint with the consequence stated.
-// Both directions mutate then invalidate (the FieldEditor convention).
+// FEAT-009's success answer, reworked to v10's grammar: answers collapse to one line each —
+// code chip · sentence · "+ N headers" hint · chevron — and the expansion holds that
+// answer's own response headers ("Headers on this Answer only", state 3·5): spec-accurate,
+// a 200 can return a Sync-Token while a 401 never does (FEAT-011 AC3). The failures moved
+// to their own Errors card (ErrorsFacet).
 export function AnswersFacet({
   specId,
   schemaName,
   capability,
-  singularNoun,
   answers,
 }: {
   specId: string
   schemaName: string
   capability: Capability
-  singularNoun: string
   answers: AnswersFacetResponse
 }) {
-  const adopt = useAdoptStandardErrors()
-  const remove = useRemoveStandardErrors()
-  const failures = answers.failures ?? []
-  const on = failures.every((failure) => failure.present)
-  const pending = adopt.isPending || remove.isPending
-  const invalidate = useContractInvalidation(specId, schemaName, capability)
-
-  function handleToggle(next: boolean) {
-    const mutation = next ? adopt : remove
-    mutation.mutate({ specId, schemaName, capability }, { onSuccess: invalidate })
-  }
+  const [expanded, setExpanded] = useState(false)
+  const [editing, setEditing] = useState<Editing>(null)
+  const headers = answers.successHeaders ?? []
 
   return (
-    <section aria-label="Answers" className="rounded-[10px] bg-card p-5 shadow-sm">
+    <section aria-label="Answers" className="rounded-[10px] bg-card px-5 py-[17px] shadow-sm">
       <h2 className="text-[11px] font-semibold tracking-[.1em] text-text-tertiary uppercase">
         Answers
       </h2>
 
-      <div className="mt-2.5 flex items-center gap-[11px] py-1.5">
+      <button
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        aria-expanded={expanded}
+        className="mt-1 flex w-full items-center gap-[11px] py-1.5 text-left"
+      >
         <span className="rounded-[5px] bg-olive-chip px-[9px] py-[3px] font-mono text-[12px] font-bold text-olive-chip-foreground">
           {answers.successStatus}
         </span>
-        <span className="text-[13.5px]">{answers.successDescription}</span>
-      </div>
-
-      {failures.length > 0 && (
-        // The View 3 Answers card's thin rule separates the success answer from the
-        // standard-errors row.
-        <div className="mt-2 border-t border-border pt-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-semibold text-mono-derived">
-              Standard errors
+        <span className="flex-1 text-[13.5px]">
+          {answers.successDescription}{' '}
+          {!expanded && headers.length > 0 && (
+            <span className="text-[11.5px] text-hint">
+              + {headers.length} {headers.length === 1 ? 'header' : 'headers'}
             </span>
-            {on && (
-              // The guarantee's badge — carried only while it holds; toggled off it goes
-              // away entirely (the consequence line explains), never dims.
-              <span className="rounded-[4px] bg-input px-2 py-px text-[10px] font-bold text-teal">
-                RFC 9457 compliant
-              </span>
-            )}
-            <Switch
-              checked={on}
-              disabled={pending}
-              onCheckedChange={handleToggle}
-              aria-label="Standard errors"
-              // Rule-toggles signal ON in olive — the house-rule color, not the ink primary.
-              className="ml-auto data-[state=checked]:bg-olive"
-            />
-          </div>
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            {failures.map((failure) => (
-              <span
-                key={failure.status}
-                className={`rounded-md px-2.5 py-1 font-mono text-[12px] whitespace-nowrap ${
-                  failure.present
-                    ? 'bg-input'
-                    : 'border border-dashed border-ring text-text-faint'
-                }`}
-              >
-                <span
-                  className={failure.present ? `font-bold ${failureCodeColor(failure.status ?? '')}` : 'font-bold'}
-                >
-                  {failure.status}
-                </span>{' '}
-                {failureName(failure.status ?? '', singularNoun)}
-              </span>
-            ))}
-          </div>
-          {!on && (
-            <p className="mt-2 text-[12.5px] text-hint">
-              Failures answer without a shared shape — clients can't handle every error the
-              same way.
-            </p>
           )}
-          {(adopt.isError || remove.isError) && (
-            <p className="mt-2 text-[12.5px] text-terracotta" role="alert">
-              That didn't save — try again.
+        </span>
+        <ChevronDown
+          aria-hidden
+          strokeWidth={2.2}
+          className={`size-[13px] shrink-0 text-hint transition-transform ${expanded ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {expanded && (
+        // The answer's own region, set off by the left rail (state 3·5).
+        <div className="mt-0.5 mb-2 ml-[15px] border-l-2 border-band-border py-1 pl-5">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-[11px] font-semibold tracking-[.1em] text-hint uppercase">
+              Headers on this answer only
+            </h3>
+            {editing === null && (
+              <button
+                type="button"
+                onClick={() => setEditing({ mode: 'add' })}
+                className="flex items-center gap-1.5 text-[12.5px] font-semibold text-text-tertiary transition-colors hover:text-foreground"
+              >
+                <Plus aria-hidden className="size-[11px]" strokeWidth={2.4} />
+                Add header
+              </button>
+            )}
+          </div>
+          {headers.length === 0 && editing === null ? (
+            <p className="mt-1.5 text-[12.5px] text-hint">
+              None yet — this answer ships no extra headers.
             </p>
+          ) : (
+            <DeclarationList
+              specId={specId}
+              schemaName={schemaName}
+              capability={capability}
+              location="response-header"
+              declarations={headers}
+              showOptionality={false}
+              editing={editing}
+              onEditingChange={setEditing}
+            />
           )}
         </div>
       )}

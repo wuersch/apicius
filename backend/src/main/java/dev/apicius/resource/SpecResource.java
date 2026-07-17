@@ -1,17 +1,22 @@
 package dev.apicius.resource;
 
+import dev.apicius.document.DeclarationView;
 import dev.apicius.document.ExportFormat;
 import dev.apicius.document.FieldView;
 import dev.apicius.document.ResourceView;
 import dev.apicius.document.derivation.Capability;
+import dev.apicius.document.derivation.DeclarationLocation;
 import dev.apicius.domain.Spec;
 import dev.apicius.resource.dto.AddResourceRequest;
 import dev.apicius.resource.dto.CapabilityContractResponse;
 import dev.apicius.resource.dto.CreateSpecRequest;
+import dev.apicius.resource.dto.DeclarationRequest;
+import dev.apicius.resource.dto.DeclarationResponse;
 import dev.apicius.resource.dto.FieldRequest;
 import dev.apicius.resource.dto.FieldResponse;
 import dev.apicius.resource.dto.LastEditedLocationResponse;
 import dev.apicius.resource.dto.ResourceResponse;
+import dev.apicius.resource.dto.ResponseHeaderRequest;
 import dev.apicius.resource.dto.SpecDetailResponse;
 import dev.apicius.resource.dto.SpecListResponse;
 import dev.apicius.resource.dto.SpecSummaryResponse;
@@ -379,6 +384,233 @@ public class SpecResource {
             @PathParam("capability") Capability capability) {
         specService.disablePaging(currentUser.require(), specId, schemaName, capability);
         return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/query-parameters")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "addQueryParameter",
+            summary = "Declare a query parameter on this capability; the name and constructs "
+                    + "derive from plain language (FEAT-011 UC1)")
+    @APIResponse(responseCode = "201", description = "Created",
+            content = @Content(schema = @Schema(implementation = DeclarationResponse.class)))
+    @APIResponse(responseCode = "400", description = "Validation failed",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409",
+            description = "The name collides in this location, or paging owns it here",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response addQueryParameter(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @Valid DeclarationRequest request,
+            @Context UriInfo uriInfo) {
+        return created(specService.addDeclaration(currentUser.require(), specId, schemaName,
+                capability, DeclarationLocation.QUERY_PARAMETER, request.draft()), uriInfo);
+    }
+
+    @PATCH
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/query-parameters/{name}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateQueryParameter",
+            summary = "Rewrite a query parameter in place — rename, kind, optionality, "
+                    + "description as one atomic save (FEAT-011 UC4). A rename changes the "
+                    + "declaration's identity: it is addressed by the new name afterwards.")
+    @APIResponse(responseCode = "200", description = "The updated declaration",
+            content = @Content(schema = @Schema(implementation = DeclarationResponse.class)))
+    @APIResponse(responseCode = "400", description = "Validation failed",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404",
+            description = "No such API, resource, capability, or declaration",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409",
+            description = "The name collides in this location, or paging owns it here",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public DeclarationResponse updateQueryParameter(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @PathParam("name") String name,
+            @Valid DeclarationRequest request) {
+        return DeclarationResponse.from(specService.updateDeclaration(currentUser.require(),
+                specId, schemaName, capability, DeclarationLocation.QUERY_PARAMETER, name,
+                request.draft()));
+    }
+
+    @DELETE
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/query-parameters/{name}")
+    @Operation(operationId = "removeQueryParameter",
+            summary = "Remove a query parameter — its constructs, nothing else (FEAT-011 UC4)")
+    @APIResponse(responseCode = "204", description = "Removed")
+    @APIResponse(responseCode = "404",
+            description = "No such API, resource, capability, or declaration",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response removeQueryParameter(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @PathParam("name") String name) {
+        specService.removeDeclaration(currentUser.require(), specId, schemaName, capability,
+                DeclarationLocation.QUERY_PARAMETER, name);
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/request-headers")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "addRequestHeader",
+            summary = "Declare a request header on this capability; the name derives "
+                    + "Hyphenated-Capitalized (FEAT-011 UC2)")
+    @APIResponse(responseCode = "201", description = "Created",
+            content = @Content(schema = @Schema(implementation = DeclarationResponse.class)))
+    @APIResponse(responseCode = "400",
+            description = "Validation failed, or the name is reserved (Accept, Content-Type, "
+                    + "Authorization)",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409", description = "The name collides in this location",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response addRequestHeader(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @Valid DeclarationRequest request,
+            @Context UriInfo uriInfo) {
+        return created(specService.addDeclaration(currentUser.require(), specId, schemaName,
+                capability, DeclarationLocation.REQUEST_HEADER, request.draft()), uriInfo);
+    }
+
+    @PATCH
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/request-headers/{name}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateRequestHeader",
+            summary = "Rewrite a request header in place — one atomic save; a rename changes "
+                    + "the declaration's identity (FEAT-011 UC4)")
+    @APIResponse(responseCode = "200", description = "The updated declaration",
+            content = @Content(schema = @Schema(implementation = DeclarationResponse.class)))
+    @APIResponse(responseCode = "400",
+            description = "Validation failed, or the name is reserved",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404",
+            description = "No such API, resource, capability, or declaration",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409", description = "The name collides in this location",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public DeclarationResponse updateRequestHeader(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @PathParam("name") String name,
+            @Valid DeclarationRequest request) {
+        return DeclarationResponse.from(specService.updateDeclaration(currentUser.require(),
+                specId, schemaName, capability, DeclarationLocation.REQUEST_HEADER, name,
+                request.draft()));
+    }
+
+    @DELETE
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/request-headers/{name}")
+    @Operation(operationId = "removeRequestHeader",
+            summary = "Remove a request header — its constructs, nothing else (FEAT-011 UC4)")
+    @APIResponse(responseCode = "204", description = "Removed")
+    @APIResponse(responseCode = "404",
+            description = "No such API, resource, capability, or declaration",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response removeRequestHeader(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @PathParam("name") String name) {
+        specService.removeDeclaration(currentUser.require(), specId, schemaName, capability,
+                DeclarationLocation.REQUEST_HEADER, name);
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/response-headers")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "addResponseHeader",
+            summary = "Declare a header the capability sends back — on its success answer(s); "
+                    + "the shared failure answers are never touched (FEAT-011 UC3/AC3)")
+    @APIResponse(responseCode = "201", description = "Created",
+            content = @Content(schema = @Schema(implementation = DeclarationResponse.class)))
+    @APIResponse(responseCode = "400",
+            description = "Validation failed, or the name is reserved",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409", description = "The name collides in this location",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response addResponseHeader(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @Valid ResponseHeaderRequest request,
+            @Context UriInfo uriInfo) {
+        return created(specService.addDeclaration(currentUser.require(), specId, schemaName,
+                capability, DeclarationLocation.RESPONSE_HEADER, request.draft()), uriInfo);
+    }
+
+    @PATCH
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/response-headers/{name}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateResponseHeader",
+            summary = "Rewrite a response header in place — one atomic save; a rename changes "
+                    + "the declaration's identity (FEAT-011 UC4)")
+    @APIResponse(responseCode = "200", description = "The updated declaration",
+            content = @Content(schema = @Schema(implementation = DeclarationResponse.class)))
+    @APIResponse(responseCode = "400",
+            description = "Validation failed, or the name is reserved",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404",
+            description = "No such API, resource, capability, or declaration",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409", description = "The name collides in this location",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public DeclarationResponse updateResponseHeader(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @PathParam("name") String name,
+            @Valid ResponseHeaderRequest request) {
+        return DeclarationResponse.from(specService.updateDeclaration(currentUser.require(),
+                specId, schemaName, capability, DeclarationLocation.RESPONSE_HEADER, name,
+                request.draft()));
+    }
+
+    @DELETE
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/response-headers/{name}")
+    @Operation(operationId = "removeResponseHeader",
+            summary = "Remove a response header — its constructs, nothing else (FEAT-011 UC4)")
+    @APIResponse(responseCode = "204", description = "Removed")
+    @APIResponse(responseCode = "404",
+            description = "No such API, resource, capability, or declaration",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response removeResponseHeader(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @PathParam("name") String name) {
+        specService.removeDeclaration(currentUser.require(), specId, schemaName, capability,
+                DeclarationLocation.RESPONSE_HEADER, name);
+        return Response.noContent().build();
+    }
+
+    /** 201 with Location at the PATCH/DELETE endpoint — declarations are addressable (the fields idiom). */
+    private static Response created(DeclarationView declaration, UriInfo uriInfo) {
+        URI location = uriInfo.getAbsolutePathBuilder().path(declaration.name()).build();
+        return Response.created(location).entity(DeclarationResponse.from(declaration)).build();
     }
 
     @GET
