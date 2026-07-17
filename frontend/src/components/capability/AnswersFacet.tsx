@@ -84,7 +84,7 @@ export function AnswersFacet({
               // The guarantee's badge — carried only while it holds; toggled off it goes
               // away entirely (the consequence line explains), never dims.
               <span className="rounded-[4px] bg-input px-2 py-px text-[10px] font-bold text-teal">
-                RFC 9457 · added for you
+                RFC 9457 compliant
               </span>
             )}
             <Switch
