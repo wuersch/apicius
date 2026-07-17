@@ -3,7 +3,7 @@
 **ID:** FEAT-010
 **Status:** shipped
 **Depends on:** PRIN-002, PRIN-006, ADR-0009, FEAT-005, FEAT-009
-**Mockup:** `docs/design/mockups/launcher-hybrid-v9.html` — View 3 (Paging card) and state
+**Mockup:** `docs/design/mockups/launcher-hybrid-v10.html` — View 3 (Paging card) and state
 3·2 (paging off)
 
 > **Type:** Deterministic — behavior is fixed and verifiable. Every requirement maps to a
