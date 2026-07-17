@@ -12,7 +12,8 @@ import type { AnswersFacetResponse, Capability } from '@/api/model'
 import { failureName } from '@/lib/errorAnswers'
 
 // FEAT-009: what comes back — the success answer the document declares, then the standard
-// failures as resting pill chips: derived furniture, not a feature banner. The ON/OFF
+// failures as resting badges (the FieldRow chip idiom): derived furniture, not a feature
+// banner. The ON/OFF
 // toggle is the built-in default's deliberate override (UC5, PRIN-006) — plain, no
 // confirm, reversible; OFF leaves the chips dashed and faint with the consequence stated.
 // Both directions mutate then invalidate (the FieldEditor convention).
@@ -82,7 +83,7 @@ export function AnswersFacet({
             {failures.map((failure) => (
               <span
                 key={failure.status}
-                className={`rounded-full px-2.5 py-px text-[11px] whitespace-nowrap ${
+                className={`rounded-[5px] px-2 py-px text-[11px] whitespace-nowrap ${
                   failure.present
                     ? 'bg-input font-semibold text-text-secondary'
                     : 'border border-dashed border-ring text-text-faint'
