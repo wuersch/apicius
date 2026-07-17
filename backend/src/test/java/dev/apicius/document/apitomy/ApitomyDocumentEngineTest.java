@@ -564,21 +564,23 @@ class ApitomyDocumentEngineTest {
     void addResourceWritesTheSharedErrorFurniture() throws Exception {
         JsonNode document = parse(addProduct(EnumSet.of(Capability.BROWSE)));
 
+        // The shape mirrors the modern-petstore reference (docs/misc/examples).
         assertEquals(parse("""
                 {"type":"object",
                  "description":"A problem detail (RFC 9457) describing why a request failed.",
                  "properties":{
-                   "type":{"type":"string","description":"A URI reference identifying the type of problem."},
+                   "type":{"type":"string","format":"uri","description":"A URI reference identifying the type of problem."},
                    "title":{"type":"string","description":"A short, human-readable summary of the problem type."},
                    "status":{"type":"integer","description":"The HTTP status code."},
                    "detail":{"type":"string","description":"A human-readable explanation specific to this occurrence."},
-                   "instance":{"type":"string","description":"A URI reference identifying this specific occurrence."},
+                   "instance":{"type":"string","format":"uri","description":"A URI reference identifying this specific occurrence."},
                    "errors":{"type":"array",
                      "description":"Field-level problems, present when the input failed validation.",
                      "items":{"type":"object",
                        "properties":{
                          "field":{"type":"string","description":"The input field the problem is about."},
-                         "message":{"type":"string","description":"What is wrong with the field."}},
+                         "message":{"type":"string","description":"What is wrong with the field."},
+                         "code":{"type":"string","description":"A machine-readable code for the kind of problem."}},
                        "required":["field","message"]}}},
                  "required":["type","title","status"]}"""),
                 document.path("components").path("schemas").path("Error"));

@@ -297,12 +297,16 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         }
     }
 
-    /** The one shared failure shape — RFC 9457 problem details, served as problem+json. */
+    /**
+     * The one shared failure shape — RFC 9457 problem details, served as problem+json. Field
+     * for field the modern-petstore reference shape
+     * ({@code docs/misc/examples/modern-petstore-3.2.openapi}).
+     */
     private static OpenApiSchema errorSchema(OpenApi3xComponents components) {
         OpenApiSchema schema = components.createSchema();
         setType(schema, "object");
         schema.setDescription("A problem detail (RFC 9457) describing why a request failed.");
-        schema.addProperty("type", describedProperty(schema, "string",
+        schema.addProperty("type", uriProperty(schema,
                 "A URI reference identifying the type of problem."));
         schema.addProperty("title", describedProperty(schema, "string",
                 "A short, human-readable summary of the problem type."));
@@ -310,7 +314,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
                 "The HTTP status code."));
         schema.addProperty("detail", describedProperty(schema, "string",
                 "A human-readable explanation specific to this occurrence."));
-        schema.addProperty("instance", describedProperty(schema, "string",
+        schema.addProperty("instance", uriProperty(schema,
                 "A URI reference identifying this specific occurrence."));
         Schema errors = describedProperty(schema, "array",
                 "Field-level problems, present when the input failed validation.");
@@ -320,11 +324,19 @@ public class ApitomyDocumentEngine implements DocumentEngine {
                 "The input field the problem is about."));
         problem.addProperty("message", describedProperty(schema, "string",
                 "What is wrong with the field."));
+        problem.addProperty("code", describedProperty(schema, "string",
+                "A machine-readable code for the kind of problem."));
         problem.setRequired(List.of("field", "message"));
         ((OpenApi3xSchema) errors).setItems((OpenApi3xSchema) problem);
         schema.addProperty("errors", errors);
         schema.setRequired(List.of("type", "title", "status"));
         return schema;
+    }
+
+    private static Schema uriProperty(OpenApiSchema parent, String description) {
+        Schema property = describedProperty(parent, "string", description);
+        property.setFormat("uri");
+        return property;
     }
 
     private static Schema describedProperty(OpenApiSchema parent, String type, String description) {
