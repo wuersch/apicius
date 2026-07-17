@@ -1,5 +1,6 @@
-import { Link } from 'react-router'
+import { Link, matchPath, useLocation } from 'react-router'
 import { useAuth } from 'react-oidc-context'
+import { ChevronRight } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -8,23 +9,38 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { getInitials } from '@/auth/initials'
+import { useGetSpec } from '@/api/endpoints/specs/specs'
 
 // The masthead: brand lockup left, identity right (FEAT-001 AC6 — initials avatar with
-// Sign out reachable from it; sign out is a full RP-initiated IdP logout). Search, bell
-// and the rail arrive with the features that give them behavior.
+// Sign out reachable from it; sign out is a full RP-initiated IdP logout). Inside a
+// capability, the breadcrumb deepens into the brand's slot (FEAT-009, mockup View 3) —
+// the masthead persists, the way back stays one glance away. Search and bell arrive with
+// the features that give them behavior.
 export function AppChrome() {
   const auth = useAuth()
+  const location = useLocation()
+  const capability = matchPath(
+    '/apis/:id/resources/:schemaName/capabilities/:capability',
+    location.pathname,
+  )
 
   return (
     <header className="flex items-center justify-between px-11 pt-7 pb-5">
-      <Link to="/" className="flex items-baseline gap-[7px] outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <OliveBranchIcon />
-        {/* STUDIO rides the cap line — a deliberate superscript qualifier (brand notes). */}
-        <span className="text-lg leading-none font-bold">apicius</span>
-        <span className="self-start text-[11.5px] leading-none font-semibold tracking-[.14em] text-text-tertiary">
-          STUDIO
-        </span>
-      </Link>
+      {capability ? (
+        <CapabilityBreadcrumb
+          specId={capability.params.id ?? ''}
+          schemaName={capability.params.schemaName ?? ''}
+        />
+      ) : (
+        <Link to="/" className="flex items-baseline gap-[7px] outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <OliveBranchIcon />
+          {/* STUDIO rides the cap line — a deliberate superscript qualifier (brand notes). */}
+          <span className="text-lg leading-none font-bold">apicius</span>
+          <span className="self-start text-[11.5px] leading-none font-semibold tracking-[.14em] text-text-tertiary">
+            STUDIO
+          </span>
+        </Link>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label="Account"
@@ -39,6 +55,42 @@ export function AppChrome() {
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
+  )
+}
+
+// The deepened breadcrumb: All APIs / the API / the resource. The API title reads from the
+// same cached spec projection the page fetches — no extra request.
+function CapabilityBreadcrumb({ specId, schemaName }: { specId: string; schemaName: string }) {
+  const auth = useAuth()
+  const enabled = Boolean(auth.user?.access_token) && Boolean(specId)
+  const { data } = useGetSpec(specId, { query: { enabled } })
+  const title = data?.status === 200 ? data.data.title : undefined
+
+  const separator = (
+    <ChevronRight aria-hidden className="size-[13px] shrink-0 text-text-faint" />
+  )
+  return (
+    <nav aria-label="Breadcrumb" className="flex items-center gap-[7px] text-[13px]">
+      <Link
+        to="/"
+        className="text-text-tertiary hover:text-foreground hover:underline underline-offset-2"
+      >
+        All APIs
+      </Link>
+      {title && (
+        <>
+          {separator}
+          <Link
+            to={`/apis/${specId}`}
+            className="text-text-tertiary hover:text-foreground hover:underline underline-offset-2"
+          >
+            {title}
+          </Link>
+        </>
+      )}
+      {separator}
+      <span className="font-semibold">{schemaName}</span>
+    </nav>
   )
 }
 

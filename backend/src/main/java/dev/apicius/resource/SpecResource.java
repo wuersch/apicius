@@ -3,8 +3,10 @@ package dev.apicius.resource;
 import dev.apicius.document.ExportFormat;
 import dev.apicius.document.FieldView;
 import dev.apicius.document.ResourceView;
+import dev.apicius.document.derivation.Capability;
 import dev.apicius.domain.Spec;
 import dev.apicius.resource.dto.AddResourceRequest;
+import dev.apicius.resource.dto.CapabilityContractResponse;
 import dev.apicius.resource.dto.CreateSpecRequest;
 import dev.apicius.resource.dto.FieldRequest;
 import dev.apicius.resource.dto.FieldResponse;
@@ -275,6 +277,61 @@ public class SpecResource {
             @PathParam("schemaName") String schemaName,
             @PathParam("propertyName") String propertyName) {
         specService.removeField(currentUser.require(), specId, schemaName, propertyName);
+        return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "getCapabilityContract",
+            summary = "One capability's full contract — identity, description, Request, "
+                    + "Headers, Answers, in stable facet order, projected from the document "
+                    + "(FEAT-009)")
+    @APIResponse(responseCode = "200", description = "The contract",
+            content = @Content(schema = @Schema(implementation = CapabilityContractResponse.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public CapabilityContractResponse getCapabilityContract(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability) {
+        return CapabilityContractResponse.from(
+                specService.capabilityContract(specId, schemaName, capability));
+    }
+
+    @POST
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/standard-errors")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "adoptStandardErrors",
+            summary = "Adopt the standard failure answers onto this capability — the shared "
+                    + "Error schema and reusable responses are created on first need and "
+                    + "referenced ever after (FEAT-009 UC3)")
+    @APIResponse(responseCode = "200", description = "The contract after adoption",
+            content = @Content(schema = @Schema(implementation = CapabilityContractResponse.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public CapabilityContractResponse adoptStandardErrors(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability) {
+        return CapabilityContractResponse.from(specService.adoptStandardErrors(
+                currentUser.require(), specId, schemaName, capability));
+    }
+
+    @DELETE
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/standard-errors")
+    @Operation(operationId = "removeStandardErrors",
+            summary = "Switch the standard failure answers off for this capability — the "
+                    + "operation stops declaring them; the shared furniture remains, and "
+                    + "adopting switches them back on (FEAT-009 UC5)")
+    @APIResponse(responseCode = "204", description = "Switched off")
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response removeStandardErrors(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability) {
+        specService.removeStandardErrors(currentUser.require(), specId, schemaName, capability);
         return Response.noContent().build();
     }
 

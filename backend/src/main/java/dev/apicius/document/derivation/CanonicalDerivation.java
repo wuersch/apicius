@@ -64,8 +64,8 @@ public final class CanonicalDerivation {
                         "204", "The " + singular + " was removed.");
             });
         }
-        return new ResourceDerivation(schemaName, collectionPath, itemPath,
-                "No " + singular + " with this id exists.", List.copyOf(operations));
+        return new ResourceDerivation(schemaName, collectionPath, itemPath, singular,
+                List.copyOf(operations));
     }
 
     /**

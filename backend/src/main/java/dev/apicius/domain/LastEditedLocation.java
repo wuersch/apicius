@@ -19,8 +19,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 /**
  * A designer's single most recent editing location — the API and, when recorded, the capability —
- * powering the home's jump-back-in card (ADR-0008, FEAT-002 AC1). One row per user, overwritten by
- * the future editor whenever the designer works somewhere else; nothing writes it yet.
+ * powering the home's jump-back-in card (ADR-0008, FEAT-002 AC1). One row per user, overwritten at
+ * the service chokepoint on every edit: API-level always, the capability's plain-language label
+ * when the edit is capability-scoped (FEAT-009's adopt is the first).
  */
 @Entity
 @Table(name = "last_edited_location",

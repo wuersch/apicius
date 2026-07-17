@@ -1,5 +1,6 @@
 package dev.apicius.service;
 
+import dev.apicius.document.CapabilityContractView;
 import dev.apicius.document.CapabilityView;
 import dev.apicius.document.DocumentEngine;
 import dev.apicius.document.DocumentProjection;
@@ -16,6 +17,7 @@ import dev.apicius.document.derivation.FieldKind;
 import dev.apicius.document.derivation.FieldNameDerivation;
 import dev.apicius.document.derivation.FieldVisibility;
 import dev.apicius.document.derivation.ResourceDerivation;
+import dev.apicius.document.derivation.StandardErrors;
 import dev.apicius.domain.AppUser;
 import dev.apicius.domain.Spec;
 import dev.apicius.repository.LastEditedLocationRepository;
@@ -264,6 +266,64 @@ public class SpecService {
     }
 
     /**
+     * FEAT-009: one capability's contract, projected from the document (AC1–AC5). A pure read
+     * like {@link #detail}: no lock, and viewing is not editing — the jump-back-in pointer
+     * stays put and nothing in the document changes (AC4).
+     */
+    @Transactional
+    public CapabilityContractView capabilityContract(UUID specId, String schemaName,
+            Capability capability) {
+        Spec spec = specRepository.findById(specId);
+        if (spec == null) {
+            throw new SpecNotFoundException(specId);
+        }
+        requireCapability(resourceOf(spec, schemaName), capability);
+        return documentEngine.capabilityContract(spec.body, schemaName, capability);
+    }
+
+    /**
+     * FEAT-009 UC3: the operation adopts its standard failure answers — one atomic document
+     * mutation through the engine seam (AC6); the shared furniture is created on first
+     * adoption and reused after (AC7). The ADR-0008 counts are untouched — the furniture is
+     * derived plumbing, not a resource or operation (AC9). The jump-back-in pointer moves to
+     * this API and, for the first time anywhere, the capability (its plain-language label).
+     */
+    @Transactional
+    public CapabilityContractView adoptStandardErrors(AppUser editor, UUID specId,
+            String schemaName, Capability capability) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+
+        spec.body = documentEngine.adoptStandardErrors(spec.body, schemaName, capability);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+        return documentEngine.capabilityContract(spec.body, schemaName, capability);
+    }
+
+    /**
+     * FEAT-009 UC5: the opt-out — the operation stops declaring its applicable standard
+     * failure answers; the shared furniture and the ADR-0008 counts stay untouched (AC10).
+     * Cheap and reversible by design: {@link #adoptStandardErrors} is the way back. Same
+     * chokepoint conventions as adopt, the capability-level pointer included.
+     */
+    @Transactional
+    public void removeStandardErrors(AppUser editor, UUID specId, String schemaName,
+            Capability capability) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+
+        spec.body = documentEngine.removeStandardErrors(spec.body, schemaName, capability);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+    }
+
+    /** The addressed capability, from the recognized resource — 404 when it isn't there. */
+    private static CapabilityView requireCapability(ResourceView resource, Capability capability) {
+        return resource.capabilities().stream()
+                .filter(view -> view.capability() == capability)
+                .findFirst()
+                .orElseThrow(() -> new CapabilityNotFoundException(resource.name(), capability));
+    }
+
+    /**
      * Document mutations serialize per spec (unlike creates, which never contend): under the
      * row lock the uniqueness checks are race-free — a concurrent same-name add gets a
      * deterministic 409 instead of an optimistic-lock 500.
@@ -346,6 +406,13 @@ public class SpecService {
      * Comparing against every schema covers datatypes too, once those exist.
      */
     private void rejectConflicts(Spec spec, ResourceDerivation derivation, String name) {
+        // The FEAT-009 reservation (AC9), unconditional: even before any furniture exists in
+        // this document, a resource named Error would collide with the first adoption —
+        // failure bodies would reference user data.
+        if (StandardErrors.isReservedSchemaName(derivation.schemaName())) {
+            throw new NameConflictException("'" + name
+                    + "' derives to 'Error', which is reserved for the standard error shape.");
+        }
         DocumentProjection projection = documentEngine.project(spec.body);
         if (projection.schemaNames().stream()
                 .anyMatch(existing -> existing.equalsIgnoreCase(derivation.schemaName()))) {

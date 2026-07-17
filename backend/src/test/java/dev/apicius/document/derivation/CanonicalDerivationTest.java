@@ -49,7 +49,7 @@ class CanonicalDerivationTest {
                 "The updated order item.",
                 "The order item was removed."),
                 derivation.operations().stream().map(DerivedOperation::successDescription).toList());
-        assertEquals("No order item with this id exists.", derivation.notFoundDescription());
+        assertEquals("order item", derivation.singularNoun());
         assertEquals(List.of("200", "200", "201", "200", "204"),
                 derivation.operations().stream().map(DerivedOperation::successStatus).toList());
     }

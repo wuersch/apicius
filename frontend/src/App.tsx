@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router'
 import { AppChrome } from '@/components/AppChrome'
 import { HomePage } from '@/pages/HomePage'
 import { EditorPage } from '@/pages/EditorPage'
+import { CapabilityPage } from '@/pages/CapabilityPage'
 
 function App() {
   return (
@@ -11,6 +12,10 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/apis/:id" element={<EditorPage />} />
+          <Route
+            path="/apis/:id/resources/:schemaName/capabilities/:capability"
+            element={<CapabilityPage />}
+          />
         </Routes>
       </main>
     </div>

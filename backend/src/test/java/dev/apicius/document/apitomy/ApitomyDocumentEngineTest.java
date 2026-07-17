@@ -8,18 +8,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.apicius.document.AnswersFacetView;
+import dev.apicius.document.CapabilityContractView;
+import dev.apicius.document.CapabilityView;
 import dev.apicius.document.DocumentProjection;
+import dev.apicius.document.FailureAnswerView;
 import dev.apicius.document.FieldView;
+import dev.apicius.document.HeaderLineView;
+import dev.apicius.document.RequestFacetView;
 import dev.apicius.document.ResourceView;
 import dev.apicius.document.SpecVersion;
 import dev.apicius.document.derivation.CanonicalDerivation;
 import dev.apicius.document.derivation.Capability;
 import dev.apicius.document.derivation.CoreType;
+import dev.apicius.document.derivation.DerivedOperation;
 import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.FieldKind;
 import dev.apicius.document.derivation.FieldVisibility;
 import dev.apicius.document.derivation.Refinement;
 import dev.apicius.document.derivation.ResourceDerivation;
+import dev.apicius.document.derivation.StandardErrors;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -123,8 +131,9 @@ class ApitomyDocumentEngineTest {
         assertEquals("object", wrapper.path("type").asText());
         assertEquals("array", wrapper.path("properties").path("items").path("type").asText());
         assertEquals(ref, wrapper.path("properties").path("items").path("items").path("$ref").asText());
-        assertEquals(1, document.path("components").path("schemas").size(),
-                "the wrapper must be inline, never a named schema");
+        assertEquals(2, document.path("components").path("schemas").size(),
+                "the wrapper must be inline, never a named schema — only the resource and "
+                        + "the FEAT-009 Error furniture exist");
 
         // Add: required application/json request, 201 ref.
         JsonNode post = collection.path("post");
@@ -140,12 +149,11 @@ class ApitomyDocumentEngineTest {
         assertEquals(ref, patch.path("requestBody").path("content")
                 .path("application/merge-patch+json").path("schema").path("$ref").asText());
 
-        // Remove: 204 without content; item operations carry a body-less, plain-language 404.
+        // Remove: 204 without content; item operations reference the shared 404 (FEAT-009).
         JsonNode delete = item.path("delete");
         assertFalse(delete.path("responses").path("204").has("content"));
-        assertEquals("No product with this id exists.",
-                delete.path("responses").path("404").path("description").asText());
-        assertFalse(delete.path("responses").path("404").has("content"));
+        assertEquals("#/components/responses/NotFound",
+                delete.path("responses").path("404").path("$ref").asText());
         assertTrue(item.path("get").path("responses").has("404"));
         assertTrue(item.path("patch").path("responses").has("404"));
         assertFalse(collection.path("get").path("responses").has("404"));
@@ -525,6 +533,322 @@ class ApitomyDocumentEngineTest {
                 new FieldView("createdAt", new FieldKind(CoreType.DATE_TIME, null, false), false,
                         FieldVisibility.AUTO, null)),
                 fields);
+    }
+
+    // ------------------------------------------------------- FEAT-009: standard error answers
+
+    // AC8: every derived operation answers its standard set from birth — exactly the
+    // applicable references per the table, plus its success answer, and nothing else.
+    @ParameterizedTest
+    @EnumSource(Capability.class)
+    void addResourceCarriesStandardErrorsFromBirth(Capability capability) throws Exception {
+        JsonNode document = parse(addProduct(EnumSet.of(capability)));
+        DerivedOperation derived = CanonicalDerivation
+                .derive("Product", EnumSet.of(capability)).operations().getFirst();
+        JsonNode responses = document.path("paths").path(derived.path())
+                .path(derived.method().toLowerCase()).path("responses");
+        List<StandardErrors.Answer> applicable =
+                StandardErrors.applicableTo(capability, derived.path().endsWith("/{id}"));
+
+        for (StandardErrors.Answer answer : applicable) {
+            assertEquals("#/components/responses/" + answer.responseName(),
+                    responses.path(answer.status()).path("$ref").asText());
+        }
+        assertEquals(1 + applicable.size(), responses.size(),
+                "the success answer plus exactly the applicable failures");
+    }
+
+    // The shared furniture, exactly as FEAT-009 specifies it: the Error schema (RFC 9457
+    // problem details) and one reusable response per standard failure answer.
+    @Test
+    void addResourceWritesTheSharedErrorFurniture() throws Exception {
+        JsonNode document = parse(addProduct(EnumSet.of(Capability.BROWSE)));
+
+        // The shape mirrors the modern-petstore reference (docs/misc/examples).
+        assertEquals(parse("""
+                {"type":"object",
+                 "description":"A problem detail (RFC 9457) describing why a request failed.",
+                 "properties":{
+                   "type":{"type":"string","format":"uri","description":"A URI reference identifying the type of problem."},
+                   "title":{"type":"string","description":"A short, human-readable summary of the problem type."},
+                   "status":{"type":"integer","description":"The HTTP status code."},
+                   "detail":{"type":"string","description":"A human-readable explanation specific to this occurrence."},
+                   "instance":{"type":"string","format":"uri","description":"A URI reference identifying this specific occurrence."},
+                   "errors":{"type":"array",
+                     "description":"Field-level problems, present when the input failed validation.",
+                     "items":{"type":"object",
+                       "properties":{
+                         "field":{"type":"string","description":"The input field the problem is about."},
+                         "message":{"type":"string","description":"What is wrong with the field."},
+                         "code":{"type":"string","description":"A machine-readable code for the kind of problem."}},
+                       "required":["field","message"]}}},
+                 "required":["type","title","status"]}"""),
+                document.path("components").path("schemas").path("Error"));
+        assertEquals(parse("""
+                {"description":"No resource with this id exists.",
+                 "content":{"application/problem+json":{"schema":{"$ref":"#/components/schemas/Error"}}}}"""),
+                document.path("components").path("responses").path("NotFound"));
+        assertEquals(List.of("BadRequest", "Unauthorized", "NotFound", "UnprocessableEntity",
+                "TooManyRequests", "InternalServerError"),
+                keysOf(document.path("components").path("responses")));
+    }
+
+    // AC7: the furniture is created once and referenced, never duplicated, by later writes.
+    @Test
+    void furnitureIsCreatedOnceAndReused() throws Exception {
+        String withProduct = addProduct(EnumSet.allOf(Capability.class));
+        JsonNode document = parse(engine.addResource(withProduct,
+                CanonicalDerivation.derive("Review", EnumSet.of(Capability.LOOK_UP)), null));
+
+        assertEquals(List.of("Product", "Error", "Review"),
+                keysOf(document.path("components").path("schemas")));
+        assertEquals(6, document.path("components").path("responses").size());
+        assertEquals("#/components/responses/NotFound", document.path("paths")
+                .path("/reviews/{id}").path("get").path("responses").path("404")
+                .path("$ref").asText());
+    }
+
+    // UC3/AC6: adopting on a pre-FEAT-009 operation replaces its inline 404 with the shared
+    // reference and adds exactly the applicable set; sibling operations stay untouched.
+    @Test
+    void adoptStandardErrorsRetrofitsALegacyOperation() throws Exception {
+        String legacy = stripStandardErrors(addProduct(EnumSet.allOf(Capability.class)));
+        JsonNode before = parse(legacy);
+        assertEquals("No product with this id exists.", before.path("paths")
+                .path("/products/{id}").path("get").path("responses").path("404")
+                .path("description").asText());
+
+        JsonNode after = parse(engine.adoptStandardErrors(legacy, "Product", Capability.LOOK_UP));
+
+        JsonNode responses = after.path("paths").path("/products/{id}").path("get").path("responses");
+        assertEquals(parse("""
+                {"$ref":"#/components/responses/NotFound"}"""), responses.path("404"));
+        assertEquals(List.of("200", "400", "401", "404", "429", "500"), keysOf(responses));
+        assertEquals(6, after.path("components").path("responses").size());
+        assertNoVendorExtensions(after);
+        assertEquals(before.path("info"), after.path("info"));
+        assertEquals(before.path("paths").path("/products"), after.path("paths").path("/products"));
+        assertEquals(before.path("paths").path("/products/{id}").path("patch"),
+                after.path("paths").path("/products/{id}").path("patch"));
+        assertEquals(before.path("paths").path("/products/{id}").path("delete"),
+                after.path("paths").path("/products/{id}").path("delete"));
+    }
+
+    // UC5/AC10: the opt-out removes exactly the applicable references — furniture, sibling
+    // operations, and the success answer stay untouched.
+    @Test
+    void removeStandardErrorsStripsExactlyTheApplicableReferences() throws Exception {
+        String body = addProduct(EnumSet.allOf(Capability.class));
+        JsonNode before = parse(body);
+
+        JsonNode after = parse(engine.removeStandardErrors(body, "Product", Capability.UPDATE));
+
+        JsonNode responses = after.path("paths").path("/products/{id}").path("patch").path("responses");
+        assertEquals(List.of("200"), keysOf(responses));
+        assertEquals(before.path("paths").path("/products/{id}").path("patch")
+                .path("responses").path("200"), responses.path("200"));
+        assertEquals(before.path("components").path("schemas").path("Error"),
+                after.path("components").path("schemas").path("Error"));
+        assertEquals(6, after.path("components").path("responses").size());
+        assertEquals(before.path("paths").path("/products"), after.path("paths").path("/products"));
+        assertEquals(before.path("paths").path("/products/{id}").path("get"),
+                after.path("paths").path("/products/{id}").path("get"));
+        assertNoVendorExtensions(after);
+    }
+
+    // AC10: off is reversible — switching back on yields the document adoption first
+    // produced; removing when already absent is a no-op.
+    @Test
+    void removeStandardErrorsRoundTripsWithAdopt() throws Exception {
+        String born = addProduct(EnumSet.allOf(Capability.class));
+
+        String off = engine.removeStandardErrors(born, "Product", Capability.LOOK_UP);
+        String offTwice = engine.removeStandardErrors(off, "Product", Capability.LOOK_UP);
+        String backOn = engine.adoptStandardErrors(off, "Product", Capability.LOOK_UP);
+
+        assertEquals(parse(off), parse(offTwice), "removing absent answers must be a no-op");
+        assertEquals(parse(born), parse(backOn), "off then on must restore the born document");
+    }
+
+    // UC5 leaves a FEAT-005-era inline 404 alone: only canonical references are removed —
+    // refuse-don't-mangle for content the toggle doesn't own.
+    @Test
+    void removeStandardErrorsLeavesNonCanonicalAnswersAlone() throws Exception {
+        String legacy = stripStandardErrors(addProduct(EnumSet.allOf(Capability.class)));
+
+        JsonNode after = parse(engine.removeStandardErrors(legacy, "Product", Capability.REMOVE));
+
+        assertEquals("No product with this id exists.", after.path("paths")
+                .path("/products/{id}").path("delete").path("responses").path("404")
+                .path("description").asText());
+    }
+
+    // Adopt is idempotent by design: re-adoption rewrites to the same canonical form.
+    @Test
+    void adoptStandardErrorsIsIdempotent() throws Exception {
+        String legacy = stripStandardErrors(addProduct(EnumSet.allOf(Capability.class)));
+
+        String once = engine.adoptStandardErrors(legacy, "Product", Capability.UPDATE);
+        String twice = engine.adoptStandardErrors(once, "Product", Capability.UPDATE);
+
+        assertEquals(parse(once), parse(twice));
+    }
+
+    // The dialect branch, extended to the furniture: identical output on every version.
+    @ParameterizedTest
+    @EnumSource(SpecVersion.class)
+    void errorFurnitureSerializesIdenticallyAcrossSpecVersions(SpecVersion version) throws Exception {
+        String empty = engine.createEmptyDocument(version, "Storefront API", null);
+        JsonNode components = parse(engine.addResource(empty,
+                CanonicalDerivation.derive("Product", EnumSet.allOf(Capability.class)), null))
+                .path("components");
+
+        JsonNode reference = parse(addProduct(EnumSet.allOf(Capability.class))).path("components");
+        assertEquals(reference.path("schemas").path("Error"), components.path("schemas").path("Error"));
+        assertEquals(reference.path("responses"), components.path("responses"));
+    }
+
+    // ------------------------------------------------------- FEAT-009: capabilityContract
+
+    // AC1: identity, description, and the Answers facet in one projection — the label
+    // preferring the summary, the success answer read from the document, failures present.
+    @Test
+    void capabilityContractProjectsIdentityAndAnswers() {
+        String body = addProduct(EnumSet.allOf(Capability.class));
+
+        CapabilityContractView contract =
+                engine.capabilityContract(body, "Product", Capability.LOOK_UP);
+
+        assertEquals(new CapabilityView(Capability.LOOK_UP, "Look up one product", "GET",
+                "/products/{id}"), contract.identity());
+        assertEquals(null, contract.description());
+        assertEquals("product", contract.singularNoun());
+        assertEquals("200", contract.answers().successStatus());
+        assertEquals("The product.", contract.answers().successDescription());
+        assertEquals(List.of(
+                new FailureAnswerView("400", true),
+                new FailureAnswerView("401", true),
+                new FailureAnswerView("404", true),
+                new FailureAnswerView("429", true),
+                new FailureAnswerView("500", true)),
+                contract.answers().failures());
+    }
+
+    // The summary and the operation description are the document's, not re-derived — edits
+    // survive the projection (the FEAT-005 round-trip stance; FEAT-012 writes descriptions).
+    @Test
+    void capabilityContractPrefersTheDocumentsOwnWording() throws Exception {
+        ObjectNode document = (ObjectNode) parse(addProduct(EnumSet.of(Capability.BROWSE)));
+        ObjectNode get = (ObjectNode) document.path("paths").path("/products").path("get");
+        get.put("summary", "See what's on the shelf");
+        get.put("description", "Anyone can browse the catalog.");
+
+        CapabilityContractView contract = engine.capabilityContract(
+                mapper.writeValueAsString(document), "Product", Capability.BROWSE);
+
+        assertEquals("See what's on the shelf", contract.identity().label());
+        assertEquals("Anyone can browse the catalog.", contract.description());
+    }
+
+    // AC2: the Request facet is absent — not empty — where no input travels.
+    @ParameterizedTest
+    @EnumSource(value = Capability.class, names = {"BROWSE", "LOOK_UP", "REMOVE"})
+    void capabilityContractOmitsTheRequestFacetWhereNoInputTravels(Capability capability) {
+        String body = addProduct(EnumSet.of(capability));
+
+        assertEquals(null, engine.capabilityContract(body, "Product", capability).request());
+    }
+
+    // AC5: Add derives the shape's fields (identity included, stated server-assigned via its
+    // auto visibility); Update states merge-patch semantics and enumerates nothing.
+    @Test
+    void capabilityContractDerivesTheRequestFacet() {
+        String body = engine.addField(
+                addProduct(EnumSet.of(Capability.ADD, Capability.UPDATE)), "Product",
+                field("name", CoreType.TEXT, null, false, true, FieldVisibility.NORMAL, null));
+
+        RequestFacetView add = engine.capabilityContract(body, "Product", Capability.ADD).request();
+        RequestFacetView update = engine.capabilityContract(body, "Product", Capability.UPDATE).request();
+
+        assertFalse(add.mergePatch());
+        assertEquals(List.of("id", "name"),
+                add.fields().stream().map(FieldView::name).toList());
+        assertEquals(FieldVisibility.AUTO, add.fields().getFirst().visibility());
+        assertTrue(update.mergePatch());
+        assertEquals(List.of(), update.fields());
+    }
+
+    // AC3: the derived content-negotiation line travels with every capability — and no
+    // corresponding parameter exists in the document (addResource writes none).
+    @Test
+    void capabilityContractCarriesTheDerivedContentNegotiationLine() throws Exception {
+        String body = addProduct(EnumSet.of(Capability.REMOVE));
+
+        assertEquals(List.of(new HeaderLineView("Accept", "application/json", true)),
+                engine.capabilityContract(body, "Product", Capability.REMOVE).headers());
+        assertFalse(parse(body).path("paths").path("/products/{id}").path("delete")
+                .has("parameters"));
+    }
+
+    // AC4: a capability that predates this feature shows its standard answers as absent —
+    // available to adopt, nothing written by the view.
+    @Test
+    void capabilityContractShowsLegacyAnswersAsAbsent() throws Exception {
+        String legacy = stripStandardErrors(addProduct(EnumSet.allOf(Capability.class)));
+
+        AnswersFacetView answers =
+                engine.capabilityContract(legacy, "Product", Capability.UPDATE).answers();
+
+        assertEquals("The updated product.", answers.successDescription());
+        assertEquals(List.of(
+                new FailureAnswerView("400", false),
+                new FailureAnswerView("401", false),
+                new FailureAnswerView("404", false),
+                new FailureAnswerView("422", false),
+                new FailureAnswerView("429", false),
+                new FailureAnswerView("500", false)),
+                answers.failures());
+    }
+
+    // AC9: the furniture is derived plumbing — never a datatype, resource, or capability in
+    // the concept projection.
+    @Test
+    void projectionNeverListsTheErrorFurniture() {
+        DocumentProjection projection = engine.project(addProduct(EnumSet.allOf(Capability.class)));
+
+        assertEquals(List.of("Product"), projection.schemaNames());
+        assertEquals(List.of("Product"),
+                projection.resources().stream().map(ResourceView::name).toList());
+    }
+
+    /**
+     * A pre-FEAT-009 document: the shared furniture removed and the born failure answers
+     * stripped back to FEAT-005's inline noun-specific 404 — what derivation produced before
+     * this feature shipped.
+     */
+    private String stripStandardErrors(String body) throws Exception {
+        ObjectNode document = (ObjectNode) parse(body);
+        ((ObjectNode) document.path("components")).remove("responses");
+        ((ObjectNode) document.path("components").path("schemas")).remove("Error");
+        for (JsonNode pathItem : document.path("paths")) {
+            for (String method : List.of("get", "post", "patch", "delete")) {
+                if (!pathItem.has(method)) {
+                    continue;
+                }
+                ObjectNode responses = (ObjectNode) pathItem.path(method).path("responses");
+                for (StandardErrors.Answer answer : StandardErrors.Answer.values()) {
+                    responses.remove(answer.status());
+                }
+            }
+        }
+        JsonNode item = document.path("paths").path("/products/{id}");
+        for (String method : List.of("get", "patch", "delete")) {
+            if (item.has(method)) {
+                ((ObjectNode) item.path(method).path("responses")).putObject("404")
+                        .put("description", "No product with this id exists.");
+            }
+        }
+        return mapper.writeValueAsString(document);
     }
 
     private static FieldEdit field(String propertyName, CoreType core, Refinement refinement,

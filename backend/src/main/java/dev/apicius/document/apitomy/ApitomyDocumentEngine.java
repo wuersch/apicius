@@ -1,7 +1,12 @@
 package dev.apicius.document.apitomy;
 
+import dev.apicius.document.AnswersFacetView;
+import dev.apicius.document.CapabilityContractView;
 import dev.apicius.document.CapabilityView;
 import dev.apicius.document.DocumentEngine;
+import dev.apicius.document.FailureAnswerView;
+import dev.apicius.document.HeaderLineView;
+import dev.apicius.document.RequestFacetView;
 import dev.apicius.document.DocumentProjection;
 import dev.apicius.document.FieldView;
 import dev.apicius.document.ResourceView;
@@ -14,6 +19,7 @@ import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.FieldKind;
 import dev.apicius.document.derivation.FieldVisibility;
 import dev.apicius.document.derivation.ResourceDerivation;
+import dev.apicius.document.derivation.StandardErrors;
 import io.apitomy.datamodels.Library;
 import io.apitomy.datamodels.models.Referenceable;
 import io.apitomy.datamodels.models.Schema;
@@ -113,6 +119,9 @@ public class ApitomyDocumentEngine implements DocumentEngine {
             document.setComponents(components);
         }
         components.addSchema(derivation.schemaName(), resourceSchema(components, description));
+        // Every operation answers the standard failures (FEAT-009 AC8), so the shared
+        // furniture is ensured up front — created on the first write, reused ever after (AC7).
+        ensureErrorFurniture(components);
 
         OpenApiPaths paths = document.getPaths();
         if (paths == null) {
@@ -166,18 +175,241 @@ public class ApitomyDocumentEngine implements DocumentEngine {
     }
 
     @Override
+    public CapabilityContractView capabilityContract(String body, String schemaName,
+            Capability capability) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+        OpenApi3xOperation operation = located.operation();
+        DerivedOperation derived = located.derived();
+
+        OpenApiResponses responses = operation.getResponses();
+        OpenApiResponse success =
+                responses == null ? null : responses.getItem(derived.successStatus());
+        List<FailureAnswerView> failures = new ArrayList<>();
+        for (StandardErrors.Answer answer : StandardErrors.applicableTo(capability,
+                isItemPath(derived, located.derivation()))) {
+            OpenApiResponse answered = responses == null ? null : responses.getItem(answer.status());
+            failures.add(new FailureAnswerView(answer.status(), isStandardReference(answered, answer)));
+        }
+
+        return new CapabilityContractView(
+                new CapabilityView(capability, labelOf(operation, derived), derived.method(),
+                        derived.path()),
+                operation.getDescription(),
+                located.derivation().singularNoun(),
+                requestFacet(document, schemaName, capability),
+                List.of(new HeaderLineView("Accept", JSON, true)),
+                new AnswersFacetView(derived.successStatus(),
+                        success == null ? derived.successDescription() : success.getDescription(),
+                        List.copyOf(failures)));
+    }
+
+    @Override
+    public String adoptStandardErrors(String body, String schemaName, Capability capability) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+
+        OpenApi3xComponents components = document.getComponents();
+        if (components == null) {
+            components = document.createComponents();
+            document.setComponents(components);
+        }
+        ensureErrorFurniture(components);
+        referenceStandardAnswers(located.operation(), StandardErrors.applicableTo(capability,
+                isItemPath(located.derived(), located.derivation())));
+        return Library.writeDocumentToJSONString(document);
+    }
+
+    /** The applicability table's one document-shape input: does this operation address one resource? */
+    private static boolean isItemPath(DerivedOperation derived, ResourceDerivation derivation) {
+        return derived.path().equals(derivation.itemPath());
+    }
+
+    /** The label rule, single-sourced: the summary carries it; a missing one falls back derived. */
+    private static String labelOf(OpenApiOperation operation, DerivedOperation derived) {
+        String summary = operation.getSummary();
+        return summary == null || summary.isBlank() ? derived.label() : summary;
+    }
+
+    @Override
+    public String removeStandardErrors(String body, String schemaName, Capability capability) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+        OpenApiResponses responses = located.operation().getResponses();
+        if (responses != null) {
+            for (StandardErrors.Answer answer : StandardErrors.applicableTo(capability,
+                    isItemPath(located.derived(), located.derivation()))) {
+                if (isStandardReference(responses.getItem(answer.status()), answer)) {
+                    responses.removeItem(answer.status());
+                }
+            }
+        }
+        return Library.writeDocumentToJSONString(document);
+    }
+
+    /** One capability's operation plus the derivation that locates it. */
+    private record Located(ResourceDerivation derivation, DerivedOperation derived,
+            OpenApi3xOperation operation) {
+    }
+
+    /**
+     * {@link #recognize} narrowed to one capability: each candidate segmentation of the schema
+     * name is derived and checked against the document's actual paths. That a match exists is
+     * the caller's (the service's) verified rule, like {@link #schemaOf}.
+     */
+    private static Located locate(OpenApi3xDocument document, String schemaName,
+            Capability capability) {
+        OpenApiPaths paths = document.getPaths();
+        for (List<String> words : CanonicalDerivation.recognitionCandidates(schemaName)) {
+            ResourceDerivation derivation =
+                    CanonicalDerivation.derive(String.join(" ", words), EnumSet.of(capability));
+            DerivedOperation derived = derivation.operations().getFirst();
+            OpenApiPathItem pathItem = paths == null ? null : paths.getItem(derived.path());
+            OpenApiOperation operation =
+                    pathItem == null ? null : operationAt(pathItem, derived.method());
+            if (operation != null) {
+                return new Located(derivation, derived, (OpenApi3xOperation) operation);
+            }
+        }
+        throw new IllegalArgumentException(
+                "'" + schemaName + "' has no derived operation for " + capability);
+    }
+
+    /**
+     * The Request facet (FEAT-009 UC2, AC5), derived from the resource's shape — Add sends the
+     * fields (the identity's auto visibility states server-assigned), Update states merge-patch
+     * semantics; every other capability takes no body, so the facet is absent (AC2).
+     */
+    private static RequestFacetView requestFacet(OpenApi3xDocument document, String schemaName,
+            Capability capability) {
+        return switch (capability) {
+            case ADD -> new RequestFacetView(false, fieldsOf(schemaOf(document, schemaName)));
+            case UPDATE -> new RequestFacetView(true, List.of());
+            default -> null;
+        };
+    }
+
+    /** Present iff the status answers with the canonical shared reference (FEAT-009 AC4). */
+    private static boolean isStandardReference(OpenApiResponse response,
+            StandardErrors.Answer answer) {
+        return response != null && ("#/components/responses/" + answer.responseName())
+                .equals(((Referenceable) response).get$ref());
+    }
+
+    /**
+     * The shared error furniture (FEAT-009): the {@code Error} schema and the six reusable
+     * responses, created only where absent — first write creates, every later one reuses (AC7).
+     */
+    private static void ensureErrorFurniture(OpenApi3xComponents components) {
+        Map<String, OpenApiSchema> schemas = components.getSchemas();
+        if (schemas == null || !schemas.containsKey(StandardErrors.ERROR_SCHEMA_NAME)) {
+            components.addSchema(StandardErrors.ERROR_SCHEMA_NAME, errorSchema(components));
+        }
+        for (StandardErrors.Answer answer : StandardErrors.Answer.values()) {
+            Map<String, OpenApiResponse> responses = components.getResponses();
+            if (responses == null || !responses.containsKey(answer.responseName())) {
+                components.addResponse(answer.responseName(), standardResponse(components, answer));
+            }
+        }
+    }
+
+    /**
+     * The one shared failure shape — RFC 9457 problem details, served as problem+json. Field
+     * for field the modern-petstore reference shape
+     * ({@code docs/misc/examples/modern-petstore-3.2.openapi}).
+     */
+    private static OpenApiSchema errorSchema(OpenApi3xComponents components) {
+        OpenApiSchema schema = components.createSchema();
+        setType(schema, "object");
+        schema.setDescription("A problem detail (RFC 9457) describing why a request failed.");
+        schema.addProperty("type", uriProperty(schema,
+                "A URI reference identifying the type of problem."));
+        schema.addProperty("title", describedProperty(schema, "string",
+                "A short, human-readable summary of the problem type."));
+        schema.addProperty("status", describedProperty(schema, "integer",
+                "The HTTP status code."));
+        schema.addProperty("detail", describedProperty(schema, "string",
+                "A human-readable explanation specific to this occurrence."));
+        schema.addProperty("instance", uriProperty(schema,
+                "A URI reference identifying this specific occurrence."));
+        Schema errors = describedProperty(schema, "array",
+                "Field-level problems, present when the input failed validation.");
+        Schema problem = schema.createSchema();
+        setType(problem, "object");
+        problem.addProperty("field", describedProperty(schema, "string",
+                "The input field the problem is about."));
+        problem.addProperty("message", describedProperty(schema, "string",
+                "What is wrong with the field."));
+        problem.addProperty("code", describedProperty(schema, "string",
+                "A machine-readable code for the kind of problem."));
+        problem.setRequired(List.of("field", "message"));
+        ((OpenApi3xSchema) errors).setItems((OpenApi3xSchema) problem);
+        schema.addProperty("errors", errors);
+        schema.setRequired(List.of("type", "title", "status"));
+        return schema;
+    }
+
+    private static Schema uriProperty(OpenApiSchema parent, String description) {
+        Schema property = describedProperty(parent, "string", description);
+        property.setFormat("uri");
+        return property;
+    }
+
+    private static Schema describedProperty(OpenApiSchema parent, String type, String description) {
+        Schema property = parent.createSchema();
+        setType(property, type);
+        property.setDescription(description);
+        return property;
+    }
+
+    /** One reusable failure answer: its plain-language description and the problem+json body. */
+    private static OpenApiResponse standardResponse(OpenApi3xComponents components,
+            StandardErrors.Answer answer) {
+        OpenApi3xResponse response = (OpenApi3xResponse) components.createResponse();
+        response.setDescription(answer.description());
+        response.addContent("application/problem+json", (OpenApi3xMediaType) refSchema(
+                response.createMediaType(), StandardErrors.ERROR_SCHEMA_NAME));
+        return response;
+    }
+
+    /**
+     * Wires every applicable failure status to its shared response (FEAT-009). Remove-then-add
+     * keeps the output canonical and replaces whatever sat at the status before — FEAT-005's
+     * inline 404 included, which is the deliberate "replace" of the adopt decision. A
+     * re-adoption therefore rewrites to the same form: adopt is idempotent.
+     */
+    private static void referenceStandardAnswers(OpenApi3xOperation operation,
+            List<StandardErrors.Answer> applicable) {
+        OpenApiResponses responses = operation.getResponses();
+        for (StandardErrors.Answer answer : applicable) {
+            responses.removeItem(answer.status());
+            OpenApiResponse reference = responses.createResponse();
+            ((Referenceable) reference).set$ref("#/components/responses/" + answer.responseName());
+            responses.addItem(answer.status(), reference);
+        }
+    }
+
+    @Override
     public DocumentProjection project(String body) {
         OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
         Map<String, OpenApiSchema> schemas = document.getComponents() == null
                 ? Map.of() : document.getComponents().getSchemas();
         OpenApiPaths paths = document.getPaths();
 
+        // The error furniture is derived plumbing, never user data (FEAT-009 AC9): its
+        // reserved name is excluded from the concept projection entirely — the service's
+        // reservation guard, not this list, keeps the name unoccupiable.
         List<ResourceView> resources = new ArrayList<>();
         for (Map.Entry<String, OpenApiSchema> schema : schemas.entrySet()) {
+            if (StandardErrors.isReservedSchemaName(schema.getKey())) {
+                continue;
+            }
             recognize(schema.getKey(), schema.getValue(), paths).ifPresent(resources::add);
         }
         return new DocumentProjection(
-                List.copyOf(schemas.keySet()),
+                schemas.keySet().stream()
+                        .filter(name -> !StandardErrors.isReservedSchemaName(name))
+                        .toList(),
                 paths == null ? List.of() : List.copyOf(paths.getItemNames()),
                 resources);
     }
@@ -297,13 +529,8 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         }
         responses.addItem(derived.successStatus(), success);
 
-        // Item-path operations declare the 404; description only — the error-body model is a
-        // separate future house rule (ADR-0010).
-        if (derived.path().equals(derivation.itemPath())) {
-            OpenApiResponse notFound = responses.createResponse();
-            notFound.setDescription(derivation.notFoundDescription());
-            responses.addItem("404", notFound);
-        }
+        referenceStandardAnswers(operation, StandardErrors.applicableTo(derived.capability(),
+                isItemPath(derived, derivation)));
         return operation;
     }
 
@@ -417,9 +644,8 @@ public class ApitomyDocumentEngine implements DocumentEngine {
             if (operation == null) {
                 continue;
             }
-            String summary = operation.getSummary();
-            String label = summary == null || summary.isBlank() ? derived.label() : summary;
-            capabilities.add(new CapabilityView(derived.capability(), label, derived.method(), derived.path()));
+            capabilities.add(new CapabilityView(derived.capability(), labelOf(operation, derived),
+                    derived.method(), derived.path()));
         }
         return capabilities;
     }

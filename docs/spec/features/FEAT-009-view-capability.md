@@ -1,7 +1,7 @@
 # FEAT-009: View a capability's contract
 
 **ID:** FEAT-009
-**Status:** specced
+**Status:** building
 **Depends on:** PRIN-001, PRIN-002, PRIN-006, ADR-0008, ADR-0009, FEAT-005
 **Mockup:** `docs/design/mockups/launcher-hybrid-v9.html` — View 3 (operation — Browse all
 products)
@@ -28,7 +28,9 @@ Derivation section lists this feature as an extension of what derivation produce
 
 ## Interaction Model
 - **Entry point:** a capability, reached from its resource — the noun's "can do" list. The
-  designer never starts from a path or method inventory.
+  designer never starts from a path or method inventory. From the view, the resource's other
+  capabilities stay one step away — the "can do" list travels with the capability, and it
+  gains entries only as features add them (no placeholder or foreshadowed entries).
 - **Vocabulary:** the contract is presented as plain-language **facets**: the capability's
   label (↔ the operation's `summary`), its description, **Request** — what clients send,
   **Headers** — what travels alongside, **Answers** — what comes back (the success answer and
@@ -66,7 +68,13 @@ The requirements decision this feature owns:
 
 - The error furniture is derived plumbing, not user data: it never appears as a datatype in
   shared-data views and never counts toward resources or capabilities (ADR-0008 counts
-  unchanged).
+  unchanged). Its schema name is therefore reserved: a resource or datatype named `Error`
+  is rejected — otherwise a later adoption would wire failure bodies to user data.
+- **Per-capability opt-out** (PRIN-006 — the built-in default, deliberately overridable):
+  switching the standard errors off removes exactly the operation's applicable
+  failure-answer references and nothing else; switching on restores them (UC3's adopt).
+  Cheap, non-destructive, reversible — no confirm. The shared furniture, once created, is
+  never removed; opted-out and pre-feature operations are structurally the same "absent".
 - Why: a uniform failure shape is the highest-leverage consistency win — client code handles
   every failure the same way. 401 is included now so the error contract doesn't reshape when
   security schemes arrive (a future feature owns their semantics).
@@ -103,6 +111,14 @@ The requirements decision this feature owns:
 - **Outcome:** every derived operation carries its standard failure answers from birth, all
   referencing the one shared error shape.
 
+### UC5: Opt out of the standard errors (alternate)
+- **Precondition:** a capability whose operation answers the standard set.
+- **Flow:** the designer switches the standard errors off — a plain, unconfirmed,
+  reversible toggle (the deliberate override of a built-in default, PRIN-006).
+- **Outcome:** the operation stops declaring its applicable standard failure answers;
+  nothing else in the document changes — the shared furniture remains. Switching back on
+  restores the standard set.
+
 ## Acceptance Criteria
 - **AC1 (UC1):** Given a capability, when the designer views it, then its label, derived
   operation, description, and every applicable facet are presented in the stable facet order,
@@ -122,7 +138,7 @@ The requirements decision this feature owns:
   then its operation gains exactly the failure-answer references per the table, the `Error`
   schema and reusable responses exist under `components`, no `x-` extension or other content
   is written, ADR-0008 counts are unchanged, and the designer's last-edited location moves to
-  this API in the same transaction.
+  this API and capability in the same transaction — the first capability-level pointer write.
 - **AC7 (UC3):** Given the shared error furniture already exists from an earlier adoption,
   when adopting on another capability, then the existing furniture is referenced, not
   duplicated.
@@ -130,6 +146,11 @@ The requirements decision this feature owns:
   operation carries its standard failure answers per the table from birth.
 - **AC9 (UC3, UC4):** Given the error furniture exists in a document, then it is never
   presented as a datatype, resource, or capability anywhere.
+- **AC10 (UC5):** Given a capability whose standard answers are present, when the designer
+  switches them off, then its operation loses exactly the applicable failure-answer
+  references and nothing else — the shared furniture and the ADR-0008 counts are unchanged,
+  and the last-edited location moves to this API and capability; switching them on again
+  yields a document identical to the one adoption first produced.
 
 ## Data / Domain
 
@@ -144,8 +165,9 @@ The requirements decision this feature owns:
 - Entities / fields touched: the `spec` row — `body` JSONB mutated through the engine seam
   (ADR-0009) on adopt only; `last_edited_location` written at the same chokepoint; ADR-0008
   counts unaffected.
-- Validation rules: adopt is offered only where standard answers are absent from the
-  operation.
+- Validation rules: the on/off state is derived structurally — on iff every applicable
+  answer references its shared response; resource and datatype names deriving to `Error`
+  are rejected (reserved for the shared error shape).
 - States / transitions: a capability's error state (standard answers present / absent) is
   derived structurally from the document — no marker, no extension.
 
@@ -154,9 +176,11 @@ The requirements decision this feature owns:
 - Action-shaped capabilities (Restock) — the rail foreshadows them; their page is undesigned.
 - Renaming a capability — the label is the operation's `summary`, a different field from its
   `description` (FEAT-012); rename is its own future feature.
-- Editing the standard error set (codes, shape) per capability, or removing it once adopted.
+- Editing the standard error set (codes, shape) per capability — on/off is the only
+  per-capability control (UC5).
 - Built-in response headers (RateLimit-*, ETag, Cache-Control) — deliberately dropped; all
   headers are designer-authored (FEAT-011).
 - Security semantics behind 401 — security schemes are a future feature.
-- Guidelines rail, TOC/scroll-spy, palette — house-rules display is deferred; the rest is
-  design chrome owned by the mockup.
+- Guidelines rail — house-rules display is deferred. Nested TOC, scroll-spy, palette —
+  design chrome owned by the mockup; the capability list itself ships (see Interaction
+  Model), its entries growing per feature.

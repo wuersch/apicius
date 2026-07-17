@@ -717,7 +717,8 @@ class SpecResourceTest extends CleanDatabaseTest {
         }
 
         JsonNode body = readBody(specId);
-        assertEquals(2, body.path("components").path("schemas").size());
+        assertEquals(3, body.path("components").path("schemas").size(),
+                "the two resources plus the FEAT-009 Error furniture");
         QuarkusTransaction.requiringNew().run(() -> {
             Spec spec = specRepository.findById(specId);
             assertEquals(2, spec.resourceCount);
@@ -1519,6 +1520,239 @@ class SpecResourceTest extends CleanDatabaseTest {
     void unauthenticatedExportIsRejected() {
         given().when().get("/api/v1/specs/" + UUID.randomUUID() + "/document?format=yaml")
                 .then().statusCode(401);
+    }
+
+    // ---- FEAT-009: view a capability's contract ----
+
+    // AC1/AC3: the contract in stable facet order, projected from the document — identity
+    // (plain-language label first, derived detail after), the derived content-negotiation
+    // line, and the answers; the Request facet absent where no input travels (AC2).
+    @Test
+    @AsAda
+    void getCapabilityContractReturnsTheFacets() {
+        UUID specId = productApi();
+
+        getCapability(specId, "Product", "LOOK_UP")
+                .statusCode(200)
+                .body("capability.capability", equalTo("LOOK_UP"))
+                .body("capability.label", equalTo("Look up one product"))
+                .body("capability.method", equalTo("GET"))
+                .body("capability.path", equalTo("/products/{id}"))
+                .body("description", nullValue())
+                .body("singularNoun", equalTo("product"))
+                .body("request", nullValue())
+                .body("headers", hasSize(1))
+                .body("headers[0].name", equalTo("Accept"))
+                .body("headers[0].value", equalTo("application/json"))
+                .body("headers[0].derived", equalTo(true))
+                .body("answers.successStatus", equalTo("200"))
+                .body("answers.successDescription", equalTo("The product."))
+                .body("answers.failures", hasSize(5))
+                .body("answers.failures[2].status", equalTo("404"))
+                .body("answers.failures[2].present", equalTo(true));
+    }
+
+    // AC5: Add derives the shape's fields (identity stated server-assigned via its auto
+    // visibility); Update states merge-patch semantics and enumerates nothing.
+    @Test
+    @AsAda
+    void getCapabilityContractDerivesTheRequestFacet() {
+        UUID specId = productApi();
+
+        getCapability(specId, "Product", "ADD")
+                .statusCode(200)
+                .body("request.mergePatch", equalTo(false))
+                .body("request.fields", hasSize(1))
+                .body("request.fields[0].name", equalTo("id"))
+                .body("request.fields[0].visibility", equalTo("AUTO"));
+        getCapability(specId, "Product", "UPDATE")
+                .statusCode(200)
+                .body("request.mergePatch", equalTo(true))
+                .body("request.fields", hasSize(0));
+    }
+
+    // AC4: a capability predating this feature shows its standard answers as available —
+    // and viewing writes nothing: the stored text is byte-identical afterwards.
+    @Test
+    @AsAda
+    void getCapabilityContractShowsLegacyAnswersWithoutWriting() {
+        UUID specId = productApi();
+        stripStandardErrorsFromStored(specId);
+        String before = readRawBody(specId);
+
+        getCapability(specId, "Product", "BROWSE")
+                .statusCode(200)
+                .body("answers.failures", hasSize(5))
+                .body("answers.failures[0].present", equalTo(false))
+                .body("answers.failures[4].present", equalTo(false));
+
+        assertEquals(before, readRawBody(specId), "viewing must never mutate (AC4)");
+    }
+
+    // UC3/AC6: one adopt call — exactly the applicable references, the shared furniture, no
+    // count change, and the pointer's first capability-level write, all in one transaction.
+    @Test
+    @AsAda
+    void adoptStandardErrorsRetrofitsAndMovesThePointer() {
+        UUID specId = productApi();
+        stripStandardErrorsFromStored(specId);
+
+        adoptStandardErrors(specId, "Product", "UPDATE")
+                .statusCode(200)
+                .body("answers.failures", hasSize(6))
+                .body("answers.failures[0].present", equalTo(true))
+                .body("answers.failures[5].present", equalTo(true));
+
+        JsonNode body = readBody(specId);
+        assertEquals("#/components/responses/NotFound", body.path("paths")
+                .path("/products/{id}").path("patch").path("responses").path("404")
+                .path("$ref").asText());
+        assertNoVendorExtensions(body);
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("specId", equalTo(specId.toString()))
+                .body("capabilityName", equalTo("Update a product"));
+    }
+
+    // AC7: a second adoption references the existing furniture, never duplicates it.
+    @Test
+    @AsAda
+    void adoptStandardErrorsReusesTheFurniture() {
+        UUID specId = productApi();
+        stripStandardErrorsFromStored(specId);
+
+        adoptStandardErrors(specId, "Product", "LOOK_UP").statusCode(200);
+        adoptStandardErrors(specId, "Product", "REMOVE").statusCode(200);
+
+        JsonNode components = readBody(specId).path("components");
+        assertEquals(6, components.path("responses").size(),
+                "six reusable responses, created once — never twelve");
+        assertEquals(List.of("Product", "Error"), fieldNamesOf(components.path("schemas")));
+    }
+
+    // UC5/AC10: switching off strips exactly the applicable references and nothing else —
+    // furniture and counts stay, the pointer records the capability, and adopting switches
+    // back on to the born document.
+    @Test
+    @AsAda
+    void removeStandardErrorsSwitchesOffAndBackOn() {
+        UUID specId = productApi();
+        String born = readRawBody(specId);
+
+        removeStandardErrors(specId, "Product", "LOOK_UP").statusCode(204);
+
+        JsonNode off = readBody(specId);
+        assertEquals(List.of("200"),
+                fieldNamesOf(off.path("paths").path("/products/{id}").path("get").path("responses")));
+        assertEquals(6, off.path("components").path("responses").size());
+        assertTrue(off.path("components").path("schemas").has("Error"));
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .body("capabilityName", equalTo("Look up one product"));
+        getCapability(specId, "Product", "LOOK_UP")
+                .statusCode(200)
+                .body("answers.failures[0].present", equalTo(false));
+
+        adoptStandardErrors(specId, "Product", "LOOK_UP").statusCode(200);
+        try {
+            assertEquals(new ObjectMapper().readTree(born), readBody(specId),
+                    "off then on must restore the born document");
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    // Unknown resource or capability → the 404 problem contract; a capability that was never
+    // derived on the resource, and an unknown capability literal, behave the same.
+    @Test
+    @AsAda
+    void capabilityEndpointsReturn404ForUnknownTargets() {
+        UUID specId = createApi("Storefront API");
+        postResource(specId, "{\"name\":\"Product\",\"capabilities\":[\"BROWSE\"]}")
+                .statusCode(201);
+
+        getCapability(specId, "Product", "REMOVE")
+                .statusCode(404)
+                .contentType("application/problem+json");
+        getCapability(specId, "Gadget", "BROWSE")
+                .statusCode(404)
+                .contentType("application/problem+json");
+        getCapability(specId, "Product", "FLY").statusCode(404);
+        adoptStandardErrors(specId, "Product", "REMOVE")
+                .statusCode(404)
+                .contentType("application/problem+json");
+        removeStandardErrors(specId, "Product", "REMOVE")
+                .statusCode(404)
+                .contentType("application/problem+json");
+    }
+
+    // The FEAT-009 reservation (AC9): Error, in any casing, can never become a resource —
+    // the furniture is derived plumbing, and an adoption would wire failure bodies to it.
+    @Test
+    @AsAda
+    void addResourceRejectsTheReservedErrorName() {
+        UUID specId = createApi("Storefront API");
+
+        postResource(specId, "{\"name\":\"Error\",\"capabilities\":[\"ADD\"]}")
+                .statusCode(409)
+                .contentType("application/problem+json")
+                .body("detail", containsString("reserved"));
+        postResource(specId, "{\"name\":\"error\",\"capabilities\":[\"ADD\"]}")
+                .statusCode(409);
+
+        assertUntouched(specId);
+    }
+
+    private io.restassured.response.ValidatableResponse getCapability(UUID specId,
+            String schemaName, String capability) {
+        return given().when().get("/api/v1/specs/" + specId + "/resources/" + schemaName
+                + "/capabilities/" + capability).then();
+    }
+
+    private io.restassured.response.ValidatableResponse adoptStandardErrors(UUID specId,
+            String schemaName, String capability) {
+        return given().when().post("/api/v1/specs/" + specId + "/resources/" + schemaName
+                + "/capabilities/" + capability + "/standard-errors").then();
+    }
+
+    private io.restassured.response.ValidatableResponse removeStandardErrors(UUID specId,
+            String schemaName, String capability) {
+        return given().when().delete("/api/v1/specs/" + specId + "/resources/" + schemaName
+                + "/capabilities/" + capability + "/standard-errors").then();
+    }
+
+    /**
+     * Rewrites the stored document to its pre-FEAT-009 shape: shared furniture removed, every
+     * standard failure answer stripped — the state older capabilities are in (UC3).
+     */
+    private void stripStandardErrorsFromStored(UUID specId) {
+        ObjectNode document = (ObjectNode) readBody(specId);
+        ((ObjectNode) document.path("components")).remove("responses");
+        ((ObjectNode) document.path("components").path("schemas")).remove("Error");
+        for (JsonNode pathItem : document.path("paths")) {
+            for (String method : List.of("get", "post", "patch", "delete")) {
+                if (pathItem.has(method)) {
+                    ObjectNode responses = (ObjectNode) pathItem.path(method).path("responses");
+                    for (String status : List.of("400", "401", "404", "422", "429", "500")) {
+                        responses.remove(status);
+                    }
+                }
+            }
+        }
+        setBody(specId, document.toString());
     }
 
     private io.restassured.response.ValidatableResponse exportApi(UUID specId, String format) {
