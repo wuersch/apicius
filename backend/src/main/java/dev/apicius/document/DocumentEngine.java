@@ -70,10 +70,11 @@ public interface DocumentEngine {
      * FEAT-009: one capability's full contract, projected from the document (AC1–AC5) — the
      * identity (label preferring the operation's {@code summary}), the description, the
      * Request facet (Add: the shape's fields; Update: merge-patch semantics; absent
-     * otherwise), the derived content-negotiation header line, and the Answers facet: the
-     * success answer as the document declares it plus each applicable standard failure
-     * answer's structural present/absent state. A pure read — never mutates (AC4). That the
-     * resource and capability exist is the caller's verified rule.
+     * otherwise), the Paging facet (FEAT-010 — list capabilities only, its on/off state
+     * derived structurally), the derived content-negotiation header line, and the Answers
+     * facet: the success answer as the document declares it plus each applicable standard
+     * failure answer's structural present/absent state. A pure read — never mutates (AC4).
+     * That the resource and capability exist is the caller's verified rule.
      */
     CapabilityContractView capabilityContract(String body, String schemaName, Capability capability);
 
@@ -92,6 +93,24 @@ public interface DocumentEngine {
      * operation whose answers are already absent.
      */
     String removeStandardErrors(String body, String schemaName, Capability capability);
+
+    /**
+     * FEAT-010 UC3/UC4: rewrites the list capability's operation so it pages — the
+     * {@code page}/{@code limit} query parameters and the wrapper's required
+     * {@code pagination} member, exactly per the contract, replacing whatever non-canonical
+     * content sat at those constructs (the adopt precedent). Touches nothing else in the
+     * document (AC5); idempotent. That paging applies and no designer-authored parameter
+     * claims {@code page}/{@code limit} (AC6) are the caller's verified rules.
+     */
+    String enablePaging(String body, String schemaName, Capability capability);
+
+    /**
+     * FEAT-010 UC2: the opt-out — removes exactly the paging constructs where present
+     * ({@code page}, {@code limit}, the {@code pagination} member and its required entry);
+     * {@code data} and everything else are untouched, and the wrapper is never a bare array
+     * (AC2). A no-op on an operation that doesn't page.
+     */
+    String disablePaging(String body, String schemaName, Capability capability);
 
     /**
      * The concept projection of a stored document (FEAT-005 AC8): schema names, path keys, and

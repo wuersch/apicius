@@ -1,11 +1,16 @@
 package dev.apicius.document.apitomy;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.IntNode;
+import com.fasterxml.jackson.databind.node.LongNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.apicius.document.AnswersFacetView;
 import dev.apicius.document.CapabilityContractView;
 import dev.apicius.document.CapabilityView;
 import dev.apicius.document.DocumentEngine;
 import dev.apicius.document.FailureAnswerView;
 import dev.apicius.document.HeaderLineView;
+import dev.apicius.document.PagingFacetView;
 import dev.apicius.document.RequestFacetView;
 import dev.apicius.document.DocumentProjection;
 import dev.apicius.document.FieldView;
@@ -18,9 +23,11 @@ import dev.apicius.document.derivation.DerivedOperation;
 import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.FieldKind;
 import dev.apicius.document.derivation.FieldVisibility;
+import dev.apicius.document.derivation.Paging;
 import dev.apicius.document.derivation.ResourceDerivation;
 import dev.apicius.document.derivation.StandardErrors;
 import io.apitomy.datamodels.Library;
+import io.apitomy.datamodels.models.Document;
 import io.apitomy.datamodels.models.Referenceable;
 import io.apitomy.datamodels.models.Schema;
 import io.apitomy.datamodels.models.ModelType;
@@ -46,6 +53,7 @@ import io.apitomy.datamodels.models.openapi.v3x.v30.OpenApi30Schema;
 import io.apitomy.datamodels.models.openapi.v3x.v31.OpenApi31Schema;
 import io.apitomy.datamodels.models.openapi.v3x.v32.OpenApi32Schema;
 import io.apitomy.datamodels.models.union.StringUnionValueImpl;
+import io.apitomy.datamodels.models.util.JsonUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -53,6 +61,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * The {@code apitomy-data-models} adapter (ADR-0009) — the only class allowed to import
@@ -77,7 +86,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
             info.setDescription(description);
         }
         document.setInfo(info);
-        return Library.writeDocumentToJSONString(document);
+        return serialize(document);
     }
 
     @Override
@@ -89,14 +98,14 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         info.setTitle(title);
         info.setVersion(version);
         info.setDescription(description);
-        return Library.writeDocumentToJSONString(document);
+        return serialize(document);
     }
 
     @Override
     public String retitle(String body, String title) {
         OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
         infoOf(document).setTitle(title);
-        return Library.writeDocumentToJSONString(document);
+        return serialize(document);
     }
 
     /** Every Apicius-born document has an info; a pathological one gains an empty one to edit. */
@@ -139,7 +148,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
                 attach(pathItem, derived, buildOperation(pathItem, derived, derivation));
             }
         }
-        return Library.writeDocumentToJSONString(document);
+        return serialize(document);
     }
 
     @Override
@@ -149,7 +158,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         // New fields append — document order is preserved as-is (FEAT-006 non-goal).
         schema.addProperty(field.propertyName(), propertySchema(schema, field));
         rewriteRequired(schema, null, field.propertyName(), field.required());
-        return Library.writeDocumentToJSONString(document);
+        return serialize(document);
     }
 
     @Override
@@ -162,7 +171,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         schema.removeProperty(propertyName);
         schema.insertProperty(field.propertyName(), propertySchema(schema, field), position);
         rewriteRequired(schema, propertyName, field.propertyName(), field.required());
-        return Library.writeDocumentToJSONString(document);
+        return serialize(document);
     }
 
     @Override
@@ -171,7 +180,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         OpenApiSchema schema = schemaOf(document, schemaName);
         schema.removeProperty(propertyName);
         rewriteRequired(schema, propertyName, null, false);
-        return Library.writeDocumentToJSONString(document);
+        return serialize(document);
     }
 
     @Override
@@ -198,6 +207,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
                 operation.getDescription(),
                 located.derivation().singularNoun(),
                 requestFacet(document, schemaName, capability),
+                pagingFacet(operation, derived, capability),
                 List.of(new HeaderLineView("Accept", JSON, true)),
                 new AnswersFacetView(derived.successStatus(),
                         success == null ? derived.successDescription() : success.getDescription(),
@@ -217,7 +227,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         ensureErrorFurniture(components);
         referenceStandardAnswers(located.operation(), StandardErrors.applicableTo(capability,
                 isItemPath(located.derived(), located.derivation())));
-        return Library.writeDocumentToJSONString(document);
+        return serialize(document);
     }
 
     /** The applicability table's one document-shape input: does this operation address one resource? */
@@ -244,7 +254,189 @@ public class ApitomyDocumentEngine implements DocumentEngine {
                 }
             }
         }
-        return Library.writeDocumentToJSONString(document);
+        return serialize(document);
+    }
+
+    @Override
+    public String enablePaging(String body, String schemaName, Capability capability) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+        writePagingConstructs(located.operation(), located.derived());
+        return serialize(document);
+    }
+
+    @Override
+    public String disablePaging(String body, String schemaName, Capability capability) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+        if (isPaged(located.operation(), located.derived())) {
+            removePagingConstructs(located.operation(), located.derived());
+        }
+        return serialize(document);
+    }
+
+    /**
+     * The structural on-state (FEAT-010 AC7): every paging construct present — both query
+     * parameters and the wrapper's {@code pagination} member. Presence of the constructs is
+     * the state, like {@link #isStandardReference}: no marker, no extension.
+     */
+    private static boolean isPaged(OpenApi3xOperation operation, DerivedOperation derived) {
+        OpenApiSchema wrapper = wrapperSchemaOf(operation, derived);
+        return queryParameter(operation, Paging.PAGE_PARAMETER) != null
+                && queryParameter(operation, Paging.LIMIT_PARAMETER) != null
+                && wrapper != null && wrapper.getProperties() != null
+                && wrapper.getProperties().containsKey(Paging.PAGINATION_MEMBER);
+    }
+
+    /**
+     * The Paging facet (FEAT-010) — only where paging applies (Browse), {@code null}
+     * otherwise. Off with a {@code page}/{@code limit} query parameter present means a
+     * designer-authored parameter claims the name (UC5): named as a conflict, blocking enable.
+     */
+    private static PagingFacetView pagingFacet(OpenApi3xOperation operation,
+            DerivedOperation derived, Capability capability) {
+        if (!Paging.appliesTo(capability)) {
+            return null;
+        }
+        boolean on = isPaged(operation, derived);
+        List<String> conflicts = new ArrayList<>();
+        if (!on) {
+            for (String name : List.of(Paging.PAGE_PARAMETER, Paging.LIMIT_PARAMETER)) {
+                if (queryParameter(operation, name) != null) {
+                    conflicts.add(name);
+                }
+            }
+        }
+        return new PagingFacetView(on, List.copyOf(conflicts));
+    }
+
+    /** The operation's query parameter of that name, or null — path parameters never match. */
+    private static OpenApiParameter queryParameter(OpenApi3xOperation operation, String name) {
+        List<OpenApiParameter> parameters = ((OpenApiParametersParent) operation).getParameters();
+        if (parameters == null) {
+            return null;
+        }
+        for (OpenApiParameter parameter : parameters) {
+            if (name.equals(parameter.getName()) && "query".equals(parameter.getIn())) {
+                return parameter;
+            }
+        }
+        return null;
+    }
+
+    /** Browse's success wrapper — the inline {@code {data: [X]}} object the paging member joins. */
+    private static OpenApiSchema wrapperSchemaOf(OpenApi3xOperation operation,
+            DerivedOperation derived) {
+        OpenApiResponses responses = operation.getResponses();
+        OpenApiResponse success =
+                responses == null ? null : responses.getItem(derived.successStatus());
+        if (success == null) {
+            return null;
+        }
+        Map<String, OpenApi3xMediaType> content = ((OpenApi3xResponse) success).getContent();
+        OpenApiMediaType mediaType = content == null ? null : content.get(JSON);
+        return mediaType == null ? null : mediaType.getSchema();
+    }
+
+    /**
+     * Writes the full paging contract (FEAT-010) onto a list operation: the two optional
+     * query parameters and the wrapper's required {@code pagination} member, remove-then-add
+     * per construct — idempotent, and non-canonical content at those spots is replaced (the
+     * adopt precedent). Shared by birth derivation and {@link #enablePaging} so they can
+     * never disagree.
+     */
+    private static void writePagingConstructs(OpenApi3xOperation operation,
+            DerivedOperation derived) {
+        removeQueryParameters(operation);
+        OpenApiParametersParent parent = (OpenApiParametersParent) operation;
+        parent.addParameter(pagingParameter(parent, Paging.PAGE_PARAMETER,
+                "The page to return.", Paging.PAGE_MINIMUM, null, Paging.PAGE_DEFAULT));
+        parent.addParameter(pagingParameter(parent, Paging.LIMIT_PARAMETER,
+                "How many results per page.", Paging.LIMIT_MINIMUM, Paging.LIMIT_MAXIMUM,
+                Paging.LIMIT_DEFAULT));
+
+        OpenApiSchema wrapper = wrapperSchemaOf(operation, derived);
+        wrapper.removeProperty(Paging.PAGINATION_MEMBER);
+        wrapper.addProperty(Paging.PAGINATION_MEMBER, paginationSchema(wrapper));
+        List<String> required = wrapper.getRequired() == null
+                ? new ArrayList<>() : new ArrayList<>(wrapper.getRequired());
+        if (!required.contains(Paging.PAGINATION_MEMBER)) {
+            required.add(Paging.PAGINATION_MEMBER);
+        }
+        wrapper.setRequired(required);
+    }
+
+    /** The opt-out's exact removal set (FEAT-010 AC2) — data and everything else untouched. */
+    private static void removePagingConstructs(OpenApi3xOperation operation,
+            DerivedOperation derived) {
+        removeQueryParameters(operation);
+        OpenApiSchema wrapper = wrapperSchemaOf(operation, derived);
+        wrapper.removeProperty(Paging.PAGINATION_MEMBER);
+        if (wrapper.getRequired() != null) {
+            List<String> required = new ArrayList<>(wrapper.getRequired());
+            required.remove(Paging.PAGINATION_MEMBER);
+            wrapper.setRequired(required.isEmpty() ? null : required);
+        }
+    }
+
+    /**
+     * Drops the operation's {@code page}/{@code limit} query parameters — and the parameters
+     * key itself once empty, so opting out leaves no empty leftover (AC2). Only reachable when
+     * the parameters are the canonical constructs: a designer-authored claimant blocks enable
+     * (UC5), and disable is a no-op while paging is off.
+     */
+    private static void removeQueryParameters(OpenApi3xOperation operation) {
+        OpenApiParametersParent parent = (OpenApiParametersParent) operation;
+        for (String name : List.of(Paging.PAGE_PARAMETER, Paging.LIMIT_PARAMETER)) {
+            OpenApiParameter parameter = queryParameter(operation, name);
+            if (parameter != null) {
+                parent.removeParameter(parameter);
+            }
+        }
+        if (parent.getParameters() != null && parent.getParameters().isEmpty()) {
+            parent.clearParameters();
+        }
+    }
+
+    /** One paging query parameter: optional, whole number, document-declared bounds/default. */
+    private static OpenApiParameter pagingParameter(OpenApiParametersParent parent, String name,
+            String description, int minimum, Integer maximum, int defaultValue) {
+        OpenApiParameter parameter = parent.createParameter();
+        parameter.setName(name);
+        parameter.setIn("query");
+        parameter.setDescription(description);
+        parameter.setRequired(false);
+        OpenApiSchema schema = parameter.createSchema();
+        setType(schema, "integer");
+        schema.setMinimum(minimum);
+        if (maximum != null) {
+            schema.setMaximum(maximum);
+        }
+        schema.setDefault(IntNode.valueOf(defaultValue));
+        parameter.setSchema(schema);
+        return parameter;
+    }
+
+    /** The pagination member, per the modern-petstore reference: four required whole numbers. */
+    private static Schema paginationSchema(OpenApiSchema wrapper) {
+        Schema pagination = wrapper.createSchema();
+        setType(pagination, "object");
+        pagination.addProperty("page", boundedInteger(wrapper, "The page this answer is for.",
+                Paging.PAGE_MINIMUM));
+        pagination.addProperty("limit", boundedInteger(wrapper, "How many results per page.",
+                Paging.LIMIT_MINIMUM));
+        pagination.addProperty("totalItems", boundedInteger(wrapper,
+                "How many results exist in all.", 0));
+        pagination.addProperty("totalPages", boundedInteger(wrapper,
+                "How many pages exist in all.", 0));
+        pagination.setRequired(Paging.PAGINATION_FIELDS);
+        return pagination;
+    }
+
+    private static Schema boundedInteger(OpenApiSchema parent, String description, int minimum) {
+        Schema property = describedProperty(parent, "integer", description);
+        property.setMinimum(minimum);
+        return property;
     }
 
     /** One capability's operation plus the derivation that locates it. */
@@ -529,6 +721,9 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         }
         responses.addItem(derived.successStatus(), success);
 
+        if (Paging.appliesTo(derived.capability())) {
+            writePagingConstructs(operation, derived); // FEAT-010 AC1: lists page from birth.
+        }
         referenceStandardAnswers(operation, StandardErrors.applicableTo(derived.capability(),
                 isItemPath(derived, derivation)));
         return operation;
@@ -721,5 +916,48 @@ public class ApitomyDocumentEngine implements DocumentEngine {
             case V3_1 -> ModelType.OPENAPI31;
             case V3_2 -> ModelType.OPENAPI32;
         };
+    }
+
+    /** The schema keywords the library models as {@code Number} (see {@link #serialize}). */
+    private static final Set<String> NUMERIC_KEYWORDS =
+            Set.of("minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf");
+
+    /**
+     * The one serialization chokepoint. The library writes every {@code Number}-typed keyword
+     * via {@code doubleValue()} ({@code JsonUtil.setNumberProperty}), so a whole-number bound
+     * decays to {@code 1.0} on every write — FEAT-010's paging bounds and an import's own
+     * integer bounds alike. Whole-valued bounds are normalized back to whole numbers: same
+     * validation semantics, and the serialized document reads like the hand-written reference.
+     */
+    private static String serialize(Document document) {
+        ObjectNode json = Library.writeDocument(document);
+        normalizeWholeBounds(json);
+        return JsonUtil.stringify(json);
+    }
+
+    private static void normalizeWholeBounds(JsonNode node) {
+        if (node.isObject()) {
+            ObjectNode object = (ObjectNode) node;
+            for (String key : keyList(object)) {
+                JsonNode value = object.get(key);
+                if (NUMERIC_KEYWORDS.contains(key) && value.isDouble()
+                        && value.doubleValue() == Math.rint(value.doubleValue())
+                        && !Double.isInfinite(value.doubleValue())) {
+                    object.set(key, LongNode.valueOf((long) value.doubleValue()));
+                } else {
+                    normalizeWholeBounds(value);
+                }
+            }
+        } else if (node.isArray()) {
+            for (JsonNode child : node) {
+                normalizeWholeBounds(child);
+            }
+        }
+    }
+
+    private static List<String> keyList(ObjectNode object) {
+        List<String> keys = new ArrayList<>();
+        object.fieldNames().forEachRemaining(keys::add);
+        return keys;
     }
 }

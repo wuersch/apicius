@@ -1,7 +1,7 @@
 # FEAT-010: Paging on list capabilities
 
 **ID:** FEAT-010
-**Status:** specced
+**Status:** building
 **Depends on:** PRIN-002, PRIN-006, ADR-0009, FEAT-005, FEAT-009
 **Mockup:** `docs/design/mockups/launcher-hybrid-v9.html` — View 3 (Paging card) and state
 3·2 (paging off)

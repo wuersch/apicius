@@ -335,6 +335,52 @@ public class SpecResource {
         return Response.noContent().build();
     }
 
+    @POST
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/paging")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "enablePaging",
+            summary = "Switch paging on for this list capability — the page/limit query "
+                    + "parameters and the wrapper's required pagination member, exactly per "
+                    + "the contract (FEAT-010 UC3/UC4)")
+    @APIResponse(responseCode = "200", description = "The contract after enabling",
+            content = @Content(schema = @Schema(implementation = CapabilityContractResponse.class)))
+    @APIResponse(responseCode = "400", description = "Paging doesn't apply to this capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "409",
+            description = "A designer-authored query parameter claims page or limit",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public CapabilityContractResponse enablePaging(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability) {
+        return CapabilityContractResponse.from(specService.enablePaging(
+                currentUser.require(), specId, schemaName, capability));
+    }
+
+    @DELETE
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/paging")
+    @Operation(operationId = "disablePaging",
+            summary = "Switch paging off for this list capability — the whole list comes in "
+                    + "one response; the wrapper keeps data, and enabling switches paging "
+                    + "back on (FEAT-010 UC2)")
+    @APIResponse(responseCode = "204", description = "Switched off")
+    @APIResponse(responseCode = "400", description = "Paging doesn't apply to this capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public Response disablePaging(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability) {
+        specService.disablePaging(currentUser.require(), specId, schemaName, capability);
+        return Response.noContent().build();
+    }
+
     @GET
     @Path("/last-edited")
     @Produces(MediaType.APPLICATION_JSON)

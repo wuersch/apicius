@@ -1716,6 +1716,200 @@ class SpecResourceTest extends CleanDatabaseTest {
         assertUntouched(specId);
     }
 
+    // ---- FEAT-010: paging on list capabilities ----
+
+    // AC1: Browse pages from birth — the contract view states it; the derived operation
+    // carries the parameters and the wrapper the required pagination member. The facet is
+    // absent (null) where paging doesn't apply.
+    @Test
+    @AsAda
+    void getCapabilityContractProjectsThePagingFacet() {
+        UUID specId = productApi();
+
+        getCapability(specId, "Product", "BROWSE")
+                .statusCode(200)
+                .body("paging.on", equalTo(true))
+                .body("paging.conflicts", hasSize(0));
+        getCapability(specId, "Product", "LOOK_UP")
+                .statusCode(200)
+                .body("paging", nullValue());
+
+        JsonNode get = readBody(specId).path("paths").path("/products").path("get");
+        assertEquals("page", get.path("parameters").get(0).path("name").asText());
+        assertEquals("limit", get.path("parameters").get(1).path("name").asText());
+        assertEquals(20, get.path("parameters").get(1).path("schema").path("default").asInt());
+    }
+
+    // UC4/AC5: a pre-FEAT-010 Browse shows paging as available — viewing writes nothing —
+    // and one enable call writes exactly the paging constructs, leaves the ADR-0008 counts
+    // unchanged, and moves the pointer to this capability, all in one transaction (AC4).
+    @Test
+    @AsAda
+    void enablePagingRetrofitsAndMovesThePointer() {
+        UUID specId = productApi();
+        String born = readRawBody(specId);
+        stripPagingFromStored(specId);
+        String legacy = readRawBody(specId);
+
+        getCapability(specId, "Product", "BROWSE")
+                .statusCode(200)
+                .body("paging.on", equalTo(false))
+                .body("paging.conflicts", hasSize(0));
+        assertEquals(legacy, readRawBody(specId), "viewing must never mutate (AC5)");
+
+        enablePaging(specId, "Product", "BROWSE")
+                .statusCode(200)
+                .body("paging.on", equalTo(true));
+
+        try {
+            assertEquals(new ObjectMapper().readTree(born), readBody(specId),
+                    "adoption must yield exactly the born-paged document (AC5)");
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("specId", equalTo(specId.toString()))
+                .body("capabilityName", equalTo("Browse all products"));
+    }
+
+    // UC2/AC2/AC3: switching off removes exactly the paging constructs — the wrapper keeps
+    // data, never a bare array — counts stay, the pointer records the capability; switching
+    // back on restores the born document byte for byte.
+    @Test
+    @AsAda
+    void disablePagingSwitchesOffAndBackOn() {
+        UUID specId = productApi();
+        String born = readRawBody(specId);
+
+        disablePaging(specId, "Product", "BROWSE").statusCode(204);
+
+        JsonNode get = readBody(specId).path("paths").path("/products").path("get");
+        assertFalse(get.has("parameters"), "page/limit removed, no empty leftover (AC2)");
+        JsonNode wrapper = get.path("responses").path("200").path("content")
+                .path("application/json").path("schema");
+        assertEquals(List.of("data"), fieldNamesOf(wrapper.path("properties")));
+        assertEquals("data", wrapper.path("required").get(0).asText());
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .body("capabilityName", equalTo("Browse all products"));
+        getCapability(specId, "Product", "BROWSE")
+                .statusCode(200)
+                .body("paging.on", equalTo(false));
+
+        enablePaging(specId, "Product", "BROWSE").statusCode(200);
+        try {
+            assertEquals(new ObjectMapper().readTree(born), readBody(specId),
+                    "off then on must restore the born document (AC3)");
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    // Paging is a list concern (FEAT-010): aiming it at a non-list capability is invalid
+    // input regardless of document state — 400, the InvalidFieldKind precedent. The UI never
+    // offers it: the facet is absent there.
+    @Test
+    @AsAda
+    void pagingRejectsNonListCapabilities() {
+        UUID specId = productApi();
+        String before = readRawBody(specId);
+
+        enablePaging(specId, "Product", "LOOK_UP")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("capability"));
+        disablePaging(specId, "Product", "ADD")
+                .statusCode(400)
+                .contentType("application/problem+json");
+
+        assertEquals(before, readRawBody(specId), "nothing may be persisted");
+    }
+
+    // UC5/AC6: a designer-authored query parameter claiming page or limit blocks enabling —
+    // 409 naming the conflict, nothing persisted. The projection names the claimant too.
+    @Test
+    @AsAda
+    void enablePagingRejectsAnAuthoredPageOrLimitParameter() {
+        UUID specId = productApi();
+        stripPagingFromStored(specId);
+        ObjectNode document = (ObjectNode) readBody(specId);
+        ObjectNode authored = ((ObjectNode) document.path("paths").path("/products")
+                .path("get")).putArray("parameters").addObject();
+        authored.put("name", "limit").put("in", "query");
+        authored.putObject("schema").put("type", "string");
+        setBody(specId, document.toString());
+        String before = readRawBody(specId);
+
+        getCapability(specId, "Product", "BROWSE")
+                .statusCode(200)
+                .body("paging.on", equalTo(false))
+                .body("paging.conflicts", equalTo(List.of("limit")));
+        enablePaging(specId, "Product", "BROWSE")
+                .statusCode(409)
+                .contentType("application/problem+json")
+                .body("detail", containsString("limit"));
+
+        assertEquals(before, readRawBody(specId), "nothing may be persisted (AC6)");
+    }
+
+    // Unknown targets behave like every capability endpoint: the 404 problem contract.
+    @Test
+    @AsAda
+    void pagingEndpointsReturn404ForUnknownTargets() {
+        UUID specId = createApi("Storefront API");
+        postResource(specId, "{\"name\":\"Product\",\"capabilities\":[\"BROWSE\"]}")
+                .statusCode(201);
+
+        enablePaging(specId, "Gadget", "BROWSE")
+                .statusCode(404)
+                .contentType("application/problem+json");
+        // Existence outranks applicability: REMOVE isn't on the resource, so 404, not 400.
+        disablePaging(specId, "Product", "REMOVE")
+                .statusCode(404)
+                .contentType("application/problem+json");
+    }
+
+    private io.restassured.response.ValidatableResponse enablePaging(UUID specId,
+            String schemaName, String capability) {
+        return given().when().post("/api/v1/specs/" + specId + "/resources/" + schemaName
+                + "/capabilities/" + capability + "/paging").then();
+    }
+
+    private io.restassured.response.ValidatableResponse disablePaging(UUID specId,
+            String schemaName, String capability) {
+        return given().when().delete("/api/v1/specs/" + specId + "/resources/" + schemaName
+                + "/capabilities/" + capability + "/paging").then();
+    }
+
+    /**
+     * Rewrites the stored document to its pre-FEAT-010 shape: the paging constructs stripped
+     * from Browse — the state older list capabilities are in (UC4).
+     */
+    private void stripPagingFromStored(UUID specId) {
+        ObjectNode document = (ObjectNode) readBody(specId);
+        ObjectNode get = (ObjectNode) document.path("paths").path("/products").path("get");
+        get.remove("parameters");
+        ObjectNode wrapper = (ObjectNode) get.path("responses").path("200")
+                .path("content").path("application/json").path("schema");
+        ((ObjectNode) wrapper.path("properties")).remove("pagination");
+        wrapper.putArray("required").add("data");
+        setBody(specId, document.toString());
+    }
+
     private io.restassured.response.ValidatableResponse getCapability(UUID specId,
             String schemaName, String capability) {
         return given().when().get("/api/v1/specs/" + specId + "/resources/" + schemaName
