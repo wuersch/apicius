@@ -11,6 +11,14 @@ import {
 import type { AnswersFacetResponse, Capability } from '@/api/model'
 import { failureName } from '@/lib/errorAnswers'
 
+// The mockup's status palette: 2xx olive, 4xx ochre, 5xx rust — the code carries the
+// color, the phrase stays neutral.
+function statusColor(status: string): string {
+  if (status.startsWith('2')) return 'text-olive'
+  if (status.startsWith('5')) return 'text-terracotta'
+  return 'text-ochre'
+}
+
 // FEAT-009: what comes back — the success answer the document declares, then the standard
 // failures as resting badges (the FieldRow chip idiom): derived furniture, not a feature
 // banner. The ON/OFF
@@ -59,7 +67,9 @@ export function AnswersFacet({
       </h2>
 
       <div className="mt-3 flex items-baseline gap-3">
-        <span className="rounded-[5px] bg-input px-2 py-px font-mono text-[12px] font-semibold">
+        <span
+          className={`rounded-[5px] bg-input px-2 py-px font-mono text-[12px] font-semibold ${statusColor(answers.successStatus ?? '')}`}
+        >
           {answers.successStatus}
         </span>
         <span className="text-sm">{answers.successDescription}</span>
@@ -76,7 +86,8 @@ export function AnswersFacet({
               disabled={pending}
               onCheckedChange={handleToggle}
               aria-label="Standard errors"
-              className="ml-auto"
+              // Rule-toggles signal ON in olive — the house-rule color, not the ink primary.
+              className="ml-auto data-[state=checked]:bg-olive"
             />
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -89,7 +100,9 @@ export function AnswersFacet({
                     : 'border border-dashed border-ring text-text-faint'
                 }`}
               >
-                <span className="font-mono">{failure.status}</span>{' '}
+                <span className={`font-mono ${statusColor(failure.status ?? '')}`}>
+                  {failure.status}
+                </span>{' '}
                 {failureName(failure.status ?? '', singularNoun)}
               </span>
             ))}
