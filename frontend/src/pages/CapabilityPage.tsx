@@ -53,31 +53,14 @@ export function CapabilityPage() {
 
   const resource = specData.resources?.find((candidate) => candidate.name === schemaName)
 
+  // The rail sits flush left under the masthead's breadcrumb (mockup View 3); the facet
+  // column is capped so cards keep the mockup's measure on wide screens.
   return (
-    <div className="mx-auto w-full max-w-5xl px-11 py-8">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-text-tertiary">
-        <Link to="/" className="hover:text-foreground hover:underline underline-offset-2">
-          All APIs
-        </Link>
-        <span aria-hidden className="mx-1.5 text-text-faint">
-          /
-        </span>
-        <Link
-          to={`/apis/${id}`}
-          className="hover:text-foreground hover:underline underline-offset-2"
-        >
-          {specData.title}
-        </Link>
-        <span aria-hidden className="mx-1.5 text-text-faint">
-          /
-        </span>
-        <span className="text-foreground">{schemaName}</span>
-      </nav>
-
-      <div className="mt-5 flex gap-8">
-        {resource && (
-          <CapabilityRail specId={id ?? ''} resource={resource} current={capability ?? ''} />
-        )}
+    <div className="flex w-full gap-10 px-11 py-3">
+      {resource && (
+        <CapabilityRail specId={id ?? ''} resource={resource} current={capability ?? ''} />
+      )}
+      <div className="max-w-3xl min-w-0 flex-1">
         <CapabilityContract
           specId={id ?? ''}
           schemaName={schemaName ?? ''}

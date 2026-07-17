@@ -182,21 +182,19 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         OpenApi3xOperation operation = located.operation();
         DerivedOperation derived = located.derived();
 
-        String summary = operation.getSummary();
-        String label = summary == null || summary.isBlank() ? derived.label() : summary;
-        boolean itemPath = derived.path().equals(located.derivation().itemPath());
-
         OpenApiResponses responses = operation.getResponses();
         OpenApiResponse success =
                 responses == null ? null : responses.getItem(derived.successStatus());
         List<FailureAnswerView> failures = new ArrayList<>();
-        for (StandardErrors.Answer answer : StandardErrors.applicableTo(capability, itemPath)) {
+        for (StandardErrors.Answer answer : StandardErrors.applicableTo(capability,
+                isItemPath(derived, located.derivation()))) {
             OpenApiResponse answered = responses == null ? null : responses.getItem(answer.status());
             failures.add(new FailureAnswerView(answer.status(), isStandardReference(answered, answer)));
         }
 
         return new CapabilityContractView(
-                new CapabilityView(capability, label, derived.method(), derived.path()),
+                new CapabilityView(capability, labelOf(operation, derived), derived.method(),
+                        derived.path()),
                 operation.getDescription(),
                 located.derivation().singularNoun(),
                 requestFacet(document, schemaName, capability),
@@ -218,8 +216,19 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         }
         ensureErrorFurniture(components);
         referenceStandardAnswers(located.operation(), StandardErrors.applicableTo(capability,
-                located.derived().path().equals(located.derivation().itemPath())));
+                isItemPath(located.derived(), located.derivation())));
         return Library.writeDocumentToJSONString(document);
+    }
+
+    /** The applicability table's one document-shape input: does this operation address one resource? */
+    private static boolean isItemPath(DerivedOperation derived, ResourceDerivation derivation) {
+        return derived.path().equals(derivation.itemPath());
+    }
+
+    /** The label rule, single-sourced: the summary carries it; a missing one falls back derived. */
+    private static String labelOf(OpenApiOperation operation, DerivedOperation derived) {
+        String summary = operation.getSummary();
+        return summary == null || summary.isBlank() ? derived.label() : summary;
     }
 
     /** One capability's operation plus the derivation that locates it. */
@@ -493,7 +502,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         responses.addItem(derived.successStatus(), success);
 
         referenceStandardAnswers(operation, StandardErrors.applicableTo(derived.capability(),
-                derived.path().equals(derivation.itemPath())));
+                isItemPath(derived, derivation)));
         return operation;
     }
 
@@ -607,9 +616,8 @@ public class ApitomyDocumentEngine implements DocumentEngine {
             if (operation == null) {
                 continue;
             }
-            String summary = operation.getSummary();
-            String label = summary == null || summary.isBlank() ? derived.label() : summary;
-            capabilities.add(new CapabilityView(derived.capability(), label, derived.method(), derived.path()));
+            capabilities.add(new CapabilityView(derived.capability(), labelOf(operation, derived),
+                    derived.method(), derived.path()));
         }
         return capabilities;
     }
