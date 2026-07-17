@@ -1637,6 +1637,44 @@ class SpecResourceTest extends CleanDatabaseTest {
         assertEquals(List.of("Product", "Error"), fieldNamesOf(components.path("schemas")));
     }
 
+    // UC5/AC10: switching off strips exactly the applicable references and nothing else —
+    // furniture and counts stay, the pointer records the capability, and adopting switches
+    // back on to the born document.
+    @Test
+    @AsAda
+    void removeStandardErrorsSwitchesOffAndBackOn() {
+        UUID specId = productApi();
+        String born = readRawBody(specId);
+
+        removeStandardErrors(specId, "Product", "LOOK_UP").statusCode(204);
+
+        JsonNode off = readBody(specId);
+        assertEquals(List.of("200"),
+                fieldNamesOf(off.path("paths").path("/products/{id}").path("get").path("responses")));
+        assertEquals(6, off.path("components").path("responses").size());
+        assertTrue(off.path("components").path("schemas").has("Error"));
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .body("capabilityName", equalTo("Look up one product"));
+        getCapability(specId, "Product", "LOOK_UP")
+                .statusCode(200)
+                .body("answers.failures[0].present", equalTo(false));
+
+        adoptStandardErrors(specId, "Product", "LOOK_UP").statusCode(200);
+        try {
+            assertEquals(new ObjectMapper().readTree(born), readBody(specId),
+                    "off then on must restore the born document");
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
     // Unknown resource or capability → the 404 problem contract; a capability that was never
     // derived on the resource, and an unknown capability literal, behave the same.
     @Test
@@ -1654,6 +1692,9 @@ class SpecResourceTest extends CleanDatabaseTest {
                 .contentType("application/problem+json");
         getCapability(specId, "Product", "FLY").statusCode(404);
         adoptStandardErrors(specId, "Product", "REMOVE")
+                .statusCode(404)
+                .contentType("application/problem+json");
+        removeStandardErrors(specId, "Product", "REMOVE")
                 .statusCode(404)
                 .contentType("application/problem+json");
     }
@@ -1684,6 +1725,12 @@ class SpecResourceTest extends CleanDatabaseTest {
     private io.restassured.response.ValidatableResponse adoptStandardErrors(UUID specId,
             String schemaName, String capability) {
         return given().when().post("/api/v1/specs/" + specId + "/resources/" + schemaName
+                + "/capabilities/" + capability + "/standard-errors").then();
+    }
+
+    private io.restassured.response.ValidatableResponse removeStandardErrors(UUID specId,
+            String schemaName, String capability) {
+        return given().when().delete("/api/v1/specs/" + specId + "/resources/" + schemaName
                 + "/capabilities/" + capability + "/standard-errors").then();
     }
 

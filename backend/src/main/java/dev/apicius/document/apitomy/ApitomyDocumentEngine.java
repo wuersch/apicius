@@ -231,6 +231,22 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         return summary == null || summary.isBlank() ? derived.label() : summary;
     }
 
+    @Override
+    public String removeStandardErrors(String body, String schemaName, Capability capability) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+        OpenApiResponses responses = located.operation().getResponses();
+        if (responses != null) {
+            for (StandardErrors.Answer answer : StandardErrors.applicableTo(capability,
+                    isItemPath(located.derived(), located.derivation()))) {
+                if (isStandardReference(responses.getItem(answer.status()), answer)) {
+                    responses.removeItem(answer.status());
+                }
+            }
+        }
+        return Library.writeDocumentToJSONString(document);
+    }
+
     /** One capability's operation plus the derivation that locates it. */
     private record Located(ResourceDerivation derivation, DerivedOperation derived,
             OpenApi3xOperation operation) {

@@ -634,6 +634,55 @@ class ApitomyDocumentEngineTest {
                 after.path("paths").path("/products/{id}").path("delete"));
     }
 
+    // UC5/AC10: the opt-out removes exactly the applicable references — furniture, sibling
+    // operations, and the success answer stay untouched.
+    @Test
+    void removeStandardErrorsStripsExactlyTheApplicableReferences() throws Exception {
+        String body = addProduct(EnumSet.allOf(Capability.class));
+        JsonNode before = parse(body);
+
+        JsonNode after = parse(engine.removeStandardErrors(body, "Product", Capability.UPDATE));
+
+        JsonNode responses = after.path("paths").path("/products/{id}").path("patch").path("responses");
+        assertEquals(List.of("200"), keysOf(responses));
+        assertEquals(before.path("paths").path("/products/{id}").path("patch")
+                .path("responses").path("200"), responses.path("200"));
+        assertEquals(before.path("components").path("schemas").path("Error"),
+                after.path("components").path("schemas").path("Error"));
+        assertEquals(6, after.path("components").path("responses").size());
+        assertEquals(before.path("paths").path("/products"), after.path("paths").path("/products"));
+        assertEquals(before.path("paths").path("/products/{id}").path("get"),
+                after.path("paths").path("/products/{id}").path("get"));
+        assertNoVendorExtensions(after);
+    }
+
+    // AC10: off is reversible — switching back on yields the document adoption first
+    // produced; removing when already absent is a no-op.
+    @Test
+    void removeStandardErrorsRoundTripsWithAdopt() throws Exception {
+        String born = addProduct(EnumSet.allOf(Capability.class));
+
+        String off = engine.removeStandardErrors(born, "Product", Capability.LOOK_UP);
+        String offTwice = engine.removeStandardErrors(off, "Product", Capability.LOOK_UP);
+        String backOn = engine.adoptStandardErrors(off, "Product", Capability.LOOK_UP);
+
+        assertEquals(parse(off), parse(offTwice), "removing absent answers must be a no-op");
+        assertEquals(parse(born), parse(backOn), "off then on must restore the born document");
+    }
+
+    // UC5 leaves a FEAT-005-era inline 404 alone: only canonical references are removed —
+    // refuse-don't-mangle for content the toggle doesn't own.
+    @Test
+    void removeStandardErrorsLeavesNonCanonicalAnswersAlone() throws Exception {
+        String legacy = stripStandardErrors(addProduct(EnumSet.allOf(Capability.class)));
+
+        JsonNode after = parse(engine.removeStandardErrors(legacy, "Product", Capability.REMOVE));
+
+        assertEquals("No product with this id exists.", after.path("paths")
+                .path("/products/{id}").path("delete").path("responses").path("404")
+                .path("description").asText());
+    }
+
     // Adopt is idempotent by design: re-adoption rewrites to the same canonical form.
     @Test
     void adoptStandardErrorsIsIdempotent() throws Exception {

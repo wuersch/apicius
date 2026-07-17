@@ -1,20 +1,21 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import {
   getGetCapabilityContractQueryKey,
   getGetLastEditedLocationQueryKey,
   getGetSpecQueryKey,
   getListSpecsQueryKey,
   useAdoptStandardErrors,
+  useRemoveStandardErrors,
 } from '@/api/endpoints/specs/specs'
 import type { AnswersFacetResponse, Capability } from '@/api/model'
 import { failureName } from '@/lib/errorAnswers'
 
 // FEAT-009: what comes back — the success answer the document declares, then the standard
-// failures with their plain-language names. Absent answers are shown as available (AC4);
-// the one adopt action is the only writer (UC3), invalidate-then-reproject like every
-// mutation (the FieldEditor convention).
+// failures as resting pill chips: derived furniture, not a feature banner. The ON/OFF
+// toggle is the built-in default's deliberate override (UC5, PRIN-006) — plain, no
+// confirm, reversible; OFF leaves the chips dashed and faint with the consequence stated.
+// Both directions mutate then invalidate (the FieldEditor convention).
 export function AnswersFacet({
   specId,
   schemaName,
@@ -30,24 +31,24 @@ export function AnswersFacet({
 }) {
   const queryClient = useQueryClient()
   const adopt = useAdoptStandardErrors()
+  const remove = useRemoveStandardErrors()
   const failures = answers.failures ?? []
-  const allPresent = failures.every((failure) => failure.present)
+  const on = failures.every((failure) => failure.present)
+  const pending = adopt.isPending || remove.isPending
 
-  function handleAdopt() {
-    adopt.mutate(
-      { specId, schemaName, capability },
-      {
-        onSuccess: () => {
-          // The page re-renders from the invalidated projections — nothing echoed locally.
-          queryClient.invalidateQueries({
-            queryKey: getGetCapabilityContractQueryKey(specId, schemaName, capability),
-          })
-          queryClient.invalidateQueries({ queryKey: getGetSpecQueryKey(specId) })
-          queryClient.invalidateQueries({ queryKey: getListSpecsQueryKey() })
-          queryClient.invalidateQueries({ queryKey: getGetLastEditedLocationQueryKey() })
-        },
-      },
-    )
+  function invalidate() {
+    // The page re-renders from the invalidated projections — nothing echoed locally.
+    queryClient.invalidateQueries({
+      queryKey: getGetCapabilityContractQueryKey(specId, schemaName, capability),
+    })
+    queryClient.invalidateQueries({ queryKey: getGetSpecQueryKey(specId) })
+    queryClient.invalidateQueries({ queryKey: getListSpecsQueryKey() })
+    queryClient.invalidateQueries({ queryKey: getGetLastEditedLocationQueryKey() })
+  }
+
+  function handleToggle(next: boolean) {
+    const mutation = next ? adopt : remove
+    mutation.mutate({ specId, schemaName, capability }, { onSuccess: invalidate })
   }
 
   return (
@@ -64,44 +65,44 @@ export function AnswersFacet({
       </div>
 
       {failures.length > 0 && (
-        <div
-          className={`mt-4 rounded-md border p-3.5 ${
-            allPresent ? 'border-band-border' : 'border-dashed border-ring'
-          }`}
-        >
-          <div className="flex items-baseline gap-2">
-            <span className="text-[13px] font-semibold">Standard errors</span>
-            <span className="text-[11px] text-text-faint">
-              {allPresent ? 'RFC 9457 · added for you' : 'available — not answered yet'}
-            </span>
+        // The View 3 Answers card's thin rule separates the success answer from the
+        // standard-errors row.
+        <div className="mt-3.5 border-t border-border pt-3.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-text-faint">standard errors</span>
+            <Switch
+              checked={on}
+              disabled={pending}
+              onCheckedChange={handleToggle}
+              aria-label="Standard errors"
+              className="ml-auto"
+            />
           </div>
-          <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {failures.map((failure) => (
-              <li
+              <span
                 key={failure.status}
-                className={`text-[13px] ${failure.present ? '' : 'text-text-faint'}`}
+                className={`rounded-full px-2.5 py-px text-[11px] whitespace-nowrap ${
+                  failure.present
+                    ? 'bg-input font-semibold text-text-secondary'
+                    : 'border border-dashed border-ring text-text-faint'
+                }`}
               >
-                <span className="font-mono font-semibold">{failure.status}</span>{' '}
+                <span className="font-mono">{failure.status}</span>{' '}
                 {failureName(failure.status ?? '', singularNoun)}
-              </li>
+              </span>
             ))}
-          </ul>
-          {!allPresent && (
-            <div className="mt-3">
-              <Button
-                onClick={handleAdopt}
-                disabled={adopt.isPending}
-                className="h-8 rounded-md px-3 text-[12.5px] font-semibold"
-              >
-                <Plus aria-hidden className="size-3" />
-                Add standard errors
-              </Button>
-              {adopt.isError && (
-                <p className="mt-2 text-[12.5px] text-terracotta" role="alert">
-                  That didn't save — try again.
-                </p>
-              )}
-            </div>
+          </div>
+          {!on && (
+            <p className="mt-2 text-[12.5px] text-hint">
+              Failures answer without a shared shape — clients can't handle every error the
+              same way.
+            </p>
+          )}
+          {(adopt.isError || remove.isError) && (
+            <p className="mt-2 text-[12.5px] text-terracotta" role="alert">
+              That didn't save — try again.
+            </p>
           )}
         </div>
       )}

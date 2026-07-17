@@ -14,6 +14,7 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
   useGetSpec: vi.fn(),
   useGetCapabilityContract: vi.fn(),
   useAdoptStandardErrors: vi.fn(),
+  useRemoveStandardErrors: vi.fn(),
   getGetSpecQueryKey: (specId: string) => [`/api/v1/specs/${specId}`],
   getListSpecsQueryKey: () => ['/api/v1/specs'],
   getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
@@ -26,6 +27,7 @@ import {
   useAdoptStandardErrors,
   useGetCapabilityContract,
   useGetSpec,
+  useRemoveStandardErrors,
 } from '@/api/endpoints/specs/specs'
 
 const spec = {
@@ -81,6 +83,7 @@ function arrange(
   contract: CapabilityContractResponse | { notFound: true },
   route = '/apis/spec-1/resources/Product/capabilities/LOOK_UP',
   adoptMutate = vi.fn(),
+  removeMutate = vi.fn(),
 ) {
   vi.mocked(useGetSpec).mockReturnValue({
     data: spec,
@@ -94,6 +97,11 @@ function arrange(
   )
   vi.mocked(useAdoptStandardErrors).mockReturnValue({
     mutate: adoptMutate,
+    isPending: false,
+    isError: false,
+  } as never)
+  vi.mocked(useRemoveStandardErrors).mockReturnValue({
+    mutate: removeMutate,
     isPending: false,
     isError: false,
   } as never)
@@ -133,8 +141,10 @@ test('renders the facets in stable order with derived detail de-emphasized', () 
   expect(within(answers).getByText('200')).toBeInTheDocument()
   expect(within(answers).getByText('The product.')).toBeInTheDocument()
   expect(within(answers).getByText('no product with this id')).toBeInTheDocument()
-  expect(within(answers).getByText(/added for you/)).toBeInTheDocument()
-  expect(within(answers).queryByRole('button', { name: /Add standard errors/ })).not.toBeInTheDocument()
+  expect(within(answers).getByRole('switch', { name: 'Standard errors' })).toBeChecked()
+  expect(
+    within(answers).queryByText(/without a shared shape/),
+  ).not.toBeInTheDocument()
 })
 
 // The rail: the noun's "can do" list travels with the capability, current one marked.
@@ -196,8 +206,9 @@ test('states merge-patch semantics for Update', () => {
   expect(within(request).queryByText('identifier — the server sets it')).not.toBeInTheDocument()
 })
 
-// UC3/AC4: absent standard answers are shown as available; the one adopt action writes.
-test('offers adoption when standard answers are absent and fires the mutation', async () => {
+// UC3/UC5/AC4: absent standard answers rest as dashed chips with the consequence stated and
+// the toggle off; switching on fires the adopt mutation.
+test('shows absent answers off and switches them on via adopt', async () => {
   const user = userEvent.setup()
   const adoptMutate = vi.fn()
   arrange(
@@ -219,13 +230,31 @@ test('offers adoption when standard answers are absent and fires the mutation', 
     adoptMutate,
   )
 
-  expect(screen.getByText(/available — not answered yet/)).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: /Add standard errors/ }))
+  const toggle = screen.getByRole('switch', { name: 'Standard errors' })
+  expect(toggle).not.toBeChecked()
+  expect(screen.getByText(/without a shared shape/)).toBeInTheDocument()
+  await user.click(toggle)
 
   expect(adoptMutate).toHaveBeenCalledWith(
     { specId: 'spec-1', schemaName: 'Product', capability: 'LOOK_UP' },
     expect.anything(),
   )
+})
+
+// UC5: switching present answers off fires the remove mutation — plain, no confirm.
+test('switches present answers off via remove', async () => {
+  const user = userEvent.setup()
+  const adoptMutate = vi.fn()
+  const removeMutate = vi.fn()
+  arrange(lookUpContract, '/apis/spec-1/resources/Product/capabilities/LOOK_UP', adoptMutate, removeMutate)
+
+  await user.click(screen.getByRole('switch', { name: 'Standard errors' }))
+
+  expect(removeMutate).toHaveBeenCalledWith(
+    { specId: 'spec-1', schemaName: 'Product', capability: 'LOOK_UP' },
+    expect.anything(),
+  )
+  expect(adoptMutate).not.toHaveBeenCalled()
 })
 
 // An unknown capability is stated honestly, with the way back to the API.

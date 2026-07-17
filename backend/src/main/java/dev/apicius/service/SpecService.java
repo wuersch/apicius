@@ -299,6 +299,22 @@ public class SpecService {
         return documentEngine.capabilityContract(spec.body, schemaName, capability);
     }
 
+    /**
+     * FEAT-009 UC5: the opt-out — the operation stops declaring its applicable standard
+     * failure answers; the shared furniture and the ADR-0008 counts stay untouched (AC10).
+     * Cheap and reversible by design: {@link #adoptStandardErrors} is the way back. Same
+     * chokepoint conventions as adopt, the capability-level pointer included.
+     */
+    @Transactional
+    public void removeStandardErrors(AppUser editor, UUID specId, String schemaName,
+            Capability capability) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+
+        spec.body = documentEngine.removeStandardErrors(spec.body, schemaName, capability);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+    }
+
     /** The addressed capability, from the recognized resource — 404 when it isn't there. */
     private static CapabilityView requireCapability(ResourceView resource, Capability capability) {
         return resource.capabilities().stream()

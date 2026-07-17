@@ -1256,7 +1256,110 @@ export function useGetCapabilityContract<TData = Awaited<ReturnType<typeof getCa
 
 
 
-export type adoptStandardErrorsResponse200 = {
+export type removeStandardErrorsResponse204 = {
+  data: void
+  status: 204
+}
+
+export type removeStandardErrorsResponse401 = {
+  data: void
+  status: 401
+}
+
+export type removeStandardErrorsResponse403 = {
+  data: void
+  status: 403
+}
+
+export type removeStandardErrorsResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type removeStandardErrorsResponseSuccess = (removeStandardErrorsResponse204) & {
+  headers: Headers;
+};
+export type removeStandardErrorsResponseError = (removeStandardErrorsResponse401 | removeStandardErrorsResponse403 | removeStandardErrorsResponse404) & {
+  headers: Headers;
+};
+
+export type removeStandardErrorsResponse = (removeStandardErrorsResponseSuccess | removeStandardErrorsResponseError)
+
+export const getRemoveStandardErrorsUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/standard-errors`
+}
+
+/**
+ * @summary Switch the standard failure answers off for this capability — the operation stops declaring them; the shared furniture remains, and adopting switches them back on (FEAT-009 UC5)
+ */
+export const removeStandardErrors = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability, options?: RequestInit): Promise<removeStandardErrorsResponse> => {
+
+  return customFetch<removeStandardErrorsResponse>(getRemoveStandardErrorsUrl(specId,schemaName,capability),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveStandardErrorsMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeStandardErrors>>, TError,{specId: Uuid;schemaName: string;capability: Capability}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeStandardErrors>>, TError,{specId: Uuid;schemaName: string;capability: Capability}, TContext> => {
+
+const mutationKey = ['removeStandardErrors'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeStandardErrors>>, {specId: Uuid;schemaName: string;capability: Capability}> = (props) => {
+          const {specId,schemaName,capability} = props ?? {};
+
+          return  removeStandardErrors(specId,schemaName,capability,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveStandardErrorsMutationResult = NonNullable<Awaited<ReturnType<typeof removeStandardErrors>>>
+
+    export type RemoveStandardErrorsMutationError = void | ProblemDetail
+
+    /**
+ * @summary Switch the standard failure answers off for this capability — the operation stops declaring them; the shared furniture remains, and adopting switches them back on (FEAT-009 UC5)
+ */
+export const useRemoveStandardErrors = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeStandardErrors>>, TError,{specId: Uuid;schemaName: string;capability: Capability}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeStandardErrors>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability},
+        TContext
+      > => {
+      return useMutation(getRemoveStandardErrorsMutationOptions(options), queryClient);
+    }
+    export type adoptStandardErrorsResponse200 = {
   data: CapabilityContractResponse
   status: 200
 }

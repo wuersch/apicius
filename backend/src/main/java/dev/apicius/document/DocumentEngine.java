@@ -86,6 +86,14 @@ public interface DocumentEngine {
     String adoptStandardErrors(String body, String schemaName, Capability capability);
 
     /**
+     * FEAT-009 UC5: the opt-out — removes the capability's applicable failure answers where
+     * they hold the canonical shared reference, and touches nothing else (AC10): the shared
+     * furniture stays, non-canonical content at those statuses stays. A no-op on an
+     * operation whose answers are already absent.
+     */
+    String removeStandardErrors(String body, String schemaName, Capability capability);
+
+    /**
      * The concept projection of a stored document (FEAT-005 AC8): schema names, path keys, and
      * the recognized resources with their capabilities — "recognition is derivation inverted"
      * (ADR-0010), matching candidate segmentations of each schema name against the document's
