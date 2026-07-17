@@ -1,5 +1,6 @@
 package dev.apicius.document;
 
+import dev.apicius.document.derivation.Capability;
 import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.ResourceDerivation;
 
@@ -64,6 +65,25 @@ public interface DocumentEngine {
      * original; {@code info.version} and everything else are preserved by construction (AC3).
      */
     String retitle(String body, String title);
+
+    /**
+     * FEAT-009: one capability's full contract, projected from the document (AC1–AC5) — the
+     * identity (label preferring the operation's {@code summary}), the description, the
+     * Request facet (Add: the shape's fields; Update: merge-patch semantics; absent
+     * otherwise), the derived content-negotiation header line, and the Answers facet: the
+     * success answer as the document declares it plus each applicable standard failure
+     * answer's structural present/absent state. A pure read — never mutates (AC4). That the
+     * resource and capability exist is the caller's verified rule.
+     */
+    CapabilityContractView capabilityContract(String body, String schemaName, Capability capability);
+
+    /**
+     * FEAT-009 UC3: rewrites the capability's operation so it answers its full standard set —
+     * idempotently creating the shared {@code Error} schema and reusable responses on first
+     * need (AC7) and referencing them at every applicable status, replacing whatever sat
+     * there (FEAT-005's inline 404 included). Touches nothing else in the document (AC6).
+     */
+    String adoptStandardErrors(String body, String schemaName, Capability capability);
 
     /**
      * The concept projection of a stored document (FEAT-005 AC8): schema names, path keys, and

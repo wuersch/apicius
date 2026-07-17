@@ -84,15 +84,17 @@ irregular yields a wrong-but-consistent plural until a per-resource path overrid
   change; a bare array cannot offer that). It is inline, not a named schema, so
   `components/schemas` contains only user-meaningful datatypes — the shared-data view
   projects straight from it.
-- **Failure answers:** 404 on the `{id}` paths, declared with a plain-language description.
-  The failure-body format and the standard error set are owned by FEAT-009.
+- **Failure answers:** owned by FEAT-009 — every derived operation carries its standard
+  failure answers per FEAT-009's table (404 on the `{id}` paths among them), each a reference
+  to the shared `components/responses` furniture.
 - **Spec-required completions** (a valid, well-crafted document forces three constructs the
   table's cells don't show): the `{id}` path parameter, declared once at the item path-item
   level (`name: id, in: path, required: true, schema: {type: string}`); `required: true` on
-  the Add/Update request bodies; and a plain-language `description` on every response,
-  phrased from the noun ("The list of products.", "No product with this id exists.") — owned
-  here so recognition and tests stay stable (FEAT-012 lets designers replace them; clearing
-  restores these defaults).
+  the Add/Update request bodies; and a plain-language `description` on every success
+  response, phrased from the noun ("The list of products.") — owned here so recognition and
+  tests stay stable (FEAT-012 lets designers replace them; clearing restores these
+  defaults). Failure answers reference the shared responses, whose descriptions are
+  noun-neutral by construction (FEAT-009).
 - Derivation writes exactly these constructs — plus the extensions shipped by later features
   (FEAT-009 standard error answers, FEAT-010 paging) — and nothing else: no tags, no
   extensions, no scaffolding elsewhere in the document.

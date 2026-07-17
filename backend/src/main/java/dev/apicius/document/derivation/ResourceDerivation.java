@@ -4,12 +4,13 @@ import java.util.List;
 
 /**
  * The full ADR-0010 derivation for one resource: naming plus the chosen operations, in dialog
- * row order. {@code notFoundDescription} serves the 404 every item-path operation declares.
+ * row order. {@code singularNoun} is the noun as labels display it ("order item"), for copy
+ * phrased from the noun.
  */
 public record ResourceDerivation(
         String schemaName,
         String collectionPath,
         String itemPath,
-        String notFoundDescription,
+        String singularNoun,
         List<DerivedOperation> operations) {
 }

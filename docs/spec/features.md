@@ -13,7 +13,7 @@
 | FEAT-006 | Edit a resource's shape (simple-typed fields) | shipped |
 | FEAT-007 | Manage an API | shipped |
 | FEAT-008 | Export an API document | shipped |
-| FEAT-009 | View a capability's contract | specced |
+| FEAT-009 | View a capability's contract | building |
 | FEAT-010 | Paging on list capabilities | specced |
 | FEAT-011 | Query parameters & headers | specced |
 | FEAT-012 | Describe the contract | specced |
