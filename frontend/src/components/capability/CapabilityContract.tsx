@@ -21,9 +21,10 @@ export function CapabilityContract({
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
       <header>
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-2xl font-bold">{identity?.label}</h1>
-          <span className="font-mono text-[13px] whitespace-nowrap text-text-tertiary">
+        <div className="flex items-center gap-2.5">
+          <h1 className="truncate text-3xl font-bold tracking-[-.02em]">{identity?.label}</h1>
+          {/* The derived address as a quiet badge — the EditorPage version-chip idiom. */}
+          <span className="shrink-0 rounded-sm bg-input px-2 py-0.5 font-mono text-[11px] text-text-tertiary">
             {identity?.method} {identity?.path}
           </span>
         </div>
