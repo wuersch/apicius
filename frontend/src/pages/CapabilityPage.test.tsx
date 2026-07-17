@@ -142,6 +142,7 @@ test('renders the facets in stable order with derived detail de-emphasized', () 
   expect(within(answers).getByText('The product.')).toBeInTheDocument()
   expect(within(answers).getByText('no product with this id')).toBeInTheDocument()
   expect(within(answers).getByRole('switch', { name: 'Standard errors' })).toBeChecked()
+  expect(within(answers).getByText(/RFC 9457/)).toBeInTheDocument()
   expect(
     within(answers).queryByText(/without a shared shape/),
   ).not.toBeInTheDocument()
@@ -233,6 +234,8 @@ test('shows absent answers off and switches them on via adopt', async () => {
   const toggle = screen.getByRole('switch', { name: 'Standard errors' })
   expect(toggle).not.toBeChecked()
   expect(screen.getByText(/without a shared shape/)).toBeInTheDocument()
+  // Off removes the guarantee's badge entirely — never dimmed.
+  expect(screen.queryByText(/RFC 9457/)).not.toBeInTheDocument()
   await user.click(toggle)
 
   expect(adoptMutate).toHaveBeenCalledWith(
