@@ -20,8 +20,18 @@ Most visual OpenAPI editors mirror the spec's storage format — Paths, Schemas,
 Components — so you end up editing serialization rather than your idea. Apicius takes the
 opposite stance: model the API as **resources** and the **capabilities** they offer ("Look up
 one product"), and treat the concrete `GET /products/{id}` as a *derived* detail. Best practices
-are baked in so consistency is the default rather than a discipline. It's inspired by the
-now-discontinued Apicurio Studio, but is editor-first and opinionated by design.
+are baked in so consistency is the default rather than a discipline — the aim is APIs that are
+**beautiful by default**: consistent naming, paging, error shapes, and documentation without
+anyone having to remember the rules.
+
+Apicius is inspired by the great, unfortunately discontinued
+[Apicurio Studio](https://www.apicur.io/studio/) — and even builds on the same OpenAPI document
+model its lineage produced — but takes a different stance: not a harness over the spec tree, but
+a concept-first editor with the design guidelines built in.
+
+And unlike the cloud-only turn API tooling has taken (Postman, Insomnia and friends), Apicius is
+**self-hostable by design**: open source under MIT, running on your own PostgreSQL and Keycloak.
+Your API designs never leave your infrastructure.
 
 ## Core ideas
 
@@ -36,12 +46,21 @@ now-discontinued Apicurio Studio, but is editor-first and opinionated by design.
 
 ## Status
 
-Early / pre-alpha. The project is currently docs-driven: the backend and frontend are scaffolded
-and wired together, but the product features above are not yet implemented.
+Early alpha — and already a working editor. You can sign in, create an API, model resources
+with typed fields, and work each derived capability's full contract in plain language: paging
+on list capabilities, the standard error answers (RFC 9457), query parameters and headers,
+and descriptions on every part of the contract — then export the document as YAML or JSON.
+Importing an existing OpenAPI document is the next feature up; see
+[`docs/spec/features.md`](docs/spec/features.md) for the live feature-by-feature status.
 
 ## Tech stack
 
 - **Backend:** Quarkus (Java 25), PostgreSQL, Keycloak / OIDC.
+- **Document engine:** `io.apitomy:apitomy-data-models` (the Apicurio Studio lineage's
+  OpenAPI model) as the document model, edit, and validation engine — consumed behind an
+  Apicius-owned `DocumentEngine` seam, so the UI's concept-first view is projected from a
+  real, lossless OpenAPI document (ADR-0009). Specs persist as the serialized document plus
+  denormalized summary columns for the list views (ADR-0008).
 - **Frontend:** React + Vite + TypeScript, TanStack Query, Tailwind + shadcn/ui.
 - **Contract:** the backend publishes a code-first OpenAPI document at `/q/openapi`, from which
   the frontend's typed client is generated with [orval](https://orval.dev).
@@ -50,7 +69,7 @@ and wired together, but the product features above are not yet implemented.
 
 | Path | Contents |
 |------|----------|
-| `backend/` | Quarkus API — domain model, rules engine, persistence. |
+| `backend/` | Quarkus API — the `DocumentEngine` seam and its apitomy adapter, derivation, persistence. |
 | `frontend/` | React + Vite single-page app — the intent UI. |
 | `docs/` | Product constitution, architecture (C4 + ADRs), and feature specs. |
 | `agent-os/` | The development process and conventions. |

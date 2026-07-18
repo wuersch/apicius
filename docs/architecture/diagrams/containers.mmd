@@ -5,20 +5,22 @@ flowchart TB
         client["API client
         orval + TanStack Query"]
         src["Source view
-        CodeMirror 6"]
+        CodeMirror 6 · later"]
     end
     subgraph Backend["Apicius backend (Quarkus)"]
         api["REST API
         JAX-RS + SmallRye OpenAPI"]
-        model["Domain model
-        superset OpenAPI · source of truth"]
-        rules["Rules engine
-        pure functions"]
-        io["Import / Export
-        3.0 / 3.1 / 3.2 · lossless"]
+        service["Service chokepoint
+        derivation · rules · atomic edits"]
+        subgraph Seam["DocumentEngine seam (ADR-0009)"]
+            engine["apitomy-data-models
+            model · edit · validation · serialize
+            3.0 / 3.1 / 3.2 · lossless"]
+        end
     end
     db[("PostgreSQL
-    specs (JSONB) + metadata")]
+    specs (json body + projection columns)
+    + users")]
     idp["Keycloak (OIDC)"]
     spec[("OpenAPI document")]
 
@@ -27,8 +29,7 @@ flowchart TB
     client -- "REST /api/v1" --> api
     client -. "auth (OIDC)" .-> idp
     api -. "validate token" .-> idp
-    api --> model
-    model --> rules
-    model --> io
-    io <--> spec
-    model --> db
+    api --> service
+    service --> engine
+    engine <--> spec
+    service --> db
