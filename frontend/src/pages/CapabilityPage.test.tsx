@@ -17,6 +17,15 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
   useRemoveStandardErrors: vi.fn(),
   useEnablePaging: vi.fn(),
   useDisablePaging: vi.fn(),
+  useAddQueryParameter: vi.fn(),
+  useUpdateQueryParameter: vi.fn(),
+  useRemoveQueryParameter: vi.fn(),
+  useAddRequestHeader: vi.fn(),
+  useUpdateRequestHeader: vi.fn(),
+  useRemoveRequestHeader: vi.fn(),
+  useAddResponseHeader: vi.fn(),
+  useUpdateResponseHeader: vi.fn(),
+  useRemoveResponseHeader: vi.fn(),
   getGetSpecQueryKey: (specId: string) => [`/api/v1/specs/${specId}`],
   getListSpecsQueryKey: () => ['/api/v1/specs'],
   getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
@@ -26,12 +35,21 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
 }))
 
 import {
+  useAddQueryParameter,
+  useAddRequestHeader,
+  useAddResponseHeader,
   useAdoptStandardErrors,
   useDisablePaging,
   useEnablePaging,
   useGetCapabilityContract,
   useGetSpec,
+  useRemoveQueryParameter,
+  useRemoveRequestHeader,
+  useRemoveResponseHeader,
   useRemoveStandardErrors,
+  useUpdateQueryParameter,
+  useUpdateRequestHeader,
+  useUpdateResponseHeader,
 } from '@/api/endpoints/specs/specs'
 
 const spec = {
@@ -69,10 +87,15 @@ const lookUpContract: CapabilityContractResponse = {
     path: '/products/{id}',
   },
   singularNoun: 'product',
-  headers: [{ name: 'Accept', value: 'application/json', derived: true }],
+  queryParameters: [],
+  headers: {
+    derived: [{ name: 'Accept', value: 'application/json', derived: true }],
+    authored: [],
+  },
   answers: {
     successStatus: '200',
     successDescription: 'The product.',
+    successHeaders: [],
     failures: [
       { status: '400', present: true },
       { status: '401', present: true },
@@ -121,6 +144,33 @@ function arrange(
     isPending: false,
     isError: false,
   } as never)
+  // One spy per declaration mutation, so a test can assert the location-specific endpoint
+  // fired — every facet renders all nine hooks (rules of hooks), only the addressed one may.
+  const declarations = {
+    addQueryParameter: vi.fn(),
+    updateQueryParameter: vi.fn(),
+    removeQueryParameter: vi.fn(),
+    addRequestHeader: vi.fn(),
+    updateRequestHeader: vi.fn(),
+    removeRequestHeader: vi.fn(),
+    addResponseHeader: vi.fn(),
+    updateResponseHeader: vi.fn(),
+    removeResponseHeader: vi.fn(),
+  }
+  const hooks: [() => unknown, ReturnType<typeof vi.fn>][] = [
+    [useAddQueryParameter, declarations.addQueryParameter],
+    [useUpdateQueryParameter, declarations.updateQueryParameter],
+    [useRemoveQueryParameter, declarations.removeQueryParameter],
+    [useAddRequestHeader, declarations.addRequestHeader],
+    [useUpdateRequestHeader, declarations.updateRequestHeader],
+    [useRemoveRequestHeader, declarations.removeRequestHeader],
+    [useAddResponseHeader, declarations.addResponseHeader],
+    [useUpdateResponseHeader, declarations.updateResponseHeader],
+    [useRemoveResponseHeader, declarations.removeResponseHeader],
+  ]
+  for (const [hook, mutate] of hooks) {
+    vi.mocked(hook).mockReturnValue({ mutate, isPending: false, isError: false } as never)
+  }
   render(
     <MemoryRouter initialEntries={[route]}>
       <QueryClientProvider client={new QueryClient()}>
@@ -133,6 +183,7 @@ function arrange(
       </QueryClientProvider>
     </MemoryRouter>,
   )
+  return declarations
 }
 
 beforeEach(() => {
@@ -140,7 +191,8 @@ beforeEach(() => {
 })
 
 // AC1: identity (plain-language label first, derived detail after), then the facets in the
-// stable order — Headers and Answers here; Look up takes no body (AC2: Request absent).
+// stable order — Headers, Answers, and the split-out Errors card here; Look up takes no
+// body (AC2: Request absent).
 test('renders the facets in stable order with derived detail de-emphasized', () => {
   arrange(lookUpContract)
 
@@ -156,12 +208,13 @@ test('renders the facets in stable order with derived detail de-emphasized', () 
   const answers = screen.getByRole('region', { name: 'Answers' })
   expect(within(answers).getByText('200')).toBeInTheDocument()
   expect(within(answers).getByText('The product.')).toBeInTheDocument()
-  expect(within(answers).getByText('no product with this id')).toBeInTheDocument()
-  expect(within(answers).getByRole('switch', { name: 'Standard errors' })).toBeChecked()
-  expect(within(answers).getByText(/RFC 9457/)).toBeInTheDocument()
-  expect(
-    within(answers).queryByText(/without a shared shape/),
-  ).not.toBeInTheDocument()
+
+  // The v10 split: Errors is its own card — the failure chips and the toggle live there.
+  const errors = screen.getByRole('region', { name: 'Errors' })
+  expect(within(errors).getByText('no product with this id')).toBeInTheDocument()
+  expect(within(errors).getByRole('switch', { name: 'Standard errors' })).toBeChecked()
+  expect(within(errors).getByText(/RFC 9457/)).toBeInTheDocument()
+  expect(within(errors).queryByText(/without a shared shape/)).not.toBeInTheDocument()
 })
 
 // The rail: the noun's "can do" list travels with the capability, current one marked.
@@ -189,8 +242,17 @@ test('derives the Request facet for Add from the shape', () => {
           { name: 'id', coreType: 'TEXT', list: false, required: true, visibility: 'AUTO' },
         ],
       },
-      headers: [{ name: 'Accept', value: 'application/json', derived: true }],
-      answers: { successStatus: '201', successDescription: 'The created product.', failures: [] },
+      queryParameters: [],
+      headers: {
+        derived: [{ name: 'Accept', value: 'application/json', derived: true }],
+        authored: [],
+      },
+      answers: {
+        successStatus: '201',
+        successDescription: 'The created product.',
+        successHeaders: [],
+        failures: [],
+      },
     },
     '/apis/spec-1/resources/Product/capabilities/ADD',
   )
@@ -212,8 +274,17 @@ test('states merge-patch semantics for Update', () => {
       },
       singularNoun: 'product',
       request: { mergePatch: true, fields: [] },
-      headers: [{ name: 'Accept', value: 'application/json', derived: true }],
-      answers: { successStatus: '200', successDescription: 'The updated product.', failures: [] },
+      queryParameters: [],
+      headers: {
+        derived: [{ name: 'Accept', value: 'application/json', derived: true }],
+        authored: [],
+      },
+      answers: {
+        successStatus: '200',
+        successDescription: 'The updated product.',
+        successHeaders: [],
+        failures: [],
+      },
     },
     '/apis/spec-1/resources/Product/capabilities/UPDATE',
   )
@@ -279,11 +350,16 @@ test('switches present answers off via remove', async () => {
 const browseContract: CapabilityContractResponse = {
   capability: { capability: 'BROWSE', label: 'Browse all products', method: 'GET', path: '/products' },
   singularNoun: 'product',
+  queryParameters: [],
   paging: { on: true, conflicts: [] },
-  headers: [{ name: 'Accept', value: 'application/json', derived: true }],
+  headers: {
+    derived: [{ name: 'Accept', value: 'application/json', derived: true }],
+    authored: [],
+  },
   answers: {
     successStatus: '200',
     successDescription: 'A paged list of products',
+    successHeaders: [],
     failures: [
       { status: '400', present: true },
       { status: '401', present: true },
@@ -369,6 +445,211 @@ test('locks the paging toggle while an authored parameter claims the name', () =
   expect(within(paging).getByRole('switch', { name: 'Paging' })).toBeDisabled()
   expect(within(paging).getByText(/Can't switch on/)).toBeInTheDocument()
   expect(within(paging).getByText('page')).toBeInTheDocument()
+})
+
+// ---- FEAT-011: query parameters & headers ----
+
+// The empty Filters card recedes (dashed, one quiet resting line — the paging-off idiom)
+// rather than disappearing: no card would mean no way to add the first filter.
+test('recedes the empty Filters card and opens the editor from its heading', async () => {
+  const user = userEvent.setup()
+  arrange(lookUpContract)
+
+  const filters = screen.getByRole('region', { name: 'Filters' })
+  expect(within(filters).getByText('none — the list comes as-is')).toBeInTheDocument()
+
+  await user.click(within(filters).getByRole('button', { name: 'Add a filter' }))
+
+  expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument()
+})
+
+// UC1: a filter saves through the query-parameter endpoint as the plain-language draft —
+// the derived name previewed live (never typed), serialization the server's business.
+test('adds a query parameter through the inline editor', async () => {
+  const user = userEvent.setup()
+  const declarations = arrange(browseContract, browseRoute)
+
+  await user.click(screen.getByRole('button', { name: 'Add a filter' }))
+  await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Price max')
+  expect(screen.getByText('parameter priceMax')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+
+  expect(declarations.addQueryParameter).toHaveBeenCalledWith(
+    {
+      specId: 'spec-1',
+      schemaName: 'Product',
+      capability: 'BROWSE',
+      data: expect.objectContaining({ name: 'Price max', coreType: 'TEXT' }),
+    },
+    expect.anything(),
+  )
+})
+
+// AC7: picking "one of …" swaps the refinement slot for the comma-separated values input;
+// duplicates block inline, a valid set travels as the value list.
+test('edits a one-of filter with the comma-separated values input', async () => {
+  const user = userEvent.setup()
+  const declarations = arrange(browseContract, browseRoute)
+
+  await user.click(screen.getByRole('button', { name: 'Add a filter' }))
+  await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Status')
+  await user.click(screen.getByLabelText('Kind'))
+  await user.click(await screen.findByRole('menuitemradio', { name: 'one of …' }))
+  const values = screen.getByRole('textbox', { name: 'One of values' })
+  await user.type(values, 'available, available')
+
+  expect(screen.getByText(/must be distinct/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(declarations.addQueryParameter).not.toHaveBeenCalled()
+
+  await user.clear(values)
+  await user.type(values, 'available, pending, sold')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+
+  expect(declarations.addQueryParameter).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({
+        oneOfValues: ['available', 'pending', 'sold'],
+        coreType: undefined,
+      }),
+    }),
+    expect.anything(),
+  )
+})
+
+// FEAT-010's pair, accounted for: while paging is on, the query string genuinely carries
+// page & limit, so the Filters card lists them — locked and badged, never editable.
+test('lists the paging pair as built-in locked rows while paging is on', () => {
+  arrange(browseContract, browseRoute)
+
+  const filters = screen.getByRole('region', { name: 'Filters' })
+  expect(within(filters).getByText('page')).toBeInTheDocument()
+  expect(within(filters).getByText('limit')).toBeInTheDocument()
+  expect(within(filters).getAllByText('Built in · paging')).toHaveLength(2)
+  expect(within(filters).queryByRole('button', { name: 'Edit page' })).not.toBeInTheDocument()
+})
+
+// With paging off the pair is gone from the document — nothing to account for, and an
+// otherwise-empty card recedes again.
+test('omits the paging pair while paging is off', () => {
+  arrange({ ...browseContract, paging: { on: false, conflicts: [] } }, browseRoute)
+
+  const filters = screen.getByRole('region', { name: 'Filters' })
+  expect(within(filters).queryByText('page')).not.toBeInTheDocument()
+  expect(within(filters).getByText('none — the list comes as-is')).toBeInTheDocument()
+})
+
+// UC5: while the capability pages, page/limit are paging's constructs — excluded from the
+// filter projection, so the collision set can't catch them; the editor blocks them inline.
+test('blocks a paging-owned filter name inline while paging is on', async () => {
+  const user = userEvent.setup()
+  const declarations = arrange(browseContract, browseRoute)
+
+  await user.click(screen.getByRole('button', { name: 'Add a filter' }))
+  await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Page')
+
+  expect(screen.getByText(/Paging owns page and limit/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(declarations.addQueryParameter).not.toHaveBeenCalled()
+})
+
+// UC5: a reserved header name blocks inline — nothing sent, nothing persisted.
+test('blocks a reserved header name inline', async () => {
+  const user = userEvent.setup()
+  const declarations = arrange(lookUpContract)
+
+  await user.click(screen.getByRole('button', { name: 'Add header' }))
+  await user.type(screen.getByRole('textbox', { name: 'Name' }), 'accept')
+
+  expect(screen.getByText(/managed by Apicius/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(declarations.addRequestHeader).not.toHaveBeenCalled()
+})
+
+// UC4: rows edit in place — the editor opens seeded with the declaration, saves through
+// the location's update endpoint addressed by the current name.
+test('edits an authored filter in place', async () => {
+  const user = userEvent.setup()
+  const declarations = arrange(
+    {
+      ...browseContract,
+      queryParameters: [{ name: 'priceMax', coreType: 'DECIMAL_NUMBER', required: false }],
+    },
+    browseRoute,
+  )
+
+  await user.click(screen.getByRole('button', { name: 'Edit priceMax' }))
+  const name = screen.getByRole('textbox', { name: 'Name' })
+  expect(name).toHaveValue('priceMax')
+  await user.clear(name)
+  await user.type(name, 'Budget')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+
+  expect(declarations.updateQueryParameter).toHaveBeenCalledWith(
+    expect.objectContaining({
+      name: 'priceMax',
+      data: expect.objectContaining({ name: 'Budget' }),
+    }),
+    expect.anything(),
+  )
+})
+
+// UC4: a local row's Remove deletes outright — everything is capability-local here.
+test('removes an authored request header from its row', async () => {
+  const user = userEvent.setup()
+  const declarations = arrange({
+    ...lookUpContract,
+    headers: {
+      derived: [{ name: 'Accept', value: 'application/json', derived: true }],
+      authored: [{ name: 'Request-Id', coreType: 'TEXT', required: false }],
+    },
+  })
+
+  await user.click(screen.getByRole('button', { name: 'Remove Request-Id' }))
+
+  expect(declarations.removeRequestHeader).toHaveBeenCalledWith(
+    { specId: 'spec-1', schemaName: 'Product', capability: 'LOOK_UP', name: 'Request-Id' },
+    expect.anything(),
+  )
+})
+
+// UC3/AC3 surface: response headers live in the success answer's expansion — "+ N headers"
+// hints while collapsed, the rows and add affordance sit inside, and optionality wears its
+// response-side words: an "Always sent" toggle in the editor, "always sent" on the row.
+test('expands the success answer to its own response headers', async () => {
+  const user = userEvent.setup()
+  const declarations = arrange(
+    {
+      ...browseContract,
+      answers: {
+        ...browseContract.answers!,
+        successHeaders: [{ name: 'Sync-Token', coreType: 'TEXT', required: true }],
+      },
+    },
+    browseRoute,
+  )
+
+  const answers = screen.getByRole('region', { name: 'Answers' })
+  expect(within(answers).getByText('+ 1 header')).toBeInTheDocument()
+  await user.click(within(answers).getByRole('button', { name: /A paged list of products/ }))
+  expect(within(answers).getByText('Sync-Token')).toBeInTheDocument()
+  expect(within(answers).getByText('always sent')).toBeInTheDocument()
+
+  await user.click(within(answers).getByRole('button', { name: 'Add header' }))
+  await user.click(within(answers).getByRole('switch', { name: 'Always sent' }))
+  await user.type(within(answers).getByRole('textbox', { name: 'Name' }), 'Request id')
+  expect(within(answers).getByText('header Request-Id')).toBeInTheDocument()
+  await user.click(within(answers).getByRole('button', { name: 'Save' }))
+
+  expect(declarations.addResponseHeader).toHaveBeenCalledWith(
+    {
+      specId: 'spec-1',
+      schemaName: 'Product',
+      capability: 'BROWSE',
+      data: expect.objectContaining({ name: 'Request id', required: true }),
+    },
+    expect.anything(),
+  )
 })
 
 // An unknown capability is stated honestly, with the way back to the API.

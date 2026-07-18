@@ -1541,10 +1541,11 @@ class SpecResourceTest extends CleanDatabaseTest {
                 .body("description", nullValue())
                 .body("singularNoun", equalTo("product"))
                 .body("request", nullValue())
-                .body("headers", hasSize(1))
-                .body("headers[0].name", equalTo("Accept"))
-                .body("headers[0].value", equalTo("application/json"))
-                .body("headers[0].derived", equalTo(true))
+                .body("headers.derived", hasSize(1))
+                .body("headers.derived[0].name", equalTo("Accept"))
+                .body("headers.derived[0].value", equalTo("application/json"))
+                .body("headers.derived[0].derived", equalTo(true))
+                .body("headers.authored", hasSize(0))
                 .body("answers.successStatus", equalTo("200"))
                 .body("answers.successDescription", equalTo("The product."))
                 .body("answers.failures", hasSize(5))
@@ -1881,6 +1882,261 @@ class SpecResourceTest extends CleanDatabaseTest {
         disablePaging(specId, "Product", "REMOVE")
                 .statusCode(404)
                 .contentType("application/problem+json");
+    }
+
+    // ---- FEAT-011: query parameters & headers ----
+
+    // AC1/AC4: one POST writes exactly one query parameter — derived name, kind
+    // serialization, optionality — the contract projects it back, the ADR-0008 counts stay,
+    // and the pointer moves to this capability in the same transaction.
+    @Test
+    @AsAda
+    void addQueryParameterWritesAndProjects() {
+        UUID specId = productApi();
+
+        postDeclaration(specId, "Product", "BROWSE", "query-parameters",
+                "{\"name\":\"Price max\",\"coreType\":\"DECIMAL_NUMBER\","
+                        + "\"description\":\"The budget cap.\"}")
+                .statusCode(201)
+                .header("Location", containsString("/query-parameters/priceMax"))
+                .body("name", equalTo("priceMax"))
+                .body("coreType", equalTo("DECIMAL_NUMBER"))
+                .body("required", equalTo(false));
+
+        getCapability(specId, "Product", "BROWSE")
+                .statusCode(200)
+                .body("queryParameters[0].name", equalTo("priceMax"))
+                .body("queryParameters[0].description", equalTo("The budget cap."))
+                .body("queryParameters", hasSize(1));
+        JsonNode parameter = readBody(specId).path("paths").path("/products").path("get")
+                .path("parameters").get(2);
+        assertEquals("priceMax", parameter.path("name").asText());
+        assertEquals("number", parameter.path("schema").path("type").asText());
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("capabilityName", equalTo("Browse all products"));
+    }
+
+    // AC2: a request header derives Hyphenated-Capitalized and serializes as in: header;
+    // a "one of" kind carries its inline value list (AC7's happy half).
+    @Test
+    @AsAda
+    void addRequestHeaderDerivesTheHeaderName() {
+        UUID specId = productApi();
+
+        postDeclaration(specId, "Product", "LOOK_UP", "request-headers",
+                "{\"name\":\"request id\",\"coreType\":\"TEXT\",\"refinement\":\"UUID\","
+                        + "\"required\":true}")
+                .statusCode(201)
+                .body("name", equalTo("Request-Id"))
+                .body("required", equalTo(true));
+        postDeclaration(specId, "Product", "LOOK_UP", "request-headers",
+                "{\"name\":\"API mode\",\"oneOfValues\":[\"live\",\"sandbox\"]}")
+                .statusCode(201)
+                .body("name", equalTo("API-Mode"))
+                .body("oneOfValues", equalTo(List.of("live", "sandbox")));
+
+        getCapability(specId, "Product", "LOOK_UP")
+                .statusCode(200)
+                .body("headers.derived[0].name", equalTo("Accept"))
+                .body("headers.authored[0].name", equalTo("Request-Id"))
+                .body("headers.authored[1].name", equalTo("API-Mode"))
+                .body("headers.authored[1].oneOfValues", equalTo(List.of("live", "sandbox")));
+        JsonNode parameter = readBody(specId).path("paths").path("/products/{id}").path("get")
+                .path("parameters").get(0);
+        assertEquals("header", parameter.path("in").asText());
+    }
+
+    // AC3: a response header lands on the success answer; the shared failure answers are
+    // byte-identical before and after, and the contract surfaces it with the answer.
+    @Test
+    @AsAda
+    void addResponseHeaderLeavesFailureAnswersUntouched() {
+        UUID specId = productApi();
+        JsonNode before = readBody(specId).path("paths").path("/products").path("get")
+                .path("responses");
+
+        // required on a response header is the "always sent" promise (re-scoped from
+        // inputs-only optionality).
+        postDeclaration(specId, "Product", "BROWSE", "response-headers",
+                "{\"name\":\"Sync token\",\"coreType\":\"TEXT\",\"required\":true}")
+                .statusCode(201)
+                .body("name", equalTo("Sync-Token"))
+                .body("required", equalTo(true));
+
+        JsonNode after = readBody(specId).path("paths").path("/products").path("get")
+                .path("responses");
+        assertEquals("string", after.path("200").path("headers").path("Sync-Token")
+                .path("schema").path("type").asText());
+        assertTrue(after.path("200").path("headers").path("Sync-Token")
+                .path("required").asBoolean(), "the Header Object carries required");
+        for (String status : List.of("400", "401", "422", "429", "500")) {
+            assertEquals(before.path(status), after.path(status),
+                    status + " must be byte-identical (AC3)");
+        }
+        getCapability(specId, "Product", "BROWSE")
+                .statusCode(200)
+                .body("answers.successHeaders[0].name", equalTo("Sync-Token"));
+    }
+
+    // AC5: a change rewrites in place — a rename readdresses the declaration — and a removal
+    // leaves no other trace: back to the born document, emptied containers included.
+    @Test
+    @AsAda
+    void updateAndRemoveDeclarationRoundTrip() {
+        UUID specId = productApi();
+        String born = readRawBody(specId);
+        postDeclaration(specId, "Product", "LOOK_UP", "request-headers",
+                "{\"name\":\"request id\",\"coreType\":\"TEXT\"}")
+                .statusCode(201);
+
+        patchDeclaration(specId, "Product", "LOOK_UP", "request-headers", "Request-Id",
+                "{\"name\":\"trace id\",\"coreType\":\"TEXT\",\"refinement\":\"UUID\"}")
+                .statusCode(200)
+                .body("name", equalTo("Trace-Id"))
+                .body("refinement", equalTo("UUID"));
+        deleteDeclaration(specId, "Product", "LOOK_UP", "request-headers", "Trace-Id")
+                .statusCode(204);
+
+        try {
+            assertEquals(new ObjectMapper().readTree(born), readBody(specId),
+                    "removal must leave no other trace (AC5)");
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    // AC6, state-independent half: an underivable name and a reserved header name are 400 —
+    // invalid input whatever the document holds; nothing persisted.
+    @Test
+    @AsAda
+    void declarationsReject400Names() {
+        UUID specId = productApi();
+        String before = readRawBody(specId);
+
+        postDeclaration(specId, "Product", "BROWSE", "query-parameters",
+                "{\"name\":\"!!!\",\"coreType\":\"TEXT\"}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("name"));
+        postDeclaration(specId, "Product", "LOOK_UP", "request-headers",
+                "{\"name\":\"accept\",\"coreType\":\"TEXT\"}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].message", containsString("Accept"));
+        postDeclaration(specId, "Product", "BROWSE", "response-headers",
+                "{\"name\":\"Content type\",\"coreType\":\"TEXT\"}")
+                .statusCode(400);
+
+        assertEquals(before, readRawBody(specId), "nothing may be persisted (AC6)");
+    }
+
+    // AC6, document-state half: a case-insensitive collision in the same location, and
+    // page/limit on a paged capability, are 409 with the conflict named; the same name in a
+    // different location is fine.
+    @Test
+    @AsAda
+    void declarationsReject409Conflicts() {
+        UUID specId = productApi();
+        postDeclaration(specId, "Product", "BROWSE", "query-parameters",
+                "{\"name\":\"Sync token\",\"coreType\":\"TEXT\"}")
+                .statusCode(201);
+        String before = readRawBody(specId);
+
+        postDeclaration(specId, "Product", "BROWSE", "query-parameters",
+                "{\"name\":\"SYNC TOKEN\",\"coreType\":\"TEXT\"}")
+                .statusCode(409)
+                .contentType("application/problem+json")
+                // "SYNC TOKEN" derives to syncTOKEN — colliding case-insensitively.
+                .body("detail", containsString("syncTOKEN"));
+        postDeclaration(specId, "Product", "BROWSE", "query-parameters",
+                "{\"name\":\"page\",\"coreType\":\"WHOLE_NUMBER\"}")
+                .statusCode(409)
+                .body("detail", containsString("paging"));
+        assertEquals(before, readRawBody(specId), "nothing may be persisted (AC6)");
+
+        // One capability and one location are the collision scope — a request header may
+        // share the spelling, and the derived Accept line reserves nothing for filters.
+        postDeclaration(specId, "Product", "BROWSE", "request-headers",
+                "{\"name\":\"Sync token\",\"coreType\":\"TEXT\"}")
+                .statusCode(201);
+    }
+
+    // AC7: a broken "one of" value set is 400 keyed to its field; so is an ambiguous kind
+    // encoding (both a core type and values).
+    @Test
+    @AsAda
+    void declarationsRejectInvalidKinds() {
+        UUID specId = productApi();
+        String before = readRawBody(specId);
+
+        postDeclaration(specId, "Product", "BROWSE", "query-parameters",
+                "{\"name\":\"Status\",\"oneOfValues\":[\"a\",\"a\"]}")
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("violations[0].field", equalTo("oneOfValues"));
+        postDeclaration(specId, "Product", "BROWSE", "query-parameters",
+                "{\"name\":\"Status\",\"oneOfValues\":[]}")
+                .statusCode(400);
+        postDeclaration(specId, "Product", "BROWSE", "query-parameters",
+                "{\"name\":\"Status\",\"coreType\":\"TEXT\",\"oneOfValues\":[\"a\"]}")
+                .statusCode(400)
+                .body("violations[0].field", equalTo("coreType"));
+        postDeclaration(specId, "Product", "BROWSE", "query-parameters",
+                "{\"name\":\"Status\"}")
+                .statusCode(400);
+
+        assertEquals(before, readRawBody(specId), "nothing may be persisted (AC7)");
+    }
+
+    // Unknown targets behave like every capability endpoint: the 404 problem contract, the
+    // addressed declaration included.
+    @Test
+    @AsAda
+    void declarationEndpointsReturn404ForUnknownTargets() {
+        UUID specId = productApi();
+
+        patchDeclaration(specId, "Product", "BROWSE", "query-parameters", "nope",
+                "{\"name\":\"Renamed\",\"coreType\":\"TEXT\"}")
+                .statusCode(404)
+                .contentType("application/problem+json")
+                .body("detail", containsString("nope"));
+        deleteDeclaration(specId, "Product", "LOOK_UP", "response-headers", "Nope")
+                .statusCode(404);
+        postDeclaration(specId, "Gadget", "BROWSE", "query-parameters",
+                "{\"name\":\"Price max\",\"coreType\":\"TEXT\"}")
+                .statusCode(404);
+    }
+
+    private io.restassured.response.ValidatableResponse postDeclaration(UUID specId,
+            String schemaName, String capability, String collection, String json) {
+        return given().contentType("application/json").body(json)
+                .when().post("/api/v1/specs/" + specId + "/resources/" + schemaName
+                        + "/capabilities/" + capability + "/" + collection)
+                .then();
+    }
+
+    private io.restassured.response.ValidatableResponse patchDeclaration(UUID specId,
+            String schemaName, String capability, String collection, String name, String json) {
+        return given().contentType("application/json").body(json)
+                .when().patch("/api/v1/specs/" + specId + "/resources/" + schemaName
+                        + "/capabilities/" + capability + "/" + collection + "/" + name)
+                .then();
+    }
+
+    private io.restassured.response.ValidatableResponse deleteDeclaration(UUID specId,
+            String schemaName, String capability, String collection, String name) {
+        return given()
+                .when().delete("/api/v1/specs/" + specId + "/resources/" + schemaName
+                        + "/capabilities/" + capability + "/" + collection + "/" + name)
+                .then();
     }
 
     private io.restassured.response.ValidatableResponse enablePaging(UUID specId,

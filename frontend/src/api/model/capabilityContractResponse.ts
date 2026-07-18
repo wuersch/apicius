@@ -6,7 +6,8 @@
  */
 import type { AnswersFacetResponse } from './answersFacetResponse';
 import type { CapabilityResponse } from './capabilityResponse';
-import type { HeaderLineResponse } from './headerLineResponse';
+import type { DeclarationResponse } from './declarationResponse';
+import type { HeadersFacetResponse } from './headersFacetResponse';
 import type { PagingFacetResponse } from './pagingFacetResponse';
 import type { RequestFacetResponse } from './requestFacetResponse';
 
@@ -15,7 +16,8 @@ export interface CapabilityContractResponse {
   description?: string;
   singularNoun?: string;
   request?: RequestFacetResponse;
+  queryParameters?: DeclarationResponse[];
   paging?: PagingFacetResponse;
-  headers?: HeaderLineResponse[];
+  headers?: HeadersFacetResponse;
   answers?: AnswersFacetResponse;
 }

@@ -1,12 +1,17 @@
 import type { CapabilityContractResponse } from '@/api/model'
 import { AnswersFacet } from '@/components/capability/AnswersFacet'
+import { ErrorsFacet } from '@/components/capability/ErrorsFacet'
+import { FiltersFacet } from '@/components/capability/FiltersFacet'
+import { HeadersFacet } from '@/components/capability/HeadersFacet'
 import { PagingFacet } from '@/components/capability/PagingFacet'
 import { FieldRow } from '@/components/editor/FieldRow'
 
 // FEAT-009 AC1: the contract in the stable facet order — identity, description, Request,
-// Paging (FEAT-010), Headers, Answers — plain language primary, serialized detail secondary
-// (PRIN-002). A facet that doesn't apply is absent, never shown empty (AC2). Everything
-// rendered is the backend's projection of the document.
+// Filters (query parameters, FEAT-011), Paging (FEAT-010), Headers, Answers, Errors —
+// plain language primary, serialized detail secondary (PRIN-002). A facet that doesn't
+// apply is absent, never shown empty (AC2); Filters and Headers apply everywhere, so their
+// cards stand (empty ones recede). Everything rendered is the backend's projection of the
+// document.
 export function CapabilityContract({
   specId,
   schemaName,
@@ -17,6 +22,7 @@ export function CapabilityContract({
   contract: CapabilityContractResponse
 }) {
   const identity = contract.capability
+  const capability = identity?.capability ?? 'BROWSE'
   const noun = contract.singularNoun ?? ''
   // The plural, read from the derived collection path ("/order-items" → "order items") —
   // projected, not re-pluralized client-side.
@@ -66,49 +72,51 @@ export function CapabilityContract({
         </section>
       )}
 
+      <FiltersFacet
+        specId={specId}
+        schemaName={schemaName}
+        capability={capability}
+        queryParameters={contract.queryParameters ?? []}
+        pagingOn={contract.paging?.on ?? false}
+      />
+
       {contract.paging && (
         <PagingFacet
           specId={specId}
           schemaName={schemaName}
-          capability={contract.capability?.capability ?? 'BROWSE'}
+          capability={capability}
           pluralNoun={pluralNoun}
           paging={contract.paging}
         />
       )}
 
-      <section aria-label="Headers" className="rounded-[10px] bg-card px-5 py-[17px] shadow-sm">
-        <h2 className="text-[11px] font-semibold tracking-[.1em] text-text-tertiary uppercase">
-          Headers
-        </h2>
-        {/* FEAT-009 ships the request group only; FEAT-011 adds the authored columns. */}
-        <div className="mt-3 text-[12px] font-semibold text-mono-derived">
-          Read from the request
-        </div>
-        <ul className="mt-2 flex flex-col gap-[7px]">
-          {contract.headers?.map((header) => (
-            <li key={header.name} className="flex items-center gap-2">
-              <span className="font-mono text-[12.5px]">{header.name}</span>
-              <span className="text-[11px] text-mono-derived">{header.value}</span>
-              {header.derived && (
-                // AC3: the content-negotiation line is supplied, read-only — nothing in the
-                // document carries it. The olive chip is the mockup's built-in marker.
-                <span className="rounded-[4px] bg-olive-chip px-[7px] py-px text-[10px] font-bold text-olive-chip-foreground">
-                  derived
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {contract.answers && (
-        <AnswersFacet
+      {contract.headers && (
+        <HeadersFacet
           specId={specId}
           schemaName={schemaName}
-          capability={contract.capability?.capability ?? 'BROWSE'}
-          singularNoun={noun}
-          answers={contract.answers}
+          capability={capability}
+          headers={contract.headers}
         />
+      )}
+
+      {contract.answers && (
+        <>
+          <AnswersFacet
+            specId={specId}
+            schemaName={schemaName}
+            capability={capability}
+            answers={contract.answers}
+          />
+          {(contract.answers.failures ?? []).length > 0 && (
+            <ErrorsFacet
+              specId={specId}
+              schemaName={schemaName}
+              capability={capability}
+              singularNoun={noun}
+              answers={contract.answers}
+            />
+          )}
+        </>
       )}
     </div>
   )

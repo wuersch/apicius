@@ -4,10 +4,12 @@
  * Apicius API
  * OpenAPI spec version: 1.0.0
  */
+import type { DeclarationResponse } from './declarationResponse';
 import type { FailureAnswerResponse } from './failureAnswerResponse';
 
 export interface AnswersFacetResponse {
   successStatus?: string;
   successDescription?: string;
+  successHeaders?: DeclarationResponse[];
   failures?: FailureAnswerResponse[];
 }

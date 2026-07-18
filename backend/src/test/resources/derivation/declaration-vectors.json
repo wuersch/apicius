@@ -1,0 +1,51 @@
+{
+  "_comment": "Shared FEAT-011 declaration vectors — asserted by BOTH suites so the backend (HeaderNameDerivation/Declarations/ParameterKind, DeclarationVectorsTest) and the frontend presentation mirror (frontend/src/lib/headerDerivation.ts, headerDerivation.test.ts) can never drift. Header rule: split on spaces, hyphens, and underscores; strip everything but ASCII letters/digits per segment; drop empty segments; uppercase each segment's first character, keep the rest as typed; join with '-'.",
+  "headerNames": {
+    "valid": [
+      { "name": "request id", "headerName": "Request-Id" },
+      { "name": "Request id", "headerName": "Request-Id" },
+      { "name": "API version", "headerName": "API-Version" },
+      { "name": "X-Request-ID", "headerName": "X-Request-ID" },
+      { "name": "x-request-id", "headerName": "X-Request-Id" },
+      { "name": "request_id", "headerName": "Request-Id" },
+      { "name": "X_Request_ID", "headerName": "X-Request-ID" },
+      { "name": "correlation ID", "headerName": "Correlation-ID" },
+      { "name": "trace", "headerName": "Trace" },
+      { "name": "If none match", "headerName": "If-None-Match" },
+      { "name": "RateLimit remaining", "headerName": "RateLimit-Remaining" },
+      { "name": "e-mail address", "headerName": "E-Mail-Address" },
+      { "name": "  padded  name ", "headerName": "Padded-Name" },
+      { "name": "address line 2", "headerName": "Address-Line-2" },
+      { "name": "2fa token", "headerName": "2fa-Token" },
+      { "name": "x--request", "headerName": "X-Request" },
+      { "name": "request id!!!", "headerName": "Request-Id" },
+      { "name": "café id", "headerName": "Caf-Id" }
+    ],
+    "deriveToEmpty": ["", "   ", "!!!", "---", "___", "-_-", "()", "é"]
+  },
+  "reservedHeaderNames": {
+    "_comment": "Case-insensitive, both header locations — Accept/Content-Type owned by content negotiation, Authorization by the future security feature.",
+    "reserved": ["Accept", "accept", "ACCEPT", "Content-Type", "content-type", "Authorization", "authorization"],
+    "free": ["Request-Id", "X-Accept", "Accept-Language", "Content-Length"]
+  },
+  "oneOf": {
+    "_comment": "Values are trimmed, then: at least one, non-blank, distinct (case-sensitively — values are payload, not names). 'enum' is the canonical value list after normalization.",
+    "serialization": [
+      {
+        "values": ["available", "pending", "sold"],
+        "schema": { "type": "string", "enum": ["available", "pending", "sold"] }
+      },
+      {
+        "values": [" EUR ", "usd"],
+        "schema": { "type": "string", "enum": ["EUR", "usd"] }
+      }
+    ],
+    "invalid": [
+      { "values": [], "why": "at least one value" },
+      { "values": [""], "why": "values must be non-blank" },
+      { "values": ["a", "  "], "why": "values must be non-blank" },
+      { "values": ["a", "a"], "why": "values must be distinct" },
+      { "values": ["a", " a "], "why": "values must be distinct after trimming" }
+    ]
+  }
+}

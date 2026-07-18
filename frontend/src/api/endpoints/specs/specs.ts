@@ -28,6 +28,8 @@ import type {
   Capability,
   CapabilityContractResponse,
   CreateSpecRequest,
+  DeclarationRequest,
+  DeclarationResponse,
   ExportSpecDocumentParams,
   FieldRequest,
   FieldResponse,
@@ -1476,6 +1478,1011 @@ export const useDisablePaging = <TError = ProblemDetail | void,
         TContext
       > => {
       return useMutation(getDisablePagingMutationOptions(options), queryClient);
+    }
+    export type addQueryParameterResponse201 = {
+  data: DeclarationResponse
+  status: 201
+}
+
+export type addQueryParameterResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type addQueryParameterResponse401 = {
+  data: void
+  status: 401
+}
+
+export type addQueryParameterResponse403 = {
+  data: void
+  status: 403
+}
+
+export type addQueryParameterResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type addQueryParameterResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type addQueryParameterResponseSuccess = (addQueryParameterResponse201) & {
+  headers: Headers;
+};
+export type addQueryParameterResponseError = (addQueryParameterResponse400 | addQueryParameterResponse401 | addQueryParameterResponse403 | addQueryParameterResponse404 | addQueryParameterResponse409) & {
+  headers: Headers;
+};
+
+export type addQueryParameterResponse = (addQueryParameterResponseSuccess | addQueryParameterResponseError)
+
+export const getAddQueryParameterUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/query-parameters`
+}
+
+/**
+ * @summary Declare a query parameter on this capability; the name and constructs derive from plain language (FEAT-011 UC1)
+ */
+export const addQueryParameter = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    declarationRequest: DeclarationRequest, options?: RequestInit): Promise<addQueryParameterResponse> => {
+
+  return customFetch<addQueryParameterResponse>(getAddQueryParameterUrl(specId,schemaName,capability),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(declarationRequest)
+  }
+);}
+
+
+
+
+
+export const getAddQueryParameterMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addQueryParameter>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addQueryParameter>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext> => {
+
+const mutationKey = ['addQueryParameter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addQueryParameter>>, {specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}> = (props) => {
+          const {specId,schemaName,capability,data} = props ?? {};
+
+          return  addQueryParameter(specId,schemaName,capability,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddQueryParameterMutationResult = NonNullable<Awaited<ReturnType<typeof addQueryParameter>>>
+    export type AddQueryParameterMutationBody = DeclarationRequest
+    export type AddQueryParameterMutationError = ProblemDetail | void
+
+    /**
+ * @summary Declare a query parameter on this capability; the name and constructs derive from plain language (FEAT-011 UC1)
+ */
+export const useAddQueryParameter = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addQueryParameter>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addQueryParameter>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest},
+        TContext
+      > => {
+      return useMutation(getAddQueryParameterMutationOptions(options), queryClient);
+    }
+    export type updateQueryParameterResponse200 = {
+  data: DeclarationResponse
+  status: 200
+}
+
+export type updateQueryParameterResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type updateQueryParameterResponse401 = {
+  data: void
+  status: 401
+}
+
+export type updateQueryParameterResponse403 = {
+  data: void
+  status: 403
+}
+
+export type updateQueryParameterResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type updateQueryParameterResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type updateQueryParameterResponseSuccess = (updateQueryParameterResponse200) & {
+  headers: Headers;
+};
+export type updateQueryParameterResponseError = (updateQueryParameterResponse400 | updateQueryParameterResponse401 | updateQueryParameterResponse403 | updateQueryParameterResponse404 | updateQueryParameterResponse409) & {
+  headers: Headers;
+};
+
+export type updateQueryParameterResponse = (updateQueryParameterResponseSuccess | updateQueryParameterResponseError)
+
+export const getUpdateQueryParameterUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/query-parameters/${name}`
+}
+
+/**
+ * @summary Rewrite a query parameter in place — rename, kind, optionality, description as one atomic save (FEAT-011 UC4). A rename changes the declaration's identity: it is addressed by the new name afterwards.
+ */
+export const updateQueryParameter = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string,
+    declarationRequest: DeclarationRequest, options?: RequestInit): Promise<updateQueryParameterResponse> => {
+
+  return customFetch<updateQueryParameterResponse>(getUpdateQueryParameterUrl(specId,schemaName,capability,name),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(declarationRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateQueryParameterMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQueryParameter>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateQueryParameter>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext> => {
+
+const mutationKey = ['updateQueryParameter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateQueryParameter>>, {specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}> = (props) => {
+          const {specId,schemaName,capability,name,data} = props ?? {};
+
+          return  updateQueryParameter(specId,schemaName,capability,name,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateQueryParameterMutationResult = NonNullable<Awaited<ReturnType<typeof updateQueryParameter>>>
+    export type UpdateQueryParameterMutationBody = DeclarationRequest
+    export type UpdateQueryParameterMutationError = ProblemDetail | void
+
+    /**
+ * @summary Rewrite a query parameter in place — rename, kind, optionality, description as one atomic save (FEAT-011 UC4). A rename changes the declaration's identity: it is addressed by the new name afterwards.
+ */
+export const useUpdateQueryParameter = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQueryParameter>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateQueryParameter>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateQueryParameterMutationOptions(options), queryClient);
+    }
+    export type removeQueryParameterResponse204 = {
+  data: void
+  status: 204
+}
+
+export type removeQueryParameterResponse401 = {
+  data: void
+  status: 401
+}
+
+export type removeQueryParameterResponse403 = {
+  data: void
+  status: 403
+}
+
+export type removeQueryParameterResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type removeQueryParameterResponseSuccess = (removeQueryParameterResponse204) & {
+  headers: Headers;
+};
+export type removeQueryParameterResponseError = (removeQueryParameterResponse401 | removeQueryParameterResponse403 | removeQueryParameterResponse404) & {
+  headers: Headers;
+};
+
+export type removeQueryParameterResponse = (removeQueryParameterResponseSuccess | removeQueryParameterResponseError)
+
+export const getRemoveQueryParameterUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/query-parameters/${name}`
+}
+
+/**
+ * @summary Remove a query parameter — its constructs, nothing else (FEAT-011 UC4)
+ */
+export const removeQueryParameter = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string, options?: RequestInit): Promise<removeQueryParameterResponse> => {
+
+  return customFetch<removeQueryParameterResponse>(getRemoveQueryParameterUrl(specId,schemaName,capability,name),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveQueryParameterMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeQueryParameter>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeQueryParameter>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string}, TContext> => {
+
+const mutationKey = ['removeQueryParameter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeQueryParameter>>, {specId: Uuid;schemaName: string;capability: Capability;name: string}> = (props) => {
+          const {specId,schemaName,capability,name} = props ?? {};
+
+          return  removeQueryParameter(specId,schemaName,capability,name,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveQueryParameterMutationResult = NonNullable<Awaited<ReturnType<typeof removeQueryParameter>>>
+
+    export type RemoveQueryParameterMutationError = void | ProblemDetail
+
+    /**
+ * @summary Remove a query parameter — its constructs, nothing else (FEAT-011 UC4)
+ */
+export const useRemoveQueryParameter = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeQueryParameter>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeQueryParameter>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;name: string},
+        TContext
+      > => {
+      return useMutation(getRemoveQueryParameterMutationOptions(options), queryClient);
+    }
+    export type addRequestHeaderResponse201 = {
+  data: DeclarationResponse
+  status: 201
+}
+
+export type addRequestHeaderResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type addRequestHeaderResponse401 = {
+  data: void
+  status: 401
+}
+
+export type addRequestHeaderResponse403 = {
+  data: void
+  status: 403
+}
+
+export type addRequestHeaderResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type addRequestHeaderResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type addRequestHeaderResponseSuccess = (addRequestHeaderResponse201) & {
+  headers: Headers;
+};
+export type addRequestHeaderResponseError = (addRequestHeaderResponse400 | addRequestHeaderResponse401 | addRequestHeaderResponse403 | addRequestHeaderResponse404 | addRequestHeaderResponse409) & {
+  headers: Headers;
+};
+
+export type addRequestHeaderResponse = (addRequestHeaderResponseSuccess | addRequestHeaderResponseError)
+
+export const getAddRequestHeaderUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/request-headers`
+}
+
+/**
+ * @summary Declare a request header on this capability; the name derives Hyphenated-Capitalized (FEAT-011 UC2)
+ */
+export const addRequestHeader = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    declarationRequest: DeclarationRequest, options?: RequestInit): Promise<addRequestHeaderResponse> => {
+
+  return customFetch<addRequestHeaderResponse>(getAddRequestHeaderUrl(specId,schemaName,capability),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(declarationRequest)
+  }
+);}
+
+
+
+
+
+export const getAddRequestHeaderMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addRequestHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addRequestHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext> => {
+
+const mutationKey = ['addRequestHeader'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addRequestHeader>>, {specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}> = (props) => {
+          const {specId,schemaName,capability,data} = props ?? {};
+
+          return  addRequestHeader(specId,schemaName,capability,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddRequestHeaderMutationResult = NonNullable<Awaited<ReturnType<typeof addRequestHeader>>>
+    export type AddRequestHeaderMutationBody = DeclarationRequest
+    export type AddRequestHeaderMutationError = ProblemDetail | void
+
+    /**
+ * @summary Declare a request header on this capability; the name derives Hyphenated-Capitalized (FEAT-011 UC2)
+ */
+export const useAddRequestHeader = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addRequestHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addRequestHeader>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest},
+        TContext
+      > => {
+      return useMutation(getAddRequestHeaderMutationOptions(options), queryClient);
+    }
+    export type updateRequestHeaderResponse200 = {
+  data: DeclarationResponse
+  status: 200
+}
+
+export type updateRequestHeaderResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type updateRequestHeaderResponse401 = {
+  data: void
+  status: 401
+}
+
+export type updateRequestHeaderResponse403 = {
+  data: void
+  status: 403
+}
+
+export type updateRequestHeaderResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type updateRequestHeaderResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type updateRequestHeaderResponseSuccess = (updateRequestHeaderResponse200) & {
+  headers: Headers;
+};
+export type updateRequestHeaderResponseError = (updateRequestHeaderResponse400 | updateRequestHeaderResponse401 | updateRequestHeaderResponse403 | updateRequestHeaderResponse404 | updateRequestHeaderResponse409) & {
+  headers: Headers;
+};
+
+export type updateRequestHeaderResponse = (updateRequestHeaderResponseSuccess | updateRequestHeaderResponseError)
+
+export const getUpdateRequestHeaderUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/request-headers/${name}`
+}
+
+/**
+ * @summary Rewrite a request header in place — one atomic save; a rename changes the declaration's identity (FEAT-011 UC4)
+ */
+export const updateRequestHeader = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string,
+    declarationRequest: DeclarationRequest, options?: RequestInit): Promise<updateRequestHeaderResponse> => {
+
+  return customFetch<updateRequestHeaderResponse>(getUpdateRequestHeaderUrl(specId,schemaName,capability,name),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(declarationRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateRequestHeaderMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRequestHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRequestHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext> => {
+
+const mutationKey = ['updateRequestHeader'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRequestHeader>>, {specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}> = (props) => {
+          const {specId,schemaName,capability,name,data} = props ?? {};
+
+          return  updateRequestHeader(specId,schemaName,capability,name,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRequestHeaderMutationResult = NonNullable<Awaited<ReturnType<typeof updateRequestHeader>>>
+    export type UpdateRequestHeaderMutationBody = DeclarationRequest
+    export type UpdateRequestHeaderMutationError = ProblemDetail | void
+
+    /**
+ * @summary Rewrite a request header in place — one atomic save; a rename changes the declaration's identity (FEAT-011 UC4)
+ */
+export const useUpdateRequestHeader = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRequestHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateRequestHeader>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateRequestHeaderMutationOptions(options), queryClient);
+    }
+    export type removeRequestHeaderResponse204 = {
+  data: void
+  status: 204
+}
+
+export type removeRequestHeaderResponse401 = {
+  data: void
+  status: 401
+}
+
+export type removeRequestHeaderResponse403 = {
+  data: void
+  status: 403
+}
+
+export type removeRequestHeaderResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type removeRequestHeaderResponseSuccess = (removeRequestHeaderResponse204) & {
+  headers: Headers;
+};
+export type removeRequestHeaderResponseError = (removeRequestHeaderResponse401 | removeRequestHeaderResponse403 | removeRequestHeaderResponse404) & {
+  headers: Headers;
+};
+
+export type removeRequestHeaderResponse = (removeRequestHeaderResponseSuccess | removeRequestHeaderResponseError)
+
+export const getRemoveRequestHeaderUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/request-headers/${name}`
+}
+
+/**
+ * @summary Remove a request header — its constructs, nothing else (FEAT-011 UC4)
+ */
+export const removeRequestHeader = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string, options?: RequestInit): Promise<removeRequestHeaderResponse> => {
+
+  return customFetch<removeRequestHeaderResponse>(getRemoveRequestHeaderUrl(specId,schemaName,capability,name),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveRequestHeaderMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeRequestHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeRequestHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string}, TContext> => {
+
+const mutationKey = ['removeRequestHeader'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeRequestHeader>>, {specId: Uuid;schemaName: string;capability: Capability;name: string}> = (props) => {
+          const {specId,schemaName,capability,name} = props ?? {};
+
+          return  removeRequestHeader(specId,schemaName,capability,name,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveRequestHeaderMutationResult = NonNullable<Awaited<ReturnType<typeof removeRequestHeader>>>
+
+    export type RemoveRequestHeaderMutationError = void | ProblemDetail
+
+    /**
+ * @summary Remove a request header — its constructs, nothing else (FEAT-011 UC4)
+ */
+export const useRemoveRequestHeader = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeRequestHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeRequestHeader>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;name: string},
+        TContext
+      > => {
+      return useMutation(getRemoveRequestHeaderMutationOptions(options), queryClient);
+    }
+    export type addResponseHeaderResponse201 = {
+  data: DeclarationResponse
+  status: 201
+}
+
+export type addResponseHeaderResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type addResponseHeaderResponse401 = {
+  data: void
+  status: 401
+}
+
+export type addResponseHeaderResponse403 = {
+  data: void
+  status: 403
+}
+
+export type addResponseHeaderResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type addResponseHeaderResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type addResponseHeaderResponseSuccess = (addResponseHeaderResponse201) & {
+  headers: Headers;
+};
+export type addResponseHeaderResponseError = (addResponseHeaderResponse400 | addResponseHeaderResponse401 | addResponseHeaderResponse403 | addResponseHeaderResponse404 | addResponseHeaderResponse409) & {
+  headers: Headers;
+};
+
+export type addResponseHeaderResponse = (addResponseHeaderResponseSuccess | addResponseHeaderResponseError)
+
+export const getAddResponseHeaderUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/response-headers`
+}
+
+/**
+ * @summary Declare a header the capability sends back — on its success answer(s); the shared failure answers are never touched (FEAT-011 UC3/AC3)
+ */
+export const addResponseHeader = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    declarationRequest: DeclarationRequest, options?: RequestInit): Promise<addResponseHeaderResponse> => {
+
+  return customFetch<addResponseHeaderResponse>(getAddResponseHeaderUrl(specId,schemaName,capability),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(declarationRequest)
+  }
+);}
+
+
+
+
+
+export const getAddResponseHeaderMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext> => {
+
+const mutationKey = ['addResponseHeader'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addResponseHeader>>, {specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}> = (props) => {
+          const {specId,schemaName,capability,data} = props ?? {};
+
+          return  addResponseHeader(specId,schemaName,capability,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddResponseHeaderMutationResult = NonNullable<Awaited<ReturnType<typeof addResponseHeader>>>
+    export type AddResponseHeaderMutationBody = DeclarationRequest
+    export type AddResponseHeaderMutationError = ProblemDetail | void
+
+    /**
+ * @summary Declare a header the capability sends back — on its success answer(s); the shared failure answers are never touched (FEAT-011 UC3/AC3)
+ */
+export const useAddResponseHeader = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addResponseHeader>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest},
+        TContext
+      > => {
+      return useMutation(getAddResponseHeaderMutationOptions(options), queryClient);
+    }
+    export type updateResponseHeaderResponse200 = {
+  data: DeclarationResponse
+  status: 200
+}
+
+export type updateResponseHeaderResponse400 = {
+  data: ProblemDetail
+  status: 400
+}
+
+export type updateResponseHeaderResponse401 = {
+  data: void
+  status: 401
+}
+
+export type updateResponseHeaderResponse403 = {
+  data: void
+  status: 403
+}
+
+export type updateResponseHeaderResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type updateResponseHeaderResponse409 = {
+  data: ProblemDetail
+  status: 409
+}
+
+export type updateResponseHeaderResponseSuccess = (updateResponseHeaderResponse200) & {
+  headers: Headers;
+};
+export type updateResponseHeaderResponseError = (updateResponseHeaderResponse400 | updateResponseHeaderResponse401 | updateResponseHeaderResponse403 | updateResponseHeaderResponse404 | updateResponseHeaderResponse409) & {
+  headers: Headers;
+};
+
+export type updateResponseHeaderResponse = (updateResponseHeaderResponseSuccess | updateResponseHeaderResponseError)
+
+export const getUpdateResponseHeaderUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/response-headers/${name}`
+}
+
+/**
+ * @summary Rewrite a response header in place — one atomic save; a rename changes the declaration's identity (FEAT-011 UC4)
+ */
+export const updateResponseHeader = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string,
+    declarationRequest: DeclarationRequest, options?: RequestInit): Promise<updateResponseHeaderResponse> => {
+
+  return customFetch<updateResponseHeaderResponse>(getUpdateResponseHeaderUrl(specId,schemaName,capability,name),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(declarationRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateResponseHeaderMutationOptions = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext> => {
+
+const mutationKey = ['updateResponseHeader'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateResponseHeader>>, {specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}> = (props) => {
+          const {specId,schemaName,capability,name,data} = props ?? {};
+
+          return  updateResponseHeader(specId,schemaName,capability,name,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateResponseHeaderMutationResult = NonNullable<Awaited<ReturnType<typeof updateResponseHeader>>>
+    export type UpdateResponseHeaderMutationBody = DeclarationRequest
+    export type UpdateResponseHeaderMutationError = ProblemDetail | void
+
+    /**
+ * @summary Rewrite a response header in place — one atomic save; a rename changes the declaration's identity (FEAT-011 UC4)
+ */
+export const useUpdateResponseHeader = <TError = ProblemDetail | void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateResponseHeader>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateResponseHeaderMutationOptions(options), queryClient);
+    }
+    export type removeResponseHeaderResponse204 = {
+  data: void
+  status: 204
+}
+
+export type removeResponseHeaderResponse401 = {
+  data: void
+  status: 401
+}
+
+export type removeResponseHeaderResponse403 = {
+  data: void
+  status: 403
+}
+
+export type removeResponseHeaderResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type removeResponseHeaderResponseSuccess = (removeResponseHeaderResponse204) & {
+  headers: Headers;
+};
+export type removeResponseHeaderResponseError = (removeResponseHeaderResponse401 | removeResponseHeaderResponse403 | removeResponseHeaderResponse404) & {
+  headers: Headers;
+};
+
+export type removeResponseHeaderResponse = (removeResponseHeaderResponseSuccess | removeResponseHeaderResponseError)
+
+export const getRemoveResponseHeaderUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/response-headers/${name}`
+}
+
+/**
+ * @summary Remove a response header — its constructs, nothing else (FEAT-011 UC4)
+ */
+export const removeResponseHeader = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    name: string, options?: RequestInit): Promise<removeResponseHeaderResponse> => {
+
+  return customFetch<removeResponseHeaderResponse>(getRemoveResponseHeaderUrl(specId,schemaName,capability,name),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveResponseHeaderMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string}, TContext> => {
+
+const mutationKey = ['removeResponseHeader'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeResponseHeader>>, {specId: Uuid;schemaName: string;capability: Capability;name: string}> = (props) => {
+          const {specId,schemaName,capability,name} = props ?? {};
+
+          return  removeResponseHeader(specId,schemaName,capability,name,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveResponseHeaderMutationResult = NonNullable<Awaited<ReturnType<typeof removeResponseHeader>>>
+
+    export type RemoveResponseHeaderMutationError = void | ProblemDetail
+
+    /**
+ * @summary Remove a response header — its constructs, nothing else (FEAT-011 UC4)
+ */
+export const useRemoveResponseHeader = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeResponseHeader>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;name: string},
+        TContext
+      > => {
+      return useMutation(getRemoveResponseHeaderMutationOptions(options), queryClient);
     }
     export type removeStandardErrorsResponse204 = {
   data: void

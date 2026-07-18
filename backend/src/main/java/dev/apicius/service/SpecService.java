@@ -2,6 +2,7 @@ package dev.apicius.service;
 
 import dev.apicius.document.CapabilityContractView;
 import dev.apicius.document.CapabilityView;
+import dev.apicius.document.DeclarationView;
 import dev.apicius.document.DocumentEngine;
 import dev.apicius.document.DocumentProjection;
 import dev.apicius.document.DocumentTranscoder;
@@ -12,11 +13,15 @@ import dev.apicius.document.SpecVersion;
 import dev.apicius.document.derivation.CanonicalDerivation;
 import dev.apicius.document.derivation.Capability;
 import dev.apicius.document.derivation.CoreType;
+import dev.apicius.document.derivation.DeclarationEdit;
+import dev.apicius.document.derivation.DeclarationLocation;
+import dev.apicius.document.derivation.Declarations;
 import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.FieldKind;
 import dev.apicius.document.derivation.FieldNameDerivation;
 import dev.apicius.document.derivation.FieldVisibility;
 import dev.apicius.document.derivation.Paging;
+import dev.apicius.document.derivation.ParameterKind;
 import dev.apicius.document.derivation.ResourceDerivation;
 import dev.apicius.document.derivation.StandardErrors;
 import dev.apicius.domain.AppUser;
@@ -358,6 +363,173 @@ public class SpecService {
 
         spec.body = documentEngine.disablePaging(spec.body, schemaName, capability);
         lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+    }
+
+    /**
+     * FEAT-011 UC1–UC3: adds one declaration — a query parameter, request header, or response
+     * header — as one atomic document mutation through the engine seam (AC4). All rules
+     * resolve here before any document is touched: derivation (AC6), the kind encoding and
+     * "one of" values (AC7), reservations and case-insensitive per-location uniqueness (UC5).
+     * The ADR-0008 counts are untouched; the jump-back-in pointer moves to this API and
+     * capability in the same transaction.
+     */
+    @Transactional
+    public DeclarationView addDeclaration(AppUser editor, UUID specId, String schemaName,
+            Capability capability, DeclarationLocation location, DeclarationDraft draft) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+        CapabilityContractView contract =
+                documentEngine.capabilityContract(spec.body, schemaName, capability);
+        DeclarationEdit edit = derivedDeclaration(location, draft);
+        rejectReservedDeclarationNames(location, contract, edit.name(), draft.name());
+        rejectDeclarationConflicts(declarationsAt(contract, location), null, edit.name(),
+                draft.name());
+
+        spec.body = documentEngine.addDeclaration(spec.body, schemaName, capability, location,
+                edit);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+        return declarationView(edit);
+    }
+
+    /**
+     * FEAT-011 UC4: rewrites a declaration in place — rename, kind, optionality, description
+     * as one atomic save (AC5); a rename changes the identity, so the declaration is
+     * addressed by the new derived name afterwards. Same rule set as add, the declaration
+     * itself exempt from the collision check (a case-only rename stays legal).
+     */
+    @Transactional
+    public DeclarationView updateDeclaration(AppUser editor, UUID specId, String schemaName,
+            Capability capability, DeclarationLocation location, String currentName,
+            DeclarationDraft draft) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+        CapabilityContractView contract =
+                documentEngine.capabilityContract(spec.body, schemaName, capability);
+        rejectUnknownDeclaration(declarationsAt(contract, location), location, currentName);
+        DeclarationEdit edit = derivedDeclaration(location, draft);
+        rejectReservedDeclarationNames(location, contract, edit.name(), draft.name());
+        rejectDeclarationConflicts(declarationsAt(contract, location), currentName, edit.name(),
+                draft.name());
+
+        spec.body = documentEngine.updateDeclaration(spec.body, schemaName, capability, location,
+                currentName, edit);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+        return declarationView(edit);
+    }
+
+    /** FEAT-011 UC4: removes a declaration — its constructs gone without other trace (AC5). */
+    @Transactional
+    public void removeDeclaration(AppUser editor, UUID specId, String schemaName,
+            Capability capability, DeclarationLocation location, String name) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+        CapabilityContractView contract =
+                documentEngine.capabilityContract(spec.body, schemaName, capability);
+        rejectUnknownDeclaration(declarationsAt(contract, location), location, name);
+
+        spec.body = documentEngine.removeDeclaration(spec.body, schemaName, capability, location,
+                name);
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+    }
+
+    /**
+     * The pre-derived, pre-validated edit the engine trusts: the kind encoding, the "one of"
+     * rules (AC7), and the AC6 empty-derivation rule all resolve here, before any document is
+     * touched — {@link #derivedEdit}'s counterpart for declarations.
+     */
+    private static DeclarationEdit derivedDeclaration(DeclarationLocation location,
+            DeclarationDraft draft) {
+        ParameterKind kind = declarationKind(draft);
+        String name = location.deriveName(draft.name());
+        if (name.isEmpty()) {
+            throw new UnderivableNameException("'" + draft.name() + "' derives to an empty name"
+                    + (location == DeclarationLocation.QUERY_PARAMETER
+                            ? " — use letters or digits."
+                            : " — header names use ASCII letters or digits."));
+        }
+        return new DeclarationEdit(name, kind, draft.required(), normalize(draft.description()));
+    }
+
+    private static ParameterKind declarationKind(DeclarationDraft draft) {
+        if (draft.oneOfValues() != null) {
+            if (draft.coreType() != null || draft.refinement() != null) {
+                throw new InvalidDeclarationKindException(
+                        "A kind is a core type or \"one of\" values — not both.");
+            }
+            try {
+                return new ParameterKind.OneOf(draft.oneOfValues());
+            } catch (IllegalArgumentException invalid) {
+                throw new InvalidOneOfValuesException(invalid.getMessage() + ".");
+            }
+        }
+        if (draft.coreType() == null) {
+            throw new InvalidDeclarationKindException(
+                    "A kind is required — a core type or \"one of\" values.");
+        }
+        if (draft.refinement() != null && draft.refinement().core() != draft.coreType()) {
+            throw new InvalidFieldKindException(draft.coreType(), draft.refinement());
+        }
+        return new ParameterKind.Scalar(new FieldKind(draft.coreType(), draft.refinement(), false));
+    }
+
+    /**
+     * The reservations (UC5): {@code Accept}/{@code Content-Type}/{@code Authorization} in
+     * both header locations, state-independent (400); {@code page}/{@code limit} as query
+     * parameters only while the capability pages — FEAT-010 owns them there, and under the
+     * row lock the check is race-free (409, the enable-paging conflict's mirror image).
+     */
+    private static void rejectReservedDeclarationNames(DeclarationLocation location,
+            CapabilityContractView contract, String name, String rawName) {
+        if (location == DeclarationLocation.QUERY_PARAMETER) {
+            boolean paged = contract.paging() != null && contract.paging().on();
+            if (paged && (name.equalsIgnoreCase(Paging.PAGE_PARAMETER)
+                    || name.equalsIgnoreCase(Paging.LIMIT_PARAMETER))) {
+                throw new NameConflictException("'" + rawName + "' derives to '" + name
+                        + "', which paging owns on this capability — switch paging off first.");
+            }
+        } else if (Declarations.isReservedHeaderName(name)) {
+            throw new ReservedNameException("'" + rawName + "' derives to '" + name
+                    + "', which Apicius manages — Accept and Content-Type belong to content "
+                    + "negotiation, Authorization to access control.");
+        }
+    }
+
+    /**
+     * AC6 — uniqueness case-insensitively on the derived name, within the same location on
+     * this capability; on an update the declaration itself is exempt.
+     */
+    private static void rejectDeclarationConflicts(List<DeclarationView> existing,
+            String currentName, String name, String rawName) {
+        boolean collides = existing.stream()
+                .map(DeclarationView::name)
+                .filter(declared -> !declared.equals(currentName))
+                .anyMatch(declared -> declared.equalsIgnoreCase(name));
+        if (collides) {
+            throw new NameConflictException("'" + rawName + "' derives to '" + name
+                    + "', which this capability already declares here.");
+        }
+    }
+
+    private static void rejectUnknownDeclaration(List<DeclarationView> existing,
+            DeclarationLocation location, String name) {
+        if (existing.stream().noneMatch(declared -> declared.name().equals(name))) {
+            throw new DeclarationNotFoundException(location, name);
+        }
+    }
+
+    /** One location's projected declarations — the collision set and the 404 check's ground. */
+    private static List<DeclarationView> declarationsAt(CapabilityContractView contract,
+            DeclarationLocation location) {
+        return switch (location) {
+            case QUERY_PARAMETER -> contract.queryParameters();
+            case REQUEST_HEADER -> contract.headers().authored();
+            case RESPONSE_HEADER -> contract.answers().successHeaders();
+        };
+    }
+
+    /** What the client sees is the derivation, same as a re-read would project (AC1). */
+    private static DeclarationView declarationView(DeclarationEdit edit) {
+        return new DeclarationView(edit.name(), edit.kind(), edit.required(), edit.description());
     }
 
     /** Paging is a list-capability concern (FEAT-010) — anything else is a 400, not a 409. */

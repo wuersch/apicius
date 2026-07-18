@@ -5,17 +5,19 @@ import java.util.List;
 
 /**
  * One capability's full contract (FEAT-009 AC1) in the stable facet order: identity,
- * description, Request, Paging (FEAT-010), Headers, Answers. A facet that doesn't apply is
- * {@code null}, never empty (AC2). {@code singularNoun} lets the client phrase copy from the
- * noun (the 404's plain-language name).
+ * description, Request, query parameters (FEAT-011), Paging (FEAT-010), Headers, Answers. A
+ * facet that doesn't apply is {@code null}, never empty (AC2) — query parameters and headers
+ * apply everywhere, so those are lists that may be empty. {@code singularNoun} lets the
+ * client phrase copy from the noun (the 404's plain-language name).
  */
 public record CapabilityContractResponse(
         CapabilityResponse capability,
         String description,
         String singularNoun,
         RequestFacetResponse request,
+        List<DeclarationResponse> queryParameters,
         PagingFacetResponse paging,
-        List<HeaderLineResponse> headers,
+        HeadersFacetResponse headers,
         AnswersFacetResponse answers) {
 
     public static CapabilityContractResponse from(CapabilityContractView view) {
@@ -24,8 +26,9 @@ public record CapabilityContractResponse(
                 view.description(),
                 view.singularNoun(),
                 view.request() == null ? null : RequestFacetResponse.from(view.request()),
+                view.queryParameters().stream().map(DeclarationResponse::from).toList(),
                 view.paging() == null ? null : PagingFacetResponse.from(view.paging()),
-                view.headers().stream().map(HeaderLineResponse::from).toList(),
+                HeadersFacetResponse.from(view.headers()),
                 AnswersFacetResponse.from(view.answers()));
     }
 }

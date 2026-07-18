@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.apicius.document.AnswersFacetView;
 import dev.apicius.document.CapabilityContractView;
 import dev.apicius.document.CapabilityView;
+import dev.apicius.document.DeclarationView;
 import dev.apicius.document.DocumentProjection;
 import dev.apicius.document.FailureAnswerView;
 import dev.apicius.document.FieldView;
@@ -22,10 +23,13 @@ import dev.apicius.document.SpecVersion;
 import dev.apicius.document.derivation.CanonicalDerivation;
 import dev.apicius.document.derivation.Capability;
 import dev.apicius.document.derivation.CoreType;
+import dev.apicius.document.derivation.DeclarationEdit;
+import dev.apicius.document.derivation.DeclarationLocation;
 import dev.apicius.document.derivation.DerivedOperation;
 import dev.apicius.document.derivation.FieldEdit;
 import dev.apicius.document.derivation.FieldKind;
 import dev.apicius.document.derivation.FieldVisibility;
+import dev.apicius.document.derivation.ParameterKind;
 import dev.apicius.document.derivation.Refinement;
 import dev.apicius.document.derivation.ResourceDerivation;
 import dev.apicius.document.derivation.StandardErrors;
@@ -788,7 +792,7 @@ class ApitomyDocumentEngineTest {
         String body = addProduct(EnumSet.of(Capability.REMOVE));
 
         assertEquals(List.of(new HeaderLineView("Accept", "application/json", true)),
-                engine.capabilityContract(body, "Product", Capability.REMOVE).headers());
+                engine.capabilityContract(body, "Product", Capability.REMOVE).headers().derived());
         assertFalse(parse(body).path("paths").path("/products/{id}").path("delete")
                 .has("parameters"));
     }
@@ -960,6 +964,210 @@ class ApitomyDocumentEngineTest {
         assertEquals(new PagingFacetView(false, List.of("page")),
                 engine.capabilityContract(mapper.writeValueAsString(document), "Product",
                         Capability.BROWSE).paging());
+    }
+
+    // ------------------------------------------------------------ FEAT-011: declarations
+
+    // AC1: the operation gains exactly one query parameter — derived name, the kind's
+    // serialization, required per the optionality choice, the description when given.
+    @Test
+    void addDeclarationWritesAQueryParameter() throws Exception {
+        String body = engine.addDeclaration(addProduct(EnumSet.of(Capability.BROWSE)), "Product",
+                Capability.BROWSE, DeclarationLocation.QUERY_PARAMETER,
+                new DeclarationEdit("priceMax", scalar(CoreType.DECIMAL_NUMBER, null), false,
+                        "The budget cap."));
+
+        JsonNode parameters =
+                parse(body).path("paths").path("/products").path("get").path("parameters");
+        assertEquals(3, parameters.size(), "appended after the paging pair");
+        assertEquals(parse("""
+                {"name":"priceMax","in":"query","description":"The budget cap.",
+                 "required":false,"schema":{"type":"number"}}"""),
+                parameters.get(2));
+        assertNoVendorExtensions(parse(body));
+    }
+
+    // AC1/AC7: a "one of" kind serializes as an inline value list on a text schema.
+    @Test
+    void addDeclarationWritesAOneOfQueryParameter() throws Exception {
+        String body = engine.addDeclaration(addProduct(EnumSet.of(Capability.BROWSE)), "Product",
+                Capability.BROWSE, DeclarationLocation.QUERY_PARAMETER,
+                new DeclarationEdit("status",
+                        new ParameterKind.OneOf(List.of("available", "pending", "sold")),
+                        false, null));
+
+        assertEquals(parse("""
+                {"name":"status","in":"query","required":false,
+                 "schema":{"type":"string","enum":["available","pending","sold"]}}"""),
+                parse(body).path("paths").path("/products").path("get").path("parameters").get(2));
+    }
+
+    // AC2: a request header is the same guarantee with in: header.
+    @Test
+    void addDeclarationWritesARequestHeader() throws Exception {
+        String body = engine.addDeclaration(addProduct(EnumSet.of(Capability.LOOK_UP)), "Product",
+                Capability.LOOK_UP, DeclarationLocation.REQUEST_HEADER,
+                new DeclarationEdit("Request-Id", scalar(CoreType.TEXT, Refinement.UUID), true,
+                        "For tracing."));
+
+        assertEquals(parse("""
+                [{"name":"Request-Id","in":"header","description":"For tracing.",
+                  "required":true,"schema":{"type":"string","format":"uuid"}}]"""),
+                parse(body).path("paths").path("/products/{id}").path("get").path("parameters"));
+    }
+
+    // AC3: a response header lands on the success answer as a Header Object — and the shared
+    // failure answers are byte-identical before and after.
+    @Test
+    void addDeclarationWritesAResponseHeaderOnTheSuccessAnswerOnly() throws Exception {
+        String born = addProduct(EnumSet.of(Capability.BROWSE));
+
+        String body = engine.addDeclaration(born, "Product", Capability.BROWSE,
+                DeclarationLocation.RESPONSE_HEADER,
+                new DeclarationEdit("Sync-Token", scalar(CoreType.TEXT, null), false,
+                        "Where this listing left off."));
+
+        JsonNode before = parse(born).path("paths").path("/products").path("get").path("responses");
+        JsonNode after = parse(body).path("paths").path("/products").path("get").path("responses");
+        assertEquals(parse("""
+                {"Sync-Token":{"description":"Where this listing left off.",
+                 "required":false,"schema":{"type":"string"}}}"""),
+                after.path("200").path("headers"));
+        for (String status : List.of("400", "401", "422", "429", "500")) {
+            assertEquals(before.path(status), after.path(status),
+                    status + " must be byte-identical (AC3)");
+        }
+    }
+
+    // AC1/AC5 across all three locations: adding touches nothing else, and removing leaves
+    // no other trace — add then remove is byte-for-byte the original, emptied containers
+    // included (LOOK_UP's operation carries no parameters or headers at birth).
+    @ParameterizedTest
+    @EnumSource(DeclarationLocation.class)
+    void addThenRemoveDeclarationRestoresTheOriginal(DeclarationLocation location) throws Exception {
+        String born = addProduct(EnumSet.of(Capability.LOOK_UP));
+        DeclarationEdit edit = new DeclarationEdit(
+                location == DeclarationLocation.QUERY_PARAMETER ? "syncToken" : "Sync-Token",
+                scalar(CoreType.TEXT, null), false, null);
+
+        String added = engine.addDeclaration(born, "Product", Capability.LOOK_UP, location, edit);
+        String removed = engine.removeDeclaration(added, "Product", Capability.LOOK_UP, location,
+                edit.name());
+
+        assertEquals(parse(born), parse(removed));
+    }
+
+    // AC5: a change rewrites in place — same position among its siblings, a rename and a
+    // rekind included; the neighbors are untouched.
+    @Test
+    void updateDeclarationRewritesAQueryParameterInPlace() throws Exception {
+        String body = engine.addDeclaration(addProduct(EnumSet.of(Capability.BROWSE)), "Product",
+                Capability.BROWSE, DeclarationLocation.QUERY_PARAMETER,
+                new DeclarationEdit("priceMax", scalar(CoreType.DECIMAL_NUMBER, null), false,
+                        "The budget cap."));
+        body = engine.addDeclaration(body, "Product", Capability.BROWSE,
+                DeclarationLocation.QUERY_PARAMETER,
+                new DeclarationEdit("status",
+                        new ParameterKind.OneOf(List.of("available", "sold")), false, null));
+
+        String updated = engine.updateDeclaration(body, "Product", Capability.BROWSE,
+                DeclarationLocation.QUERY_PARAMETER, "priceMax",
+                new DeclarationEdit("budget", scalar(CoreType.WHOLE_NUMBER, null), true, null));
+
+        JsonNode parameters =
+                parse(updated).path("paths").path("/products").path("get").path("parameters");
+        assertEquals(parse("""
+                {"name":"budget","in":"query","required":true,"schema":{"type":"integer"}}"""),
+                parameters.get(2), "rewritten at its old position, stale constructs gone");
+        assertEquals(parse(body).path("paths").path("/products").path("get").path("parameters")
+                .get(3), parameters.get(3), "the neighbor is untouched");
+    }
+
+    @Test
+    void updateDeclarationRewritesAResponseHeaderInPlace() throws Exception {
+        String body = engine.addDeclaration(addProduct(EnumSet.of(Capability.LOOK_UP)), "Product",
+                Capability.LOOK_UP, DeclarationLocation.RESPONSE_HEADER,
+                new DeclarationEdit("Sync-Token", scalar(CoreType.TEXT, null), false, null));
+        body = engine.addDeclaration(body, "Product", Capability.LOOK_UP,
+                DeclarationLocation.RESPONSE_HEADER,
+                new DeclarationEdit("Request-Id", scalar(CoreType.TEXT, Refinement.UUID), false,
+                        null));
+
+        String updated = engine.updateDeclaration(body, "Product", Capability.LOOK_UP,
+                DeclarationLocation.RESPONSE_HEADER, "Sync-Token",
+                new DeclarationEdit("Listing-Token", scalar(CoreType.TEXT, null), false, null));
+
+        assertEquals(List.of("Listing-Token", "Request-Id"),
+                keysOf(parse(updated).path("paths").path("/products/{id}").path("get")
+                        .path("responses").path("200").path("headers")),
+                "renamed in place, not re-appended");
+    }
+
+    // The contract projects every authored declaration in its facet — kinds read back through
+    // the table ("one of" included), the paging pair excluded from Filters while paging owns it.
+    @Test
+    void capabilityContractProjectsAuthoredDeclarations() {
+        String body = addProduct(EnumSet.of(Capability.BROWSE));
+        body = engine.addDeclaration(body, "Product", Capability.BROWSE,
+                DeclarationLocation.QUERY_PARAMETER,
+                new DeclarationEdit("status",
+                        new ParameterKind.OneOf(List.of("available", "pending", "sold")),
+                        false, null));
+        body = engine.addDeclaration(body, "Product", Capability.BROWSE,
+                DeclarationLocation.REQUEST_HEADER,
+                new DeclarationEdit("Request-Id", scalar(CoreType.TEXT, Refinement.UUID), true,
+                        "For tracing."));
+        body = engine.addDeclaration(body, "Product", Capability.BROWSE,
+                DeclarationLocation.RESPONSE_HEADER,
+                // required on a response header is the "always sent" promise.
+                new DeclarationEdit("Sync-Token", scalar(CoreType.TEXT, null), true, null));
+
+        CapabilityContractView contract =
+                engine.capabilityContract(body, "Product", Capability.BROWSE);
+
+        assertEquals(List.of(new DeclarationView("status",
+                new ParameterKind.OneOf(List.of("available", "pending", "sold")), false, null)),
+                contract.queryParameters(), "the paging pair is the Paging facet's, not a filter");
+        assertEquals(List.of(new HeaderLineView("Accept", "application/json", true)),
+                contract.headers().derived());
+        assertEquals(List.of(new DeclarationView("Request-Id",
+                scalar(CoreType.TEXT, Refinement.UUID), true, "For tracing.")),
+                contract.headers().authored());
+        assertEquals(List.of(new DeclarationView("Sync-Token", scalar(CoreType.TEXT, null),
+                true, null)), contract.answers().successHeaders());
+    }
+
+    // With paging off, an authored page/limit is a filter like any other — and the named
+    // conflict that blocks re-enabling (the pagingFacet test's other half).
+    @Test
+    void capabilityContractShowsAuthoredPageAsAFilterWhilePagingIsOff() {
+        String off = engine.disablePaging(addProduct(EnumSet.of(Capability.BROWSE)), "Product",
+                Capability.BROWSE);
+        String body = engine.addDeclaration(off, "Product", Capability.BROWSE,
+                DeclarationLocation.QUERY_PARAMETER,
+                new DeclarationEdit("page", scalar(CoreType.TEXT, null), false, null));
+
+        CapabilityContractView contract =
+                engine.capabilityContract(body, "Product", Capability.BROWSE);
+
+        assertEquals(List.of("page"),
+                contract.queryParameters().stream().map(DeclarationView::name).toList());
+        assertEquals(new PagingFacetView(false, List.of("page")), contract.paging());
+    }
+
+    // Declarations not yet authored are empty facets — present (they always apply), not null.
+    @Test
+    void capabilityContractProjectsEmptyDeclarationFacetsAtBirth() {
+        CapabilityContractView contract = engine.capabilityContract(
+                addProduct(EnumSet.of(Capability.BROWSE)), "Product", Capability.BROWSE);
+
+        assertEquals(List.of(), contract.queryParameters());
+        assertEquals(List.of(), contract.headers().authored());
+        assertEquals(List.of(), contract.answers().successHeaders());
+    }
+
+    private static ParameterKind.Scalar scalar(CoreType core, Refinement refinement) {
+        return new ParameterKind.Scalar(new FieldKind(core, refinement, false));
     }
 
     /**

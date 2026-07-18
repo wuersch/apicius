@@ -15,5 +15,5 @@
 | FEAT-008 | Export an API document | shipped |
 | FEAT-009 | View a capability's contract | shipped |
 | FEAT-010 | Paging on list capabilities | shipped |
-| FEAT-011 | Query parameters & headers | specced |
+| FEAT-011 | Query parameters & headers | shipped |
 | FEAT-012 | Describe the contract | specced |
