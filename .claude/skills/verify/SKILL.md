@@ -28,9 +28,12 @@ The `apicius-frontend` client has **no direct-access grants** — you cannot cur
 
 ## Drive
 
-- The seeded specs in `import.sql` have `body = NULL` — they render on the home list but the
-  editor page 500s on them ("argument content is null"). **Create a fresh API through the UI**
-  (+ New API → title → Create) and work on that.
+- The seeded specs in `import.sql` carry full engine-written bodies and open fine in the
+  editor — they form a deliberate variability matrix (Storefront: everything on; Billing:
+  one standard-errors opt-out; Fleet: a paging opt-out; Notifications: everything off).
+  Verify against them freely, but remember dev mode is drop-and-create: a backend live
+  reload reseeds and discards your edits — create a fresh API when the change must survive
+  reloads mid-verification.
 - New resource → the editor page shows the resource card; FEAT-006's shape section is at the
   bottom of each card ("SHAPE" + Add a field…).
 

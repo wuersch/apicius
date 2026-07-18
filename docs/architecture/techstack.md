@@ -1,6 +1,6 @@
 # Tech Stack
 
-> Status per item: **decided** (cites an ADR) | **proposed**.
+> Status per item: **decided** (cites an ADR, or settled by shipped use) | **proposed**.
 > The two-tier architecture is decided (ADR-0002); individual libraries are proposed unless
 > load-bearing for a decision.
 
@@ -20,24 +20,25 @@
   extended with Apicius house rules (PRIN-006) — decided (ADR-0009).
 - **Auth:** quarkus-oidc + Keycloak (Dev Services) — decided (ADR-0005).
 - **Migrations:** Hibernate drop-and-create → Flyway later — decided (ADR-0004).
-- **Test:** JUnit 5 (`@QuarkusTest`) + REST-assured + Mockito — proposed.
+- **Test:** JUnit 5 (`@QuarkusTest`) + REST-assured — decided (in use across the shipped
+  features). Mockito — proposed (not yet needed).
 - **Coverage:** JaCoCo — quarkus-jacoco + jacoco-maven-plugin, plain-unit and `@QuarkusTest`
   runs merged into one report (`target/jacoco-report`); information, not a threshold gate —
-  proposed.
+  decided (in use).
 
 ## Frontend (`frontend/` — React + Vite, npm)
 - **Framework:** React + Vite + TypeScript — decided (ADR-0002).
-- **Components:** Tailwind + shadcn/ui — proposed.
+- **Components:** Tailwind + shadcn/ui — decided (in use across the shipped features).
 - **Data layer:** TanStack Query — decided (ADR-0006). State held here is **view state only**;
   the domain model is server-side.
 - **API client:** orval — generated types + TanStack Query hooks from `/q/openapi` — decided
   (ADR-0002).
-- **Routing:** react-router — proposed.
+- **Routing:** react-router — decided (in use across the shipped features).
 - **Source editor:** CodeMirror 6 — proposed (lighter than Monaco, editing-friendly).
 - **Auth:** react-oidc-context (token in memory) — decided (ADR-0005).
 - **i18n:** react-i18next (`en` / `de`) — proposed.
 - **Canvas (later):** React Flow — proposed.
-- **Test:** Vitest + React Testing Library — proposed.
+- **Test:** Vitest + React Testing Library — decided (in use across the shipped features).
 - **Coverage:** Vitest V8 provider (`npm run coverage`), generated code excluded; information,
   not a threshold gate — proposed.
 - **E2E:** Playwright (later) — proposed.

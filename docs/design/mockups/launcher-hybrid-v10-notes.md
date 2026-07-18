@@ -81,6 +81,15 @@ Hover reveals Edit/Remove where the badge sits; Edit opens the row inline (Enter
 Esc cancels — same as quiet descriptions). Remove: local row = delete; inherited row =
 override off just here (or remove everywhere); built-in rows follow their guideline.
 
+## Filters: constraints & quiet defaults
+
+Built-in paging filters (`page`, `limit`) render in the same row grammar as authored
+filters. Schema constraints (`default`/`minimum`/`maximum`) are folded into the
+plain-language sentence at normal size — "whole number — results per page; 1–100,
+normally 20" — never raw schema keys or extra columns. **Optional is the unmarked
+case**: no "optional" label anywhere; only `required: true` is marked, with an amber
+"required" at the row's right edge (after the provenance badge, if any).
+
 ## Open questions
 
 - All v9 open questions carry over.

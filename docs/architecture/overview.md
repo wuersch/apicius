@@ -8,8 +8,10 @@
 1. **Lossless round-trip** — import → edit → export must preserve 100% of the spec (PRIN-003).
    Drives a superset domain model with a preservation bag for unmodeled nodes.
 2. **Server-authoritative model** — the superset OpenAPI model, parse/serialize, and the rules
-   engine live in the Quarkus backend; user specs persist in PostgreSQL as JSONB documents; the
-   browser is a typed client over the REST API, holding only view state (ADR-0002).
+   engine live in the Quarkus backend (the apitomy engine behind the `DocumentEngine` seam,
+   ADR-0009); user specs persist in PostgreSQL as key-order-preserving JSON documents plus
+   denormalized summary columns (ADR-0004, ADR-0008); the browser is a typed client over the
+   REST API, holding only view state (ADR-0002).
 3. **OpenAPI 3.0–3.2 span** — one in-memory superset model spanning the versions.
 4. **Approachable to non-engineers** — the intent layer; correctness supplied via house rules.
 
@@ -25,11 +27,15 @@ See `diagrams/containers.mmd`.
   Talks to the backend via an **orval-generated TanStack Query client**; **CodeMirror 6** renders
   the source view (PRIN-004). Holds view state only.
 - **Backend** (Quarkus) — the **REST API** (JAX-RS; spec auto-published via SmallRye OpenAPI at
-  `/q/openapi`, ADR-0002), the **superset OpenAPI domain model** (single source of truth), the
-  **rules engine** (deterministic, pure Java functions → findings/nudges, PRIN-006), and
-  **import/export** (parse & serialize 3.0 / 3.1 / 3.2, lossless preservation).
-- **Datastore** (PostgreSQL via Hibernate ORM Panache) — specs as JSONB documents; relational
-  tables for users/sharing/audit (ADR-0004).
+  `/q/openapi`, ADR-0002) over the **document engine**: `apitomy-data-models` as the superset
+  OpenAPI model, edit protocol, validation engine, and parse/serialize (3.0 / 3.1 / 3.2,
+  lossless preservation) — consumed behind the Apicius-owned `DocumentEngine` seam; only the
+  `document.apitomy` adapter imports `io.apitomy.*` (ADR-0009). **Derivation** (canonical
+  capabilities ADR-0010, fields ADR-0011) turns plain-language intent into spec constructs at
+  the service chokepoint.
+- **Datastore** (PostgreSQL via Hibernate ORM Panache) — specs as key-order-preserving `json`
+  documents plus the ADR-0008 summary projection columns (list views never deserialize the
+  body); relational tables for users/sharing/audit (ADR-0004).
 - **Identity** (Keycloak / OIDC) — authentication; authorization is enforced server-side in the
   service layer (ADR-0005).
 - *(Later)* **Canvas** (React Flow), **Mock server** ("Try it").
@@ -43,12 +49,16 @@ Add per-container zoom-ins only when a container gets complex.
 - **Backend layering:** Resource → Service → Repository over a pure domain layer; cross-cutting
   concerns (audit, authorization) enforced in the service layer (ADR-0003). **No Lombok, no
   MapStruct** — explicit static mappers.
-- **Database:** PostgreSQL; specs stored as JSONB documents (not normalized into per-node tables),
-  relational tables for users/sharing/audit; `snake_case` singular tables, UUID PKs,
-  `created_at`/`updated_at`/`version`; enums as `VARCHAR`; Hibernate drop-and-create → Flyway
-  later (ADR-0004).
+- **Database:** PostgreSQL; specs stored as `json` documents (not normalized into per-node
+  tables — key order is load-bearing, ADR-0004) with denormalized summary columns kept in sync
+  at the write chokepoint (ADR-0008); relational tables for users/sharing/audit; `snake_case`
+  singular tables, UUID PKs, `created_at`/`updated_at`/`version`; enums as `VARCHAR`; Hibernate
+  drop-and-create → Flyway later (ADR-0004).
 - **Auth:** OIDC/Keycloak; server-side enforcement; token in memory (ADR-0005).
 - **Real-time:** TanStack Query; polling behind the hooks, upgradeable to WebSocket (ADR-0006).
-- **Frontend structure:** feature-based `src/features/{feature}/`; shadcn/Tailwind UI; i18n via
-  react-i18next (`en`/`de`).
+- **Document edits:** every mutation is one atomic `String → String` transformation through the
+  `DocumentEngine` seam inside a transactional service chokepoint — derivation and validation
+  resolve before the document is touched (ADR-0009, ADR-0010, ADR-0011).
+- **Frontend structure:** surface-based `src/components/{home,editor,capability}` + `src/pages`;
+  shadcn/Tailwind UI; everything rendered is the backend's projection, nothing echoed locally.
 - **Deployment:** two pods (nginx + Quarkus), UBI9 images, Helm, JVM mode (ADR-0007).

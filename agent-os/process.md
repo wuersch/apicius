@@ -40,7 +40,7 @@ drop mock-up elements.
 
 ## Definition of done
 AC met & tested · touched house-rule behavior tested · lossless round-trip intact · ADR logged if warranted ·
-`features.md` current · shipped via rebased PR (tests green).
+`features.md` current · affected architecture docs/diagrams current · shipped via rebased PR (tests green).
 
 ## Loading discipline (for agents — this is how context stays small)
 `CLAUDE.md` → `docs/spec/features.md` (index) → the one `FEAT-` → only its cited
