@@ -12,6 +12,7 @@ import dev.apicius.resource.dto.CapabilityContractResponse;
 import dev.apicius.resource.dto.CreateSpecRequest;
 import dev.apicius.resource.dto.DeclarationRequest;
 import dev.apicius.resource.dto.DeclarationResponse;
+import dev.apicius.resource.dto.DescriptionRequest;
 import dev.apicius.resource.dto.FieldRequest;
 import dev.apicius.resource.dto.FieldResponse;
 import dev.apicius.resource.dto.LastEditedLocationResponse;
@@ -119,6 +120,25 @@ public class SpecResource {
             @Valid UpdateSpecDetailsRequest request) {
         return SpecSummaryResponse.from(specService.updateDetails(currentUser.require(), specId,
                 request.title(), request.description(), request.version()));
+    }
+
+    @PATCH
+    @Path("/{specId}/description")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateApiDescription",
+            summary = "Rewrite the API's note for readers alone — info.description; blank "
+                    + "clears it, title and version are never touched (FEAT-007, edited in "
+                    + "place per FEAT-012's grammar)")
+    @APIResponse(responseCode = "200", description = "The updated summary",
+            content = @Content(schema = @Schema(implementation = SpecSummaryResponse.class)))
+    @APIResponse(responseCode = "404", description = "No such API",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public SpecSummaryResponse updateApiDescription(@PathParam("specId") UUID specId,
+            @Valid DescriptionRequest request) {
+        return SpecSummaryResponse.from(specService.updateApiDescription(currentUser.require(),
+                specId, request.description()));
     }
 
     @POST
@@ -284,6 +304,24 @@ public class SpecResource {
         return Response.noContent().build();
     }
 
+    @PATCH
+    @Path("/{specId}/resources/{schemaName}/description")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateResourceDescription",
+            summary = "Rewrite the resource's note for readers — the schema's description; "
+                    + "blank clears it from the document (FEAT-012 UC3)")
+    @APIResponse(responseCode = "200", description = "The resource after the edit",
+            content = @Content(schema = @Schema(implementation = ResourceResponse.class)))
+    @APIResponse(responseCode = "404", description = "No such API or resource",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public ResourceResponse updateResourceDescription(@PathParam("specId") UUID specId,
+            @PathParam("schemaName") String schemaName, @Valid DescriptionRequest request) {
+        return ResourceResponse.from(specService.updateResourceDescription(
+                currentUser.require(), specId, schemaName, request.description()));
+    }
+
     @GET
     @Path("/{specId}/resources/{schemaName}/capabilities/{capability}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -301,6 +339,46 @@ public class SpecResource {
             @PathParam("capability") Capability capability) {
         return CapabilityContractResponse.from(
                 specService.capabilityContract(specId, schemaName, capability));
+    }
+
+    @PATCH
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/description")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateCapabilityDescription",
+            summary = "Rewrite the capability's note for readers — the operation's "
+                    + "description, never its summary; blank clears it from the document "
+                    + "(FEAT-012 UC1)")
+    @APIResponse(responseCode = "200", description = "The contract after the edit",
+            content = @Content(schema = @Schema(implementation = CapabilityContractResponse.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public CapabilityContractResponse updateCapabilityDescription(
+            @PathParam("specId") UUID specId, @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @Valid DescriptionRequest request) {
+        return CapabilityContractResponse.from(specService.updateCapabilityDescription(
+                currentUser.require(), specId, schemaName, capability, request.description()));
+    }
+
+    @PATCH
+    @Path("/{specId}/resources/{schemaName}/capabilities/{capability}/answer/description")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateSuccessAnswerDescription",
+            summary = "Rewrite the success answer's note for readers — the response's "
+                    + "description; blank restores the derived default, an answer is never "
+                    + "undescribed (FEAT-012 UC2)")
+    @APIResponse(responseCode = "200", description = "The contract after the edit",
+            content = @Content(schema = @Schema(implementation = CapabilityContractResponse.class)))
+    @APIResponse(responseCode = "404", description = "No such API, resource, or capability",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public CapabilityContractResponse updateSuccessAnswerDescription(
+            @PathParam("specId") UUID specId, @PathParam("schemaName") String schemaName,
+            @PathParam("capability") Capability capability, @Valid DescriptionRequest request) {
+        return CapabilityContractResponse.from(specService.updateSuccessAnswerDescription(
+                currentUser.require(), specId, schemaName, capability, request.description()));
     }
 
     @POST

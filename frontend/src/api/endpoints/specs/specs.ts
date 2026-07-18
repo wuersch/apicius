@@ -30,6 +30,7 @@ import type {
   CreateSpecRequest,
   DeclarationRequest,
   DeclarationResponse,
+  DescriptionRequest,
   ExportSpecDocumentParams,
   FieldRequest,
   FieldResponse,
@@ -750,6 +751,106 @@ export const useDeleteSpec = <TError = void | ProblemDetail,
       > => {
       return useMutation(getDeleteSpecMutationOptions(options), queryClient);
     }
+    export type updateApiDescriptionResponse200 = {
+  data: SpecSummaryResponse
+  status: 200
+}
+
+export type updateApiDescriptionResponse401 = {
+  data: void
+  status: 401
+}
+
+export type updateApiDescriptionResponse403 = {
+  data: void
+  status: 403
+}
+
+export type updateApiDescriptionResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type updateApiDescriptionResponseSuccess = (updateApiDescriptionResponse200) & {
+  headers: Headers;
+};
+export type updateApiDescriptionResponseError = (updateApiDescriptionResponse401 | updateApiDescriptionResponse403 | updateApiDescriptionResponse404) & {
+  headers: Headers;
+};
+
+export type updateApiDescriptionResponse = (updateApiDescriptionResponseSuccess | updateApiDescriptionResponseError)
+
+export const getUpdateApiDescriptionUrl = (specId: Uuid,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/description`
+}
+
+/**
+ * @summary Rewrite the API's note for readers alone — info.description; blank clears it, title and version are never touched (FEAT-007, edited in place per FEAT-012's grammar)
+ */
+export const updateApiDescription = async (specId: Uuid,
+    descriptionRequest: DescriptionRequest, options?: RequestInit): Promise<updateApiDescriptionResponse> => {
+
+  return customFetch<updateApiDescriptionResponse>(getUpdateApiDescriptionUrl(specId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(descriptionRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateApiDescriptionMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApiDescription>>, TError,{specId: Uuid;data: DescriptionRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateApiDescription>>, TError,{specId: Uuid;data: DescriptionRequest}, TContext> => {
+
+const mutationKey = ['updateApiDescription'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateApiDescription>>, {specId: Uuid;data: DescriptionRequest}> = (props) => {
+          const {specId,data} = props ?? {};
+
+          return  updateApiDescription(specId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateApiDescriptionMutationResult = NonNullable<Awaited<ReturnType<typeof updateApiDescription>>>
+    export type UpdateApiDescriptionMutationBody = DescriptionRequest
+    export type UpdateApiDescriptionMutationError = void | ProblemDetail
+
+    /**
+ * @summary Rewrite the API's note for readers alone — info.description; blank clears it, title and version are never touched (FEAT-007, edited in place per FEAT-012's grammar)
+ */
+export const useUpdateApiDescription = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApiDescription>>, TError,{specId: Uuid;data: DescriptionRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateApiDescription>>,
+        TError,
+        {specId: Uuid;data: DescriptionRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateApiDescriptionMutationOptions(options), queryClient);
+    }
     export type exportSpecDocumentResponse200ApplicationYaml = {
   data: string
   status: 200
@@ -1258,7 +1359,215 @@ export function useGetCapabilityContract<TData = Awaited<ReturnType<typeof getCa
 
 
 
-export type enablePagingResponse200 = {
+export type updateSuccessAnswerDescriptionResponse200 = {
+  data: CapabilityContractResponse
+  status: 200
+}
+
+export type updateSuccessAnswerDescriptionResponse401 = {
+  data: void
+  status: 401
+}
+
+export type updateSuccessAnswerDescriptionResponse403 = {
+  data: void
+  status: 403
+}
+
+export type updateSuccessAnswerDescriptionResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type updateSuccessAnswerDescriptionResponseSuccess = (updateSuccessAnswerDescriptionResponse200) & {
+  headers: Headers;
+};
+export type updateSuccessAnswerDescriptionResponseError = (updateSuccessAnswerDescriptionResponse401 | updateSuccessAnswerDescriptionResponse403 | updateSuccessAnswerDescriptionResponse404) & {
+  headers: Headers;
+};
+
+export type updateSuccessAnswerDescriptionResponse = (updateSuccessAnswerDescriptionResponseSuccess | updateSuccessAnswerDescriptionResponseError)
+
+export const getUpdateSuccessAnswerDescriptionUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/answer/description`
+}
+
+/**
+ * @summary Rewrite the success answer's note for readers — the response's description; blank restores the derived default, an answer is never undescribed (FEAT-012 UC2)
+ */
+export const updateSuccessAnswerDescription = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    descriptionRequest: DescriptionRequest, options?: RequestInit): Promise<updateSuccessAnswerDescriptionResponse> => {
+
+  return customFetch<updateSuccessAnswerDescriptionResponse>(getUpdateSuccessAnswerDescriptionUrl(specId,schemaName,capability),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(descriptionRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateSuccessAnswerDescriptionMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSuccessAnswerDescription>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSuccessAnswerDescription>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest}, TContext> => {
+
+const mutationKey = ['updateSuccessAnswerDescription'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSuccessAnswerDescription>>, {specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest}> = (props) => {
+          const {specId,schemaName,capability,data} = props ?? {};
+
+          return  updateSuccessAnswerDescription(specId,schemaName,capability,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSuccessAnswerDescriptionMutationResult = NonNullable<Awaited<ReturnType<typeof updateSuccessAnswerDescription>>>
+    export type UpdateSuccessAnswerDescriptionMutationBody = DescriptionRequest
+    export type UpdateSuccessAnswerDescriptionMutationError = void | ProblemDetail
+
+    /**
+ * @summary Rewrite the success answer's note for readers — the response's description; blank restores the derived default, an answer is never undescribed (FEAT-012 UC2)
+ */
+export const useUpdateSuccessAnswerDescription = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSuccessAnswerDescription>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateSuccessAnswerDescription>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateSuccessAnswerDescriptionMutationOptions(options), queryClient);
+    }
+    export type updateCapabilityDescriptionResponse200 = {
+  data: CapabilityContractResponse
+  status: 200
+}
+
+export type updateCapabilityDescriptionResponse401 = {
+  data: void
+  status: 401
+}
+
+export type updateCapabilityDescriptionResponse403 = {
+  data: void
+  status: 403
+}
+
+export type updateCapabilityDescriptionResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type updateCapabilityDescriptionResponseSuccess = (updateCapabilityDescriptionResponse200) & {
+  headers: Headers;
+};
+export type updateCapabilityDescriptionResponseError = (updateCapabilityDescriptionResponse401 | updateCapabilityDescriptionResponse403 | updateCapabilityDescriptionResponse404) & {
+  headers: Headers;
+};
+
+export type updateCapabilityDescriptionResponse = (updateCapabilityDescriptionResponseSuccess | updateCapabilityDescriptionResponseError)
+
+export const getUpdateCapabilityDescriptionUrl = (specId: Uuid,
+    schemaName: string,
+    capability: Capability,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/capabilities/${capability}/description`
+}
+
+/**
+ * @summary Rewrite the capability's note for readers — the operation's description, never its summary; blank clears it from the document (FEAT-012 UC1)
+ */
+export const updateCapabilityDescription = async (specId: Uuid,
+    schemaName: string,
+    capability: Capability,
+    descriptionRequest: DescriptionRequest, options?: RequestInit): Promise<updateCapabilityDescriptionResponse> => {
+
+  return customFetch<updateCapabilityDescriptionResponse>(getUpdateCapabilityDescriptionUrl(specId,schemaName,capability),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(descriptionRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateCapabilityDescriptionMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCapabilityDescription>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCapabilityDescription>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest}, TContext> => {
+
+const mutationKey = ['updateCapabilityDescription'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCapabilityDescription>>, {specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest}> = (props) => {
+          const {specId,schemaName,capability,data} = props ?? {};
+
+          return  updateCapabilityDescription(specId,schemaName,capability,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCapabilityDescriptionMutationResult = NonNullable<Awaited<ReturnType<typeof updateCapabilityDescription>>>
+    export type UpdateCapabilityDescriptionMutationBody = DescriptionRequest
+    export type UpdateCapabilityDescriptionMutationError = void | ProblemDetail
+
+    /**
+ * @summary Rewrite the capability's note for readers — the operation's description, never its summary; blank clears it from the document (FEAT-012 UC1)
+ */
+export const useUpdateCapabilityDescription = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCapabilityDescription>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateCapabilityDescription>>,
+        TError,
+        {specId: Uuid;schemaName: string;capability: Capability;data: DescriptionRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateCapabilityDescriptionMutationOptions(options), queryClient);
+    }
+    export type enablePagingResponse200 = {
   data: CapabilityContractResponse
   status: 200
 }
@@ -2689,6 +2998,108 @@ export const useAdoptStandardErrors = <TError = void | ProblemDetail,
         TContext
       > => {
       return useMutation(getAdoptStandardErrorsMutationOptions(options), queryClient);
+    }
+    export type updateResourceDescriptionResponse200 = {
+  data: ResourceResponse
+  status: 200
+}
+
+export type updateResourceDescriptionResponse401 = {
+  data: void
+  status: 401
+}
+
+export type updateResourceDescriptionResponse403 = {
+  data: void
+  status: 403
+}
+
+export type updateResourceDescriptionResponse404 = {
+  data: ProblemDetail
+  status: 404
+}
+
+export type updateResourceDescriptionResponseSuccess = (updateResourceDescriptionResponse200) & {
+  headers: Headers;
+};
+export type updateResourceDescriptionResponseError = (updateResourceDescriptionResponse401 | updateResourceDescriptionResponse403 | updateResourceDescriptionResponse404) & {
+  headers: Headers;
+};
+
+export type updateResourceDescriptionResponse = (updateResourceDescriptionResponseSuccess | updateResourceDescriptionResponseError)
+
+export const getUpdateResourceDescriptionUrl = (specId: Uuid,
+    schemaName: string,) => {
+
+
+
+
+  return `/api/v1/specs/${specId}/resources/${schemaName}/description`
+}
+
+/**
+ * @summary Rewrite the resource's note for readers — the schema's description; blank clears it from the document (FEAT-012 UC3)
+ */
+export const updateResourceDescription = async (specId: Uuid,
+    schemaName: string,
+    descriptionRequest: DescriptionRequest, options?: RequestInit): Promise<updateResourceDescriptionResponse> => {
+
+  return customFetch<updateResourceDescriptionResponse>(getUpdateResourceDescriptionUrl(specId,schemaName),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(descriptionRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateResourceDescriptionMutationOptions = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResourceDescription>>, TError,{specId: Uuid;schemaName: string;data: DescriptionRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateResourceDescription>>, TError,{specId: Uuid;schemaName: string;data: DescriptionRequest}, TContext> => {
+
+const mutationKey = ['updateResourceDescription'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateResourceDescription>>, {specId: Uuid;schemaName: string;data: DescriptionRequest}> = (props) => {
+          const {specId,schemaName,data} = props ?? {};
+
+          return  updateResourceDescription(specId,schemaName,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateResourceDescriptionMutationResult = NonNullable<Awaited<ReturnType<typeof updateResourceDescription>>>
+    export type UpdateResourceDescriptionMutationBody = DescriptionRequest
+    export type UpdateResourceDescriptionMutationError = void | ProblemDetail
+
+    /**
+ * @summary Rewrite the resource's note for readers — the schema's description; blank clears it from the document (FEAT-012 UC3)
+ */
+export const useUpdateResourceDescription = <TError = void | ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResourceDescription>>, TError,{specId: Uuid;schemaName: string;data: DescriptionRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateResourceDescription>>,
+        TError,
+        {specId: Uuid;schemaName: string;data: DescriptionRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateResourceDescriptionMutationOptions(options), queryClient);
     }
     export type addFieldResponse201 = {
   data: FieldResponse

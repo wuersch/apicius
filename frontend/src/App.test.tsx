@@ -30,6 +30,7 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
   useGetLastEditedLocation: () => ({ data: { status: 204, data: undefined, headers: new Headers() } }),
   useCreateSpec: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateSpecDetails: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateApiDescription: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDuplicateSpec: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteSpec: () => ({ mutate: vi.fn(), isPending: false }),
   useAddResource: () => ({ mutate: vi.fn(), isPending: false }),

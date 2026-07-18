@@ -26,6 +26,8 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
   useAddResponseHeader: vi.fn(),
   useUpdateResponseHeader: vi.fn(),
   useRemoveResponseHeader: vi.fn(),
+  useUpdateCapabilityDescription: vi.fn(),
+  useUpdateSuccessAnswerDescription: vi.fn(),
   getGetSpecQueryKey: (specId: string) => [`/api/v1/specs/${specId}`],
   getListSpecsQueryKey: () => ['/api/v1/specs'],
   getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
@@ -47,9 +49,11 @@ import {
   useRemoveRequestHeader,
   useRemoveResponseHeader,
   useRemoveStandardErrors,
+  useUpdateCapabilityDescription,
   useUpdateQueryParameter,
   useUpdateRequestHeader,
   useUpdateResponseHeader,
+  useUpdateSuccessAnswerDescription,
 } from '@/api/endpoints/specs/specs'
 
 const spec = {
@@ -171,6 +175,19 @@ function arrange(
   for (const [hook, mutate] of hooks) {
     vi.mocked(hook).mockReturnValue({ mutate, isPending: false, isError: false } as never)
   }
+  // The FEAT-012 description edits save through mutateAsync — the editor closes on resolve.
+  const descriptions = {
+    updateCapabilityDescription: vi.fn().mockResolvedValue({}),
+    updateSuccessAnswerDescription: vi.fn().mockResolvedValue({}),
+  }
+  vi.mocked(useUpdateCapabilityDescription).mockReturnValue({
+    mutateAsync: descriptions.updateCapabilityDescription,
+    isPending: false,
+  } as never)
+  vi.mocked(useUpdateSuccessAnswerDescription).mockReturnValue({
+    mutateAsync: descriptions.updateSuccessAnswerDescription,
+    isPending: false,
+  } as never)
   render(
     <MemoryRouter initialEntries={[route]}>
       <QueryClientProvider client={new QueryClient()}>
@@ -183,7 +200,7 @@ function arrange(
       </QueryClientProvider>
     </MemoryRouter>,
   )
-  return declarations
+  return { ...declarations, ...descriptions }
 }
 
 beforeEach(() => {
@@ -631,7 +648,8 @@ test('expands the success answer to its own response headers', async () => {
 
   const answers = screen.getByRole('region', { name: 'Answers' })
   expect(within(answers).getByText('+ 1 header')).toBeInTheDocument()
-  await user.click(within(answers).getByRole('button', { name: /A paged list of products/ }))
+  // The chip is the expand gesture — the sentence itself edits (FEAT-012).
+  await user.click(within(answers).getByRole('button', { name: 'Answer details' }))
   expect(within(answers).getByText('Sync-Token')).toBeInTheDocument()
   expect(within(answers).getByText('always sent')).toBeInTheDocument()
 
@@ -650,6 +668,87 @@ test('expands the success answer to its own response headers', async () => {
     },
     expect.anything(),
   )
+})
+
+// FEAT-012 AC1: the capability's note edits where it reads — Enter saves exactly the text,
+// through the description endpoint, never a rename.
+test('edits the capability description in place', async () => {
+  const user = userEvent.setup()
+  const mutations = arrange({ ...lookUpContract, description: 'Fetch one product by id.' })
+
+  await user.click(screen.getByRole('button', { name: 'Edit capability description' }))
+  const editor = screen.getByRole('textbox', { name: 'capability description' })
+  expect(editor).toHaveValue('Fetch one product by id.')
+  await user.clear(editor)
+  await user.type(editor, 'Anyone can look one up.{Enter}')
+
+  expect(mutations.updateCapabilityDescription).toHaveBeenCalledWith({
+    specId: 'spec-1',
+    schemaName: 'Product',
+    capability: 'LOOK_UP',
+    data: { description: 'Anyone can look one up.' },
+  })
+})
+
+// FEAT-012 AC2: a blank save is the clear gesture — the description travels absent; and a
+// capability without prose shows the ghost invitation instead of nothing.
+test('clears the capability description with a blank save', async () => {
+  const user = userEvent.setup()
+  const mutations = arrange({ ...lookUpContract, description: 'Fetch one product by id.' })
+
+  await user.click(screen.getByRole('button', { name: 'Edit capability description' }))
+  await user.clear(screen.getByRole('textbox', { name: 'capability description' }))
+  await user.keyboard('{Enter}')
+
+  expect(mutations.updateCapabilityDescription).toHaveBeenCalledWith({
+    specId: 'spec-1',
+    schemaName: 'Product',
+    capability: 'LOOK_UP',
+    data: { description: undefined },
+  })
+})
+
+test('shows the ghost invitation when the capability has no description', () => {
+  arrange(lookUpContract)
+
+  expect(screen.getByRole('button', { name: 'Add capability description' })).toHaveTextContent(
+    'add a note for readers…',
+  )
+})
+
+// Esc abandons the draft: nothing sent, the projected text stands.
+test('cancels a description edit with Escape', async () => {
+  const user = userEvent.setup()
+  const mutations = arrange({ ...lookUpContract, description: 'Fetch one product by id.' })
+
+  await user.click(screen.getByRole('button', { name: 'Edit capability description' }))
+  await user.type(
+    screen.getByRole('textbox', { name: 'capability description' }),
+    ' with more words{Escape}',
+  )
+
+  expect(mutations.updateCapabilityDescription).not.toHaveBeenCalled()
+  expect(screen.getByText('Fetch one product by id.')).toBeInTheDocument()
+})
+
+// FEAT-012 AC3: the answer's sentence edits through the answer endpoint — the expand
+// gesture (the chip) is untouched by the edit affordance.
+test('edits the answer description in place', async () => {
+  const user = userEvent.setup()
+  const mutations = arrange(browseContract, browseRoute)
+
+  const answers = screen.getByRole('region', { name: 'Answers' })
+  await user.click(within(answers).getByRole('button', { name: 'Edit answer description' }))
+  const editor = within(answers).getByRole('textbox', { name: 'answer description' })
+  await user.clear(editor)
+  await user.type(editor, 'The catalog page you asked for.{Enter}')
+
+  expect(mutations.updateSuccessAnswerDescription).toHaveBeenCalledWith({
+    specId: 'spec-1',
+    schemaName: 'Product',
+    capability: 'BROWSE',
+    data: { description: 'The catalog page you asked for.' },
+  })
 })
 
 // An unknown capability is stated honestly, with the way back to the API.

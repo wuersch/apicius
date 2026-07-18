@@ -1166,6 +1166,107 @@ class ApitomyDocumentEngineTest {
         assertEquals(List.of(), contract.answers().successHeaders());
     }
 
+    // --------------------------------------------------------- FEAT-012: describe the contract
+
+    // The API's own note, edited alone: only info.description moves — title and version are
+    // byte-identical — and set-then-clear round-trips to the original document.
+    @Test
+    void updateApiDescriptionWritesOnlyThatMember() throws Exception {
+        String born = addProduct(EnumSet.of(Capability.BROWSE));
+
+        String described = engine.updateApiDescription(born, "Sell products online.");
+
+        ObjectNode after = (ObjectNode) parse(described);
+        assertEquals("Sell products online.", after.path("info").path("description").asText());
+        assertEquals("Storefront API", after.path("info").path("title").asText());
+        assertEquals("1.0.0", after.path("info").path("version").asText());
+        ((ObjectNode) after.path("info")).remove("description");
+        assertEquals(parse(born), after, "beyond the description, byte-identical");
+
+        String cleared = engine.updateApiDescription(described, null);
+        assertEquals(parse(born), parse(cleared), "cleared means absent, not null/empty");
+    }
+
+    // AC1: the operation's description holds exactly the text — the summary byte-identical,
+    // nothing else in the document changed, nothing Apicius-specific written (AC5).
+    @Test
+    void updateCapabilityDescriptionWritesOnlyThatMember() throws Exception {
+        String born = addProduct(EnumSet.of(Capability.BROWSE));
+
+        String described = engine.updateCapabilityDescription(born, "Product",
+                Capability.BROWSE, "Anyone can browse the catalog.");
+
+        ObjectNode after = (ObjectNode) parse(described);
+        ObjectNode get = (ObjectNode) after.path("paths").path("/products").path("get");
+        assertEquals("Anyone can browse the catalog.", get.path("description").asText());
+        assertEquals("Browse all products", get.path("summary").asText());
+        get.remove("description");
+        assertEquals(parse(born), after, "beyond the description, byte-identical (AC1)");
+        assertNoVendorExtensions(parse(described));
+    }
+
+    // AC2: clearing removes the member — a capability without prose is valid; set-then-clear
+    // round-trips to the original document.
+    @Test
+    void updateCapabilityDescriptionNullRemovesTheMember() throws Exception {
+        String born = addProduct(EnumSet.of(Capability.BROWSE));
+
+        String described = engine.updateCapabilityDescription(born, "Product",
+                Capability.BROWSE, "Anyone can browse the catalog.");
+        String cleared = engine.updateCapabilityDescription(described, "Product",
+                Capability.BROWSE, null);
+
+        assertEquals(parse(born), parse(cleared));
+    }
+
+    // AC3: the success answer's description holds the text and nothing else changes; clearing
+    // restores the exact derived default — an answer is never undescribed.
+    @Test
+    void updateSuccessAnswerDescriptionSetsAndRestoresTheDerivedDefault() throws Exception {
+        String born = addProduct(EnumSet.of(Capability.BROWSE));
+
+        String described = engine.updateSuccessAnswerDescription(born, "Product",
+                Capability.BROWSE, "The catalog page you asked for.");
+
+        ObjectNode after = (ObjectNode) parse(described);
+        ObjectNode responses =
+                (ObjectNode) after.path("paths").path("/products").path("get").path("responses");
+        assertEquals("The catalog page you asked for.",
+                responses.path("200").path("description").asText());
+        ((ObjectNode) responses.path("200"))
+                .put("description", "The list of products.");
+        assertEquals(parse(born), after,
+                "beyond the answer's description, byte-identical (AC3) — failures included");
+
+        String cleared = engine.updateSuccessAnswerDescription(described, "Product",
+                Capability.BROWSE, null);
+        assertEquals(parse(born), parse(cleared),
+                "clearing restores FEAT-005's derived wording exactly");
+    }
+
+    // AC4: the resource schema's description — set, overwritten, and removed-when-cleared
+    // (the info.description stance), with no other change either way.
+    @Test
+    void updateResourceDescriptionSetsOverwritesAndRemoves() throws Exception {
+        String born = addProduct(EnumSet.of(Capability.BROWSE));
+
+        String described = engine.updateResourceDescription(born, "Product",
+                "What the shop sells.");
+        String overwritten = engine.updateResourceDescription(described, "Product",
+                "A sellable item.");
+
+        ObjectNode after = (ObjectNode) parse(overwritten);
+        ObjectNode schema = (ObjectNode) after.path("components").path("schemas").path("Product");
+        assertEquals("A sellable item.", schema.path("description").asText());
+        schema.remove("description");
+        assertEquals(parse(born), after, "beyond the description, byte-identical (AC4)");
+
+        String cleared = engine.updateResourceDescription(overwritten, "Product", null);
+        assertFalse(parse(cleared).path("components").path("schemas").path("Product")
+                .has("description"), "cleared means absent, not null/empty");
+        assertEquals(parse(born), parse(cleared));
+    }
+
     private static ParameterKind.Scalar scalar(CoreType core, Refinement refinement) {
         return new ParameterKind.Scalar(new FieldKind(core, refinement, false));
     }
