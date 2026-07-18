@@ -78,8 +78,8 @@ export function PagingFacet({
       {on && (
         <>
           <p className="mt-2 text-sm text-olive-chip-foreground">
-            Results come back <b>in pages</b> — visitors pass{' '}
-            <span className="font-mono text-[12.5px]">page</span> &{' '}
+            Results come back <b>in pages</b> — by default 20 at a time, up to 100;
+            visitors steer with <span className="font-mono text-[12.5px]">page</span> &{' '}
             <span className="font-mono text-[12.5px]">limit</span>.
           </p>
           <div className="mt-2.5 rounded-lg bg-card px-3.5 py-3 font-mono text-[12px] leading-[1.85] text-olive-chip-foreground">

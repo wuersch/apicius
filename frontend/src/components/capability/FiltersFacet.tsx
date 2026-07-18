@@ -9,8 +9,8 @@ import { DeclarationList, type Editing } from '@/components/capability/Declarati
 // carries the not-yours meaning. Frontend vocabulary keyed on the projected on-state, like
 // the Paging card's own copy — the document facts stay FEAT-010's.
 const PAGING_ROWS = [
-  { name: 'page', text: 'whole number — the page to return' },
-  { name: 'limit', text: 'whole number — how many results per page' },
+  { name: 'page', text: 'whole number — which page to return; starts at 1' },
+  { name: 'limit', text: 'whole number — results per page; 1–100, normally 20' },
 ]
 
 // FEAT-011: the capability's query parameters — "Filters visitors can use" (the card label

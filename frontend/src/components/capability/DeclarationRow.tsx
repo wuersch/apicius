@@ -5,7 +5,9 @@ import { describeKind } from '@/lib/fieldDerivation'
 // FEAT-011: one declaration as its card displays it — the Filters row grammar shared by all
 // three locations (v10's "everything is the Filters row"): derived name in a fixed mono
 // column (it is the declaration's identity), the plain-language kind and description as
-// body copy, optionality as a quiet trailing word. Hover swaps the trailing slot for
+// body copy. Optionality marks only the exception: filters are optional by nature, so
+// absence is the default and a trailing "required" is the one word that speaks (a settled
+// divergence from the v10 mockup, which labels every row). Hover swaps the trailing slot for
 // Edit/Remove (state 3·6) — remove deletes outright: everything here is capability-local.
 export function DeclarationRow({
   declaration,
@@ -41,9 +43,9 @@ export function DeclarationRow({
         {declaration.name}
       </span>
       <KindText declaration={declaration} />
-      {showOptionality && (
-        <span className="shrink-0 text-[11px] text-hint group-hover/row:hidden">
-          {declaration.required ? 'required' : 'optional'}
+      {showOptionality && declaration.required && (
+        <span className="shrink-0 text-[11px] font-medium text-text-tertiary group-hover/row:hidden">
+          required
         </span>
       )}
       <span
