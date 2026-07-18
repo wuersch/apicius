@@ -11,14 +11,14 @@ import { describeKind } from '@/lib/fieldDerivation'
 // Edit/Remove (state 3·6) — remove deletes outright: everything here is capability-local.
 export function DeclarationRow({
   declaration,
-  showOptionality,
+  requiredLabel,
   editing,
   onEdit,
   onRemove,
 }: {
   declaration: DeclarationResponse
-  /** Inputs only — a response header has no optionality to show. */
-  showOptionality: boolean
+  /** The location's word for the required exception: inputs "required", response headers "always sent". */
+  requiredLabel: string
   editing?: boolean
   onEdit?: () => void
   onRemove?: () => void
@@ -43,9 +43,9 @@ export function DeclarationRow({
         {declaration.name}
       </span>
       <KindText declaration={declaration} />
-      {showOptionality && declaration.required && (
+      {declaration.required && (
         <span className="shrink-0 text-[11px] font-medium text-text-tertiary group-hover/row:hidden">
-          required
+          {requiredLabel}
         </span>
       )}
       <span

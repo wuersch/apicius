@@ -536,12 +536,17 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         return parameter;
     }
 
-    /** One response header (Header Object): the description and the kind's schema. */
+    /**
+     * One response header (Header Object): the description, the kind's schema, and
+     * {@code required} — on a response header the flag is the "always sent" promise, written
+     * explicitly like the parameter writer's.
+     */
     private static OpenApiHeader responseHeader(OpenApiHeadersParent parent, DeclarationEdit edit) {
         OpenApi3xHeader header = (OpenApi3xHeader) parent.createHeader();
         if (edit.description() != null) {
             header.setDescription(edit.description());
         }
+        header.setRequired(edit.required());
         OpenApi3xSchema schema = header.createSchema();
         writeDeclarationSchema(schema, edit.kind());
         header.setSchema(schema);
@@ -601,7 +606,7 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         return declarations;
     }
 
-    /** The success answer's response headers; {@code required} is always false (inputs-only). */
+    /** The success answer's response headers; {@code required} means "always sent" there. */
     private static List<DeclarationView> responseHeaderDeclarations(OpenApiResponse success) {
         if (success == null) {
             return List.of();
@@ -613,7 +618,8 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         List<DeclarationView> declarations = new ArrayList<>();
         for (Map.Entry<String, OpenApiHeader> entry : headers.entrySet()) {
             OpenApi3xHeader header = (OpenApi3xHeader) entry.getValue();
-            declarationOf(entry.getKey(), header.getSchema(), false, header.getDescription())
+            declarationOf(entry.getKey(), header.getSchema(),
+                    Boolean.TRUE.equals(header.isRequired()), header.getDescription())
                     .ifPresent(declarations::add);
         }
         return declarations;

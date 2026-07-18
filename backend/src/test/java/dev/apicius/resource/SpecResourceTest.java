@@ -1963,16 +1963,20 @@ class SpecResourceTest extends CleanDatabaseTest {
         JsonNode before = readBody(specId).path("paths").path("/products").path("get")
                 .path("responses");
 
+        // required on a response header is the "always sent" promise (re-scoped from
+        // inputs-only optionality).
         postDeclaration(specId, "Product", "BROWSE", "response-headers",
-                "{\"name\":\"Sync token\",\"coreType\":\"TEXT\"}")
+                "{\"name\":\"Sync token\",\"coreType\":\"TEXT\",\"required\":true}")
                 .statusCode(201)
                 .body("name", equalTo("Sync-Token"))
-                .body("required", equalTo(false));
+                .body("required", equalTo(true));
 
         JsonNode after = readBody(specId).path("paths").path("/products").path("get")
                 .path("responses");
         assertEquals("string", after.path("200").path("headers").path("Sync-Token")
                 .path("schema").path("type").asText());
+        assertTrue(after.path("200").path("headers").path("Sync-Token")
+                .path("required").asBoolean(), "the Header Object carries required");
         for (String status : List.of("400", "401", "422", "429", "500")) {
             assertEquals(before.path(status), after.path(status),
                     status + " must be byte-identical (AC3)");

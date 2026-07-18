@@ -1031,7 +1031,7 @@ class ApitomyDocumentEngineTest {
         JsonNode after = parse(body).path("paths").path("/products").path("get").path("responses");
         assertEquals(parse("""
                 {"Sync-Token":{"description":"Where this listing left off.",
-                 "schema":{"type":"string"}}}"""),
+                 "required":false,"schema":{"type":"string"}}}"""),
                 after.path("200").path("headers"));
         for (String status : List.of("400", "401", "422", "429", "500")) {
             assertEquals(before.path(status), after.path(status),
@@ -1119,7 +1119,8 @@ class ApitomyDocumentEngineTest {
                         "For tracing."));
         body = engine.addDeclaration(body, "Product", Capability.BROWSE,
                 DeclarationLocation.RESPONSE_HEADER,
-                new DeclarationEdit("Sync-Token", scalar(CoreType.TEXT, null), false, null));
+                // required on a response header is the "always sent" promise.
+                new DeclarationEdit("Sync-Token", scalar(CoreType.TEXT, null), true, null));
 
         CapabilityContractView contract =
                 engine.capabilityContract(body, "Product", Capability.BROWSE);
@@ -1133,7 +1134,7 @@ class ApitomyDocumentEngineTest {
                 scalar(CoreType.TEXT, Refinement.UUID), true, "For tracing.")),
                 contract.headers().authored());
         assertEquals(List.of(new DeclarationView("Sync-Token", scalar(CoreType.TEXT, null),
-                false, null)), contract.answers().successHeaders());
+                true, null)), contract.answers().successHeaders());
     }
 
     // With paging off, an authored page/limit is a filter like any other — and the named

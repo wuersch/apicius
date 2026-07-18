@@ -16,7 +16,6 @@ import dev.apicius.resource.dto.FieldRequest;
 import dev.apicius.resource.dto.FieldResponse;
 import dev.apicius.resource.dto.LastEditedLocationResponse;
 import dev.apicius.resource.dto.ResourceResponse;
-import dev.apicius.resource.dto.ResponseHeaderRequest;
 import dev.apicius.resource.dto.SpecDetailResponse;
 import dev.apicius.resource.dto.SpecListResponse;
 import dev.apicius.resource.dto.SpecSummaryResponse;
@@ -555,7 +554,7 @@ public class SpecResource {
                     schema = @Schema(implementation = ProblemDetail.class)))
     public Response addResponseHeader(@PathParam("specId") UUID specId,
             @PathParam("schemaName") String schemaName,
-            @PathParam("capability") Capability capability, @Valid ResponseHeaderRequest request,
+            @PathParam("capability") Capability capability, @Valid DeclarationRequest request,
             @Context UriInfo uriInfo) {
         return created(specService.addDeclaration(currentUser.require(), specId, schemaName,
                 capability, DeclarationLocation.RESPONSE_HEADER, request.draft()), uriInfo);
@@ -584,7 +583,7 @@ public class SpecResource {
     public DeclarationResponse updateResponseHeader(@PathParam("specId") UUID specId,
             @PathParam("schemaName") String schemaName,
             @PathParam("capability") Capability capability, @PathParam("name") String name,
-            @Valid ResponseHeaderRequest request) {
+            @Valid DeclarationRequest request) {
         return DeclarationResponse.from(specService.updateDeclaration(currentUser.require(),
                 specId, schemaName, capability, DeclarationLocation.RESPONSE_HEADER, name,
                 request.draft()));

@@ -82,7 +82,7 @@ export function AnswersFacet({
               capability={capability}
               location="response-header"
               declarations={headers}
-              showOptionality={false}
+              requiredLabel="always sent"
               editing={editing}
               onEditingChange={setEditing}
             />

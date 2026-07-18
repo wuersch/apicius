@@ -88,7 +88,7 @@ export function FiltersFacet({
           capability={capability}
           location="query-parameter"
           declarations={queryParameters}
-          showOptionality
+          requiredLabel="required"
           pagingOn={pagingOn}
           editing={editing}
           onEditingChange={setEditing}

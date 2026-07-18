@@ -31,8 +31,9 @@ line (FEAT-009), which is display, not document content.
 - **Entry point:** a capability's contract view (FEAT-009) — inputs and response headers are
   declared on the capability they belong to, never on a path or operation node.
 - **Vocabulary:** each declaration is a freeform plain-language **name** + a **kind** +
-  optional **description** + **optionality** (inputs only, default optional), in one of
-  three locations: *query parameter* (travels as `?name=`), *request header*, *response
+  optional **description** + **optionality** (default optional; on an input it asks whether
+  the visitor must send it, on a response header whether the answer always carries it —
+  "always sent"), in one of three locations: *query parameter* (travels as `?name=`), *request header*, *response
   header* (sent back with the success answer). Kinds are FEAT-006's plain-language
   vocabulary (Text and its refinements, Whole number, Decimal number, Yes/no, Date, Date &
   time) plus **"one of …"** — a fixed set of distinct text values. The serialized form is
@@ -110,8 +111,9 @@ when they arrive, will be usable here too.
   gains exactly one header parameter with the derived hyphenated-capitalized name, same
   guarantees as AC1.
 - **AC3 (UC3):** Given a response header declaration, when confirmed, then each success
-  answer of the capability declares that header with the kind's serialization; the shared
-  failure answers are byte-identical before and after.
+  answer of the capability declares that header with the kind's serialization and
+  `required` per the optionality choice; the shared failure answers are byte-identical
+  before and after.
 - **AC4 (UC1–UC3):** Given any successful edit, then it is one atomic mutation, the document
   contains no Apicius-specific content, ADR-0008 counts are unchanged, and the designer's
   last-edited location moves to this API in the same transaction.
@@ -129,14 +131,15 @@ when they arrive, will be usable here too.
 **Edited domain (OpenAPI) — link, don't reproduce.**
 - [Parameter Object](spec-3.1#parameter-object) — `in: query` / `in: header`, `required`,
   `schema` (including `enum` for "one of"), `description`.
-- [Header Object](spec-3.1#header-object) — response headers under a response's `headers`.
+- [Header Object](spec-3.1#header-object) — response headers under a response's `headers`;
+  its `required` carries the "always sent" promise.
 
 **Application domain (Apicius) — describe fully.**
 - Entities / fields touched: the `spec` row — `body` JSONB via the engine seam (ADR-0009);
   `last_edited_location` at the same chokepoint; ADR-0008 counts unaffected.
 - Validation rules: derived name non-empty; case-insensitive uniqueness per location per
   capability; reserved names as in UC5; kind from FEAT-006's vocabulary or "one of" with ≥ 1
-  distinct values; optionality only on inputs.
+  distinct values.
 - States / transitions: none beyond saved-document; every edit is atomic.
 
 ## Non-Goals

@@ -614,8 +614,8 @@ test('removes an authored request header from its row', async () => {
 })
 
 // UC3/AC3 surface: response headers live in the success answer's expansion — "+ N headers"
-// hints while collapsed, the rows and add affordance sit inside, and optionality (an
-// inputs-only concept) never appears.
+// hints while collapsed, the rows and add affordance sit inside, and optionality wears its
+// response-side words: an "Always sent" toggle in the editor, "always sent" on the row.
 test('expands the success answer to its own response headers', async () => {
   const user = userEvent.setup()
   const declarations = arrange(
@@ -623,7 +623,7 @@ test('expands the success answer to its own response headers', async () => {
       ...browseContract,
       answers: {
         ...browseContract.answers!,
-        successHeaders: [{ name: 'Sync-Token', coreType: 'TEXT', required: false }],
+        successHeaders: [{ name: 'Sync-Token', coreType: 'TEXT', required: true }],
       },
     },
     browseRoute,
@@ -633,9 +633,10 @@ test('expands the success answer to its own response headers', async () => {
   expect(within(answers).getByText('+ 1 header')).toBeInTheDocument()
   await user.click(within(answers).getByRole('button', { name: /A paged list of products/ }))
   expect(within(answers).getByText('Sync-Token')).toBeInTheDocument()
+  expect(within(answers).getByText('always sent')).toBeInTheDocument()
 
   await user.click(within(answers).getByRole('button', { name: 'Add header' }))
-  expect(within(answers).queryByRole('switch', { name: 'Required' })).not.toBeInTheDocument()
+  await user.click(within(answers).getByRole('switch', { name: 'Always sent' }))
   await user.type(within(answers).getByRole('textbox', { name: 'Name' }), 'Request id')
   expect(within(answers).getByText('header Request-Id')).toBeInTheDocument()
   await user.click(within(answers).getByRole('button', { name: 'Save' }))
@@ -645,7 +646,7 @@ test('expands the success answer to its own response headers', async () => {
       specId: 'spec-1',
       schemaName: 'Product',
       capability: 'BROWSE',
-      data: expect.objectContaining({ name: 'Request id', required: undefined }),
+      data: expect.objectContaining({ name: 'Request id', required: true }),
     },
     expect.anything(),
   )

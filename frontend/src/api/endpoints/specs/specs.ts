@@ -36,7 +36,6 @@ import type {
   LastEditedLocationResponse,
   ProblemDetail,
   ResourceResponse,
-  ResponseHeaderRequest,
   SpecDetailResponse,
   SpecListResponse,
   SpecSummaryResponse,
@@ -2205,14 +2204,14 @@ export const getAddResponseHeaderUrl = (specId: Uuid,
 export const addResponseHeader = async (specId: Uuid,
     schemaName: string,
     capability: Capability,
-    responseHeaderRequest: ResponseHeaderRequest, options?: RequestInit): Promise<addResponseHeaderResponse> => {
+    declarationRequest: DeclarationRequest, options?: RequestInit): Promise<addResponseHeaderResponse> => {
 
   return customFetch<addResponseHeaderResponse>(getAddResponseHeaderUrl(specId,schemaName,capability),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(responseHeaderRequest)
+    body: JSON.stringify(declarationRequest)
   }
 );}
 
@@ -2221,8 +2220,8 @@ export const addResponseHeader = async (specId: Uuid,
 
 
 export const getAddResponseHeaderMutationOptions = <TError = ProblemDetail | void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: ResponseHeaderRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof addResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: ResponseHeaderRequest}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext> => {
 
 const mutationKey = ['addResponseHeader'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -2234,7 +2233,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addResponseHeader>>, {specId: Uuid;schemaName: string;capability: Capability;data: ResponseHeaderRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addResponseHeader>>, {specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}> = (props) => {
           const {specId,schemaName,capability,data} = props ?? {};
 
           return  addResponseHeader(specId,schemaName,capability,data,requestOptions)
@@ -2248,18 +2247,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AddResponseHeaderMutationResult = NonNullable<Awaited<ReturnType<typeof addResponseHeader>>>
-    export type AddResponseHeaderMutationBody = ResponseHeaderRequest
+    export type AddResponseHeaderMutationBody = DeclarationRequest
     export type AddResponseHeaderMutationError = ProblemDetail | void
 
     /**
  * @summary Declare a header the capability sends back — on its success answer(s); the shared failure answers are never touched (FEAT-011 UC3/AC3)
  */
 export const useAddResponseHeader = <TError = ProblemDetail | void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: ResponseHeaderRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof addResponseHeader>>,
         TError,
-        {specId: Uuid;schemaName: string;capability: Capability;data: ResponseHeaderRequest},
+        {specId: Uuid;schemaName: string;capability: Capability;data: DeclarationRequest},
         TContext
       > => {
       return useMutation(getAddResponseHeaderMutationOptions(options), queryClient);
@@ -2321,14 +2320,14 @@ export const updateResponseHeader = async (specId: Uuid,
     schemaName: string,
     capability: Capability,
     name: string,
-    responseHeaderRequest: ResponseHeaderRequest, options?: RequestInit): Promise<updateResponseHeaderResponse> => {
+    declarationRequest: DeclarationRequest, options?: RequestInit): Promise<updateResponseHeaderResponse> => {
 
   return customFetch<updateResponseHeaderResponse>(getUpdateResponseHeaderUrl(specId,schemaName,capability,name),
   {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(responseHeaderRequest)
+    body: JSON.stringify(declarationRequest)
   }
 );}
 
@@ -2337,8 +2336,8 @@ export const updateResponseHeader = async (specId: Uuid,
 
 
 export const getUpdateResponseHeaderMutationOptions = <TError = ProblemDetail | void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: ResponseHeaderRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: ResponseHeaderRequest}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext> => {
 
 const mutationKey = ['updateResponseHeader'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -2350,7 +2349,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateResponseHeader>>, {specId: Uuid;schemaName: string;capability: Capability;name: string;data: ResponseHeaderRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateResponseHeader>>, {specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}> = (props) => {
           const {specId,schemaName,capability,name,data} = props ?? {};
 
           return  updateResponseHeader(specId,schemaName,capability,name,data,requestOptions)
@@ -2364,18 +2363,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateResponseHeaderMutationResult = NonNullable<Awaited<ReturnType<typeof updateResponseHeader>>>
-    export type UpdateResponseHeaderMutationBody = ResponseHeaderRequest
+    export type UpdateResponseHeaderMutationBody = DeclarationRequest
     export type UpdateResponseHeaderMutationError = ProblemDetail | void
 
     /**
  * @summary Rewrite a response header in place — one atomic save; a rename changes the declaration's identity (FEAT-011 UC4)
  */
 export const useUpdateResponseHeader = <TError = ProblemDetail | void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: ResponseHeaderRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResponseHeader>>, TError,{specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof updateResponseHeader>>,
         TError,
-        {specId: Uuid;schemaName: string;capability: Capability;name: string;data: ResponseHeaderRequest},
+        {specId: Uuid;schemaName: string;capability: Capability;name: string;data: DeclarationRequest},
         TContext
       > => {
       return useMutation(getUpdateResponseHeaderMutationOptions(options), queryClient);

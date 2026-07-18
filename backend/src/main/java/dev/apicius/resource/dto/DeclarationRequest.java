@@ -9,11 +9,11 @@ import java.util.List;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 /**
- * FEAT-011: one input declaration — a query parameter or request header — the same complete,
- * editable state for add and change (UC4 is one atomic save). Every serialized construct is
- * derived server-side; the kind is {@code coreType} (+ optional {@code refinement}) or
- * {@code oneOfValues}, exactly one. Messages are contract wording — the editor renders its
- * own copy keyed on the violated {@code field}.
+ * FEAT-011: one declaration — query parameter, request header, or response header — the same
+ * complete, editable state for add and change (UC4 is one atomic save). Every serialized
+ * construct is derived server-side; the kind is {@code coreType} (+ optional
+ * {@code refinement}) or {@code oneOfValues}, exactly one. Messages are contract wording —
+ * the editor renders its own copy keyed on the violated {@code field}.
  */
 public record DeclarationRequest(
         @NotBlank(message = "must not be blank")
@@ -33,7 +33,9 @@ public record DeclarationRequest(
                 + "one, non-blank, distinct; omit when sending coreType")
         List<String> oneOfValues,
 
-        @Schema(description = "Whether callers must send this input; default optional")
+        @Schema(description = "On an input, whether callers must send it; on a response "
+                + "header, whether the answer always carries it (\"always sent\"). Default "
+                + "optional either way")
         boolean required,
 
         @Schema(description = "Becomes the construct's description; omitted from the "

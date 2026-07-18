@@ -65,7 +65,7 @@ export function HeadersFacet({
         capability={capability}
         location="request-header"
         declarations={authored}
-        showOptionality
+        requiredLabel="required"
         editing={editing}
         onEditingChange={setEditing}
       />

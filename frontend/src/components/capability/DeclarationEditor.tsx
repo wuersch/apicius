@@ -73,8 +73,8 @@ type MutationLike<V> = {
 }
 
 // One hooks call per location keeps the rules of hooks intact; only the addressed trio is
-// used. The response-header wire type is DeclarationRequest minus `required` — the editor
-// never sets the field there, so the wider type stays assignable.
+// used. All three locations share DeclarationRequest — on a response header, `required`
+// carries the "always sent" promise.
 function useDeclarationMutations(location: DeclarationLocation): {
   add: MutationLike<SaveVars>
   update: MutationLike<SaveVars & { name: string }>
@@ -106,8 +106,9 @@ export function useDeclarationRemoval(location: DeclarationLocation): MutationLi
 // docked in the card at the row's position (the quiet-descriptions grammar, state 3·7: Enter
 // saves, Esc cancels). Name first with the derived name previewed live (PRIN-002), the kind
 // as a sentence — "one of …" swaps the refinement slot for a comma-separated values input —
-// optionality only where inputs travel. Everything shown after a save is projected back
-// through the contract invalidation, nothing echoed locally.
+// optionality everywhere, worded per location: inputs ask "Required", response headers ask
+// "Always sent" (both serialize as the construct's `required`). Everything shown after a
+// save is projected back through the contract invalidation, nothing echoed locally.
 export function DeclarationEditor({
   specId,
   schemaName,
@@ -150,7 +151,9 @@ export function DeclarationEditor({
   const pending = add.isPending || update.isPending
 
   const isHeader = location !== 'query-parameter'
-  const showOptionality = location !== 'response-header'
+  // The plain-language face of `required`: what a visitor must send vs. what the answer is
+  // promised to carry.
+  const requiredLabel = location === 'response-header' ? 'Always sent' : 'Required'
   const oneOf = kindChoice === 'ONE_OF'
   const refinements = oneOf ? [] : REFINEMENTS_BY_CORE_TYPE[kindChoice]
 
@@ -220,8 +223,7 @@ export function DeclarationEditor({
       coreType: oneOf ? undefined : kindChoice,
       refinement: oneOf ? undefined : (refinement ?? undefined),
       oneOfValues: oneOf ? oneOfValues : undefined,
-      // Response headers have no optionality — the field never travels there.
-      required: showOptionality ? required : undefined,
+      required,
       description: description.trim() || undefined,
     }
     const options = { onSuccess: onSaved, onError: fail }
@@ -260,16 +262,14 @@ export function DeclarationEditor({
             aria-invalid={nameError ? true : undefined}
             className={`${input} flex-1 font-semibold placeholder:font-normal`}
           />
-          {showOptionality && (
-            <label className="flex cursor-pointer items-center gap-2 text-[12.5px] font-semibold">
-              Required
-              <Switch
-                checked={required}
-                onCheckedChange={() => setRequired((current) => !current)}
-                aria-label="Required"
-              />
-            </label>
-          )}
+          <label className="flex cursor-pointer items-center gap-2 text-[12.5px] font-semibold">
+            {requiredLabel}
+            <Switch
+              checked={required}
+              onCheckedChange={() => setRequired((current) => !current)}
+              aria-label={requiredLabel}
+            />
+          </label>
         </div>
         {nameError ? (
           <p role="alert" className="text-[12.5px] text-terracotta">
@@ -344,7 +344,7 @@ export function DeclarationEditor({
 
         <div className="flex items-center gap-3">
           <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-mono-derived">
-            {serializationLine(oneOf, kindChoice, refinement, oneOfValues, showOptionality && required)}
+            {serializationLine(oneOf, kindChoice, refinement, oneOfValues, required)}
           </span>
           <span className="text-[11.5px] text-hint">Enter saves · Esc cancels</span>
           <button

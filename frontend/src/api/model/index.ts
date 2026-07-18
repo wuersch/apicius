@@ -31,7 +31,6 @@ export * from './problemDetail';
 export * from './refinement';
 export * from './requestFacetResponse';
 export * from './resourceResponse';
-export * from './responseHeaderRequest';
 export * from './specDetailResponse';
 export * from './specListResponse';
 export * from './specSummaryResponse';

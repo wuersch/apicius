@@ -21,7 +21,7 @@ export function DeclarationList({
   capability,
   location,
   declarations,
-  showOptionality,
+  requiredLabel,
   pagingOn,
   editing,
   onEditingChange,
@@ -31,7 +31,8 @@ export function DeclarationList({
   capability: Capability
   location: DeclarationLocation
   declarations: DeclarationResponse[]
-  showOptionality: boolean
+  /** The location's word for the required exception (see DeclarationRow). */
+  requiredLabel: string
   /** Passed through to the editor's page/limit pre-check (query parameters only). */
   pagingOn?: boolean
   editing: Editing
@@ -66,7 +67,7 @@ export function DeclarationList({
             <Fragment key={declaration.name}>
               <DeclarationRow
                 declaration={declaration}
-                showOptionality={showOptionality}
+                requiredLabel={requiredLabel}
                 editing={isEditing}
                 onEdit={
                   idle

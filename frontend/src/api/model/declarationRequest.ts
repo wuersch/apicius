@@ -20,7 +20,7 @@ export interface DeclarationRequest {
   refinement?: Refinement;
   /** The "one of …" kind's fixed value set — trimmed, at least one, non-blank, distinct; omit when sending coreType */
   oneOfValues?: string[];
-  /** Whether callers must send this input; default optional */
+  /** On an input, whether callers must send it; on a response header, whether the answer always carries it ("always sent"). Default optional either way */
   required?: boolean;
   /** Becomes the construct's description; omitted from the document when blank */
   description?: string;
