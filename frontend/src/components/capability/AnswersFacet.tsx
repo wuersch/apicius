@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { ChevronDown, Plus } from 'lucide-react'
+import { useUpdateSuccessAnswerDescription } from '@/api/endpoints/specs/specs'
 import type { AnswersFacetResponse, Capability } from '@/api/model'
 import { DeclarationList, type Editing } from '@/components/capability/DeclarationList'
+import { useContractInvalidation } from '@/components/capability/useContractInvalidation'
+import { QuietDescription } from '@/components/QuietDescription'
 
 // FEAT-009's success answer, reworked to v10's grammar: answers collapse to one line each —
 // code chip · sentence · "+ N headers" hint · chevron — and the expansion holds that
@@ -22,6 +25,9 @@ export function AnswersFacet({
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState<Editing>(null)
   const headers = answers.successHeaders ?? []
+  const updateDescription = useUpdateSuccessAnswerDescription()
+  const invalidate = useContractInvalidation(specId, schemaName, capability)
+  const toggle = () => setExpanded((current) => !current)
 
   return (
     <section aria-label="Answers" className="rounded-[10px] bg-card px-5 py-[17px] shadow-sm">
@@ -29,29 +35,51 @@ export function AnswersFacet({
         Answers
       </h2>
 
-      <button
-        type="button"
-        onClick={() => setExpanded((current) => !current)}
-        aria-expanded={expanded}
-        className="mt-1 flex w-full items-center gap-[11px] py-1.5 text-left"
-      >
-        <span className="rounded-[5px] bg-olive-chip px-[9px] py-[3px] font-mono text-[12px] font-bold text-olive-chip-foreground">
-          {answers.successStatus}
-        </span>
-        <span className="flex-1 text-[13.5px]">
-          {answers.successDescription}{' '}
+      {/* The one-line answer, split so the sentence edits in place (FEAT-012 UC2) while
+          chip and chevron keep the expand gesture — the chevron button is the chip's
+          double, hidden from the accessibility tree. */}
+      <div className="mt-1 flex w-full items-center gap-[11px] py-1.5">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={expanded}
+          aria-label="Answer details"
+          className="shrink-0"
+        >
+          <span className="block rounded-[5px] bg-olive-chip px-[9px] py-[3px] font-mono text-[12px] font-bold text-olive-chip-foreground">
+            {answers.successStatus}
+          </span>
+        </button>
+        <div className="flex min-w-0 flex-1 items-baseline gap-1.5 text-[13.5px]">
+          {/* Blank saves restore the derived wording — an answer is never undescribed. */}
+          <QuietDescription
+            value={answers.successDescription}
+            ariaLabel="answer description"
+            className="min-w-0"
+            onSave={(description) =>
+              updateDescription
+                .mutateAsync({
+                  specId,
+                  schemaName,
+                  capability,
+                  data: { description: description ?? undefined },
+                })
+                .then(invalidate)
+            }
+          />
           {!expanded && headers.length > 0 && (
-            <span className="text-[11.5px] text-hint">
+            <span className="shrink-0 text-[11.5px] text-hint">
               + {headers.length} {headers.length === 1 ? 'header' : 'headers'}
             </span>
           )}
-        </span>
-        <ChevronDown
-          aria-hidden
-          strokeWidth={2.2}
-          className={`size-[13px] shrink-0 text-hint transition-transform ${expanded ? 'rotate-180' : ''}`}
-        />
-      </button>
+        </div>
+        <button type="button" onClick={toggle} tabIndex={-1} aria-hidden="true">
+          <ChevronDown
+            strokeWidth={2.2}
+            className={`size-[13px] shrink-0 text-hint transition-transform ${expanded ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
 
       {expanded && (
         // The answer's own region, set off by the left rail (state 3·5).

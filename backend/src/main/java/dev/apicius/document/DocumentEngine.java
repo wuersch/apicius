@@ -144,6 +144,38 @@ public interface DocumentEngine {
             DeclarationLocation location, String name);
 
     /**
+     * FEAT-007's description, edited alone (the FEAT-012 in-place grammar): rewrites only
+     * {@code info.description} — {@code null} removes the member — leaving {@code info.title},
+     * {@code info.version}, and everything else untouched, so the edit can never clobber a
+     * concurrent details save.
+     */
+    String updateApiDescription(String body, String description);
+
+    /**
+     * FEAT-012 UC1: rewrites the capability operation's {@code description} — {@code null}
+     * removes the member; a capability without prose is valid (AC2) — and touches nothing
+     * else: the {@code summary} is byte-identical (AC1). That the resource and capability
+     * exist is the caller's verified rule.
+     */
+    String updateCapabilityDescription(String body, String schemaName, Capability capability,
+            String description);
+
+    /**
+     * FEAT-012 UC2: rewrites the success answer's {@code description}; {@code null} restores
+     * the exact derived default ({@code CanonicalDerivation}'s wording) — the spec requires
+     * every response to carry one, so the member is never absent (AC3). Touches nothing else:
+     * the shared failure answers are references and stay byte-identical.
+     */
+    String updateSuccessAnswerDescription(String body, String schemaName, Capability capability,
+            String description);
+
+    /**
+     * FEAT-012 UC3: rewrites the resource schema's {@code description} — {@code null} removes
+     * the member (the {@code info.description} stance) — and touches nothing else (AC4).
+     */
+    String updateResourceDescription(String body, String schemaName, String description);
+
+    /**
      * The concept projection of a stored document (FEAT-005 AC8): schema names, path keys, and
      * the recognized resources with their capabilities — "recognition is derivation inverted"
      * (ADR-0010), matching candidate segmentations of each schema name against the document's

@@ -2115,6 +2115,173 @@ class SpecResourceTest extends CleanDatabaseTest {
                 .statusCode(404);
     }
 
+    // ------------------------------------------------------- FEAT-012: describe the contract
+
+    // AC1/AC2: the operation's description holds exactly the text (the label untouched);
+    // blank clears the member. AC5: the pointer moves to the capability, counts unchanged.
+    @Test
+    @AsAda
+    void updateCapabilityDescriptionWritesAndClears() {
+        UUID specId = productApi();
+
+        patchDescription(specId, "Product/capabilities/BROWSE",
+                "{\"description\":\"Anyone can browse the catalog.\"}")
+                .statusCode(200)
+                .body("description", equalTo("Anyone can browse the catalog."))
+                .body("capability.label", equalTo("Browse all products"));
+
+        JsonNode get = readBody(specId).path("paths").path("/products").path("get");
+        assertEquals("Anyone can browse the catalog.", get.path("description").asText());
+        assertEquals("Browse all products", get.path("summary").asText(),
+                "the summary is untouched (AC1)");
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resourceCount", equalTo(1))
+                .body("operationCount", equalTo(5));
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("capabilityName", equalTo("Browse all products"));
+
+        patchDescription(specId, "Product/capabilities/BROWSE", "{\"description\":\"  \"}")
+                .statusCode(200)
+                .body("description", nullValue());
+        assertFalse(readBody(specId).path("paths").path("/products").path("get")
+                .has("description"), "cleared means absent (AC2)");
+    }
+
+    // AC3: the success answer's description holds the text; blank restores the derived
+    // default — never absent — and the failure answers stay byte-identical throughout.
+    @Test
+    @AsAda
+    void updateAnswerDescriptionRestoresTheDerivedDefaultOnClear() {
+        UUID specId = productApi();
+        JsonNode before = readBody(specId).path("paths").path("/products").path("get")
+                .path("responses");
+
+        patchDescription(specId, "Product/capabilities/BROWSE/answer",
+                "{\"description\":\"The catalog page you asked for.\"}")
+                .statusCode(200)
+                .body("answers.successDescription", equalTo("The catalog page you asked for."));
+
+        patchDescription(specId, "Product/capabilities/BROWSE/answer", "{}")
+                .statusCode(200)
+                .body("answers.successDescription", equalTo("The list of products."));
+
+        JsonNode after = readBody(specId).path("paths").path("/products").path("get")
+                .path("responses");
+        assertEquals("The list of products.", after.path("200").path("description").asText(),
+                "clearing restores FEAT-005's wording exactly (AC3)");
+        for (String status : List.of("400", "401", "422", "429", "500")) {
+            assertEquals(before.path(status), after.path(status),
+                    status + " must be byte-identical");
+        }
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("capabilityName", equalTo("Browse all products"));
+    }
+
+    // AC4: the resource's description, editable past birth — written, projected into the
+    // detail, and removed when cleared. AC5: an API-level edit — no capability on the pointer.
+    @Test
+    @AsAda
+    void updateResourceDescriptionWritesAndClears() {
+        UUID specId = productApi();
+
+        patchDescription(specId, "Product", "{\"description\":\"What the shop sells.\"}")
+                .statusCode(200)
+                .body("name", equalTo("Product"))
+                .body("description", equalTo("What the shop sells."));
+
+        given()
+                .when().get("/api/v1/specs/{specId}", specId)
+                .then()
+                .body("resources[0].description", equalTo("What the shop sells."));
+        assertEquals("What the shop sells.", readBody(specId).path("components")
+                .path("schemas").path("Product").path("description").asText());
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("capabilityName", nullValue());
+
+        patchDescription(specId, "Product", "{\"description\":\"\"}")
+                .statusCode(200)
+                .body("description", nullValue());
+        assertFalse(readBody(specId).path("components").path("schemas").path("Product")
+                .has("description"), "cleared means absent (AC4)");
+    }
+
+    // The API's note edited alone (the FEAT-012 grammar on FEAT-007's member): the document
+    // and the ADR-0008 projection column move together; title and version are untouched;
+    // an API-level edit — no capability on the pointer. Blank clears both.
+    @Test
+    @AsAda
+    void updateApiDescriptionWritesAloneAndClears() {
+        UUID specId = productApi();
+
+        given().contentType("application/json")
+                .body("{\"description\":\"Everything the shop offers.\"}")
+                .when().patch("/api/v1/specs/{specId}/description", specId)
+                .then()
+                .statusCode(200)
+                .body("title", equalTo("Storefront API"))
+                .body("apiVersion", equalTo("1.0.0"))
+                .body("description", equalTo("Everything the shop offers."));
+
+        JsonNode info = readBody(specId).path("info");
+        assertEquals("Everything the shop offers.", info.path("description").asText());
+        assertEquals("Storefront API", info.path("title").asText());
+        assertEquals("1.0.0", info.path("version").asText());
+        given()
+                .when().get("/api/v1/specs/last-edited")
+                .then()
+                .statusCode(200)
+                .body("capabilityName", nullValue());
+
+        given().contentType("application/json").body("{}")
+                .when().patch("/api/v1/specs/{specId}/description", specId)
+                .then()
+                .statusCode(200)
+                .body("description", nullValue());
+        assertFalse(readBody(specId).path("info").has("description"),
+                "cleared means absent, not null/empty");
+
+        given().contentType("application/json").body("{\"description\":\"x\"}")
+                .when().patch("/api/v1/specs/{specId}/description", UUID.randomUUID())
+                .then()
+                .statusCode(404)
+                .contentType("application/problem+json");
+    }
+
+    @Test
+    @AsAda
+    void descriptionEndpointsReturn404ForUnknownTargets() {
+        UUID specId = productApi();
+
+        patchDescription(specId, "Gadget", "{\"description\":\"x\"}")
+                .statusCode(404)
+                .contentType("application/problem+json");
+        patchDescription(specId, "Gadget/capabilities/BROWSE", "{\"description\":\"x\"}")
+                .statusCode(404);
+        patchDescription(specId, "Gadget/capabilities/BROWSE/answer", "{\"description\":\"x\"}")
+                .statusCode(404);
+        patchDescription(UUID.randomUUID(), "Product", "{\"description\":\"x\"}")
+                .statusCode(404);
+    }
+
+    private io.restassured.response.ValidatableResponse patchDescription(UUID specId,
+            String target, String json) {
+        return given().contentType("application/json").body(json)
+                .when().patch("/api/v1/specs/" + specId + "/resources/" + target
+                        + "/description")
+                .then();
+    }
+
     private io.restassured.response.ValidatableResponse postDeclaration(UUID specId,
             String schemaName, String capability, String collection, String json) {
         return given().contentType("application/json").body(json)

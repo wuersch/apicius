@@ -509,6 +509,46 @@ public class ApitomyDocumentEngine implements DocumentEngine {
         return serialize(document);
     }
 
+    @Override
+    public String updateApiDescription(String body, String description) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        // The updateInfo idiom minus title/version: null removes the member, nothing else moves.
+        infoOf(document).setDescription(description);
+        return serialize(document);
+    }
+
+    @Override
+    public String updateCapabilityDescription(String body, String schemaName,
+            Capability capability, String description) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        // Mutate the existing operation in place — the updateInfo idiom: null removes the
+        // member, everything else (the summary included) is untouched (AC1/AC2).
+        locate(document, schemaName, capability).operation().setDescription(description);
+        return serialize(document);
+    }
+
+    @Override
+    public String updateSuccessAnswerDescription(String body, String schemaName,
+            Capability capability, String description) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        Located located = locate(document, schemaName, capability);
+        OpenApiResponse success = located.operation().getResponses()
+                .getItem(located.derived().successStatus());
+        // A response's description is spec-required — clearing means the derived default
+        // (AC3), the same wording birth wrote ({@link #buildOperation}).
+        success.setDescription(
+                description != null ? description : located.derived().successDescription());
+        return serialize(document);
+    }
+
+    @Override
+    public String updateResourceDescription(String body, String schemaName, String description) {
+        OpenApi3xDocument document = (OpenApi3xDocument) Library.readDocumentFromJSONString(body);
+        // The info.description stance (AC4): null removes the member — omitted when blank.
+        schemaOf(document, schemaName).setDescription(description);
+        return serialize(document);
+    }
+
     /**
      * The success answer as a headers parent (FEAT-011 AC3): response headers attach to what
      * the capability sends back on success — the shared failure answers are references and

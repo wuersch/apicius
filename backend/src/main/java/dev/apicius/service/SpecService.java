@@ -120,6 +120,24 @@ public class SpecService {
     }
 
     /**
+     * FEAT-007's description, edited alone (the FEAT-012 in-place grammar): one atomic
+     * mutation writing only {@code info.description} and its ADR-0008 projection column —
+     * blank clears both. Title and version are never touched, so the edit cannot clobber a
+     * concurrent details save. An API-level edit: the pointer moves without a capability.
+     */
+    @Transactional
+    public Spec updateApiDescription(AppUser editor, UUID specId, String description) {
+        Spec spec = lockedSpec(specId);
+        String normalizedDescription = normalize(description);
+
+        spec.body = documentEngine.updateApiDescription(spec.body, normalizedDescription);
+        spec.description = normalizedDescription;
+
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, null);
+        return spec;
+    }
+
+    /**
      * FEAT-007 UC2: a fork — the same design under a new identity (AC3). The one delta is
      * {@code info.title}; everything else, unmodeled content and {@code info.version} included,
      * rides along verbatim. The pointer is neither copied nor moved (managing is not editing);
@@ -430,6 +448,58 @@ public class SpecService {
         spec.body = documentEngine.removeDeclaration(spec.body, schemaName, capability, location,
                 name);
         lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+    }
+
+    /**
+     * FEAT-012 UC1: the capability's note for readers — one atomic document mutation writing
+     * only the operation's {@code description}; blank clears the member (AC1/AC2). The
+     * ADR-0008 counts are untouched; the jump-back-in pointer moves to this API and
+     * capability in the same transaction (AC5).
+     */
+    @Transactional
+    public CapabilityContractView updateCapabilityDescription(AppUser editor, UUID specId,
+            String schemaName, Capability capability, String description) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+
+        spec.body = documentEngine.updateCapabilityDescription(spec.body, schemaName, capability,
+                normalize(description));
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+        return documentEngine.capabilityContract(spec.body, schemaName, capability);
+    }
+
+    /**
+     * FEAT-012 UC2: the success answer's note — same chokepoint conventions as the capability's;
+     * blank restores the derived default rather than clearing, an answer is never undescribed
+     * (AC3).
+     */
+    @Transactional
+    public CapabilityContractView updateSuccessAnswerDescription(AppUser editor, UUID specId,
+            String schemaName, Capability capability, String description) {
+        Spec spec = lockedSpec(specId);
+        CapabilityView target = requireCapability(resourceOf(spec, schemaName), capability);
+
+        spec.body = documentEngine.updateSuccessAnswerDescription(spec.body, schemaName,
+                capability, normalize(description));
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, target.label());
+        return documentEngine.capabilityContract(spec.body, schemaName, capability);
+    }
+
+    /**
+     * FEAT-012 UC3: the resource's note, editable past birth (FEAT-005 sets it only at
+     * creation) — blank clears the member (AC4). An API-level edit like the shape's: the
+     * jump-back-in pointer moves to this API without a capability (AC5).
+     */
+    @Transactional
+    public ResourceView updateResourceDescription(AppUser editor, UUID specId, String schemaName,
+            String description) {
+        Spec spec = lockedSpec(specId);
+        resourceOf(spec, schemaName);
+
+        spec.body = documentEngine.updateResourceDescription(spec.body, schemaName,
+                normalize(description));
+        lastEditedLocationRepository.upsertForUser(editor.id, spec.id, null);
+        return resourceOf(spec, schemaName);
     }
 
     /**

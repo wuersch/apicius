@@ -10,12 +10,20 @@ vi.mock('@/api/endpoints/specs/specs', () => ({
   useAddField: vi.fn(),
   useUpdateField: vi.fn(),
   useRemoveField: vi.fn(),
+  useUpdateResourceDescription: vi.fn(),
   getGetSpecQueryKey: (specId: string) => [`/api/v1/specs/${specId}`],
   getListSpecsQueryKey: () => ['/api/v1/specs'],
   getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
 }))
 
-import { useAddField, useRemoveField, useUpdateField } from '@/api/endpoints/specs/specs'
+import {
+  useAddField,
+  useRemoveField,
+  useUpdateField,
+  useUpdateResourceDescription,
+} from '@/api/endpoints/specs/specs'
+
+const updateResourceDescriptionSpy = vi.fn().mockResolvedValue({})
 
 const product: ResourceResponse = {
   name: 'Product',
@@ -31,6 +39,10 @@ function arrange(defaultOpen?: boolean, resource: ResourceResponse = product) {
   vi.mocked(useAddField).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
   vi.mocked(useUpdateField).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
   vi.mocked(useRemoveField).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+  vi.mocked(useUpdateResourceDescription).mockReturnValue({
+    mutateAsync: updateResourceDescriptionSpy,
+    isPending: false,
+  } as never)
   return render(
     <MemoryRouter>
       <QueryClientProvider client={new QueryClient()}>
@@ -119,4 +131,40 @@ test('clicking the header toggles the body', async () => {
   await user.click(header)
   expect(header).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByText('See all products')).not.toBeInTheDocument()
+})
+
+// FEAT-012 UC3: closed, the note is plain body copy; open, it edits in place through the
+// resource description endpoint — blank being the clear gesture.
+test('shows the description read-only while closed', () => {
+  arrange()
+
+  expect(screen.getByText('Something you sell.')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: 'Edit resource description' }),
+  ).not.toBeInTheDocument()
+})
+
+test('edits the resource description while open', async () => {
+  const user = userEvent.setup()
+  arrange(true)
+
+  await user.click(screen.getByRole('button', { name: 'Edit resource description' }))
+  const editor = screen.getByRole('textbox', { name: 'resource description' })
+  expect(editor).toHaveValue('Something you sell.')
+  await user.clear(editor)
+  await user.type(editor, 'A sellable item.{Enter}')
+
+  expect(updateResourceDescriptionSpy).toHaveBeenCalledWith({
+    specId: 'spec-1',
+    schemaName: 'Product',
+    data: { description: 'A sellable item.' },
+  })
+})
+
+test('invites a note on an undescribed open resource', () => {
+  arrange(true, { ...product, description: undefined })
+
+  expect(screen.getByRole('button', { name: 'Add resource description' })).toHaveTextContent(
+    'add a note for readers…',
+  )
 })

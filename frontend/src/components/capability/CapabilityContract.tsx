@@ -1,10 +1,13 @@
+import { useUpdateCapabilityDescription } from '@/api/endpoints/specs/specs'
 import type { CapabilityContractResponse } from '@/api/model'
 import { AnswersFacet } from '@/components/capability/AnswersFacet'
 import { ErrorsFacet } from '@/components/capability/ErrorsFacet'
 import { FiltersFacet } from '@/components/capability/FiltersFacet'
 import { HeadersFacet } from '@/components/capability/HeadersFacet'
 import { PagingFacet } from '@/components/capability/PagingFacet'
+import { useContractInvalidation } from '@/components/capability/useContractInvalidation'
 import { FieldRow } from '@/components/editor/FieldRow'
+import { QuietDescription } from '@/components/QuietDescription'
 
 // FEAT-009 AC1: the contract in the stable facet order — identity, description, Request,
 // Filters (query parameters, FEAT-011), Paging (FEAT-010), Headers, Answers, Errors —
@@ -28,6 +31,9 @@ export function CapabilityContract({
   // projected, not re-pluralized client-side.
   const pluralNoun = identity?.path?.split('/')[1]?.replace(/-/g, ' ') ?? ''
 
+  const updateDescription = useUpdateCapabilityDescription()
+  const invalidate = useContractInvalidation(specId, schemaName, capability)
+
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3.5">
       <header className="mb-2.5">
@@ -38,11 +44,22 @@ export function CapabilityContract({
             {identity?.method} {identity?.path}
           </span>
         </div>
-        {contract.description && (
-          <p className="mt-1.5 max-w-[560px] text-sm text-text-tertiary">
-            {contract.description}
-          </p>
-        )}
+        {/* FEAT-012 UC1: the capability's note, edited where it reads — never the label. */}
+        <QuietDescription
+          value={contract.description}
+          ariaLabel="capability description"
+          className="mt-1.5 max-w-[560px] text-sm text-text-tertiary"
+          onSave={(description) =>
+            updateDescription
+              .mutateAsync({
+                specId,
+                schemaName,
+                capability,
+                data: { description: description ?? undefined },
+              })
+              .then(invalidate)
+          }
+        />
       </header>
 
       {contract.request && (

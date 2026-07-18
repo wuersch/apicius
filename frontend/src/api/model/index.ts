@@ -15,6 +15,7 @@ export * from './createSpecRequest';
 export * from './createSpecRequestSpecVersion';
 export * from './declarationRequest';
 export * from './declarationResponse';
+export * from './descriptionRequest';
 export * from './exportFormat';
 export * from './exportSpecDocumentParams';
 export * from './failureAnswerResponse';

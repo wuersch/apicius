@@ -1,7 +1,7 @@
 # FEAT-012: Describe the contract
 
 **ID:** FEAT-012
-**Status:** specced
+**Status:** shipped
 **Depends on:** PRIN-002, ADR-0009, FEAT-005, FEAT-009
 **Mockup:** `docs/design/mockups/launcher-hybrid-v10.html` — state 3·7 (quiet descriptions);
 View 3 (capability description)

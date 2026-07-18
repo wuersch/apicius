@@ -1,10 +1,18 @@
 import { Link, useParams } from 'react-router'
 import { useAuth } from 'react-oidc-context'
+import { useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NewResourceDialog } from '@/components/editor/NewResourceDialog'
 import { ResourceCard } from '@/components/editor/ResourceCard'
-import { useGetSpec } from '@/api/endpoints/specs/specs'
+import { QuietDescription } from '@/components/QuietDescription'
+import {
+  getGetLastEditedLocationQueryKey,
+  getGetSpecQueryKey,
+  getListSpecsQueryKey,
+  useGetSpec,
+  useUpdateApiDescription,
+} from '@/api/endpoints/specs/specs'
 
 // FEAT-005 AC8: the editor's minimal honest display — the API's identity, and either the
 // plain statement that it has no resources yet (with creation offered) or the resources with
@@ -16,6 +24,8 @@ export function EditorPage() {
   // Gated on the token so no query fires before auth is wired (FEAT-001 pattern).
   const enabled = Boolean(auth.user?.access_token) && Boolean(id)
   const { data: response, error, isPending } = useGetSpec(id ?? '', { query: { enabled } })
+  const updateDescription = useUpdateApiDescription()
+  const queryClient = useQueryClient()
 
   const spec = response?.status === 200 ? response.data : undefined
   const notFound = (error as { status?: number } | null)?.status === 404
@@ -46,16 +56,32 @@ export function EditorPage() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-11 py-8">
       <header className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2.5">
             <h1 className="truncate text-3xl font-bold">{spec.title}</h1>
             <span className="shrink-0 rounded-sm bg-input px-2 py-0.5 font-mono text-[11px] text-text-tertiary">
               v{spec.apiVersion}
             </span>
           </div>
-          {spec.description && (
-            <p className="mt-1.5 max-w-xl text-sm text-text-tertiary">{spec.description}</p>
-          )}
+          {/* The API's note, edited where it reads (FEAT-012's grammar on FEAT-007's
+              member) — the description travels alone, title and version can't be clobbered. */}
+          <QuietDescription
+            value={spec.description}
+            ariaLabel="API description"
+            className="mt-1.5 max-w-xl text-sm text-text-tertiary"
+            onSave={(description) =>
+              updateDescription
+                .mutateAsync({
+                  specId: spec.id ?? '',
+                  data: { description: description ?? undefined },
+                })
+                .then(() => {
+                  queryClient.invalidateQueries({ queryKey: getGetSpecQueryKey(spec.id ?? '') })
+                  queryClient.invalidateQueries({ queryKey: getListSpecsQueryKey() })
+                  queryClient.invalidateQueries({ queryKey: getGetLastEditedLocationQueryKey() })
+                })
+            }
+          />
         </div>
         <NewResourceDialog
           specId={spec.id ?? ''}

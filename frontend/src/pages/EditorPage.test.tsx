@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { EditorPage } from './EditorPage'
@@ -11,12 +12,16 @@ vi.mock('react-oidc-context', () => ({
 vi.mock('@/api/endpoints/specs/specs', () => ({
   useGetSpec: vi.fn(),
   useAddResource: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useUpdateResourceDescription: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useUpdateApiDescription: vi.fn(),
   getGetSpecQueryKey: (specId: string) => [`/api/v1/specs/${specId}`],
   getListSpecsQueryKey: () => ['/api/v1/specs'],
   getGetLastEditedLocationQueryKey: () => ['/api/v1/specs/last-edited'],
 }))
 
-import { useGetSpec } from '@/api/endpoints/specs/specs'
+import { useGetSpec, useUpdateApiDescription } from '@/api/endpoints/specs/specs'
+
+const updateApiDescriptionSpy = vi.fn().mockResolvedValue({ status: 200 })
 
 function arrange(query: {
   data?: unknown
@@ -27,6 +32,10 @@ function arrange(query: {
     data: query.data,
     error: query.error ?? null,
     isPending: query.isPending ?? false,
+  } as never)
+  vi.mocked(useUpdateApiDescription).mockReturnValue({
+    mutateAsync: updateApiDescriptionSpy,
+    isPending: false,
   } as never)
   render(
     <MemoryRouter initialEntries={['/apis/spec-1']}>
@@ -66,6 +75,24 @@ test('states an empty API plainly and offers resource creation', () => {
   expect(screen.getByRole('heading', { name: 'This API has no resources yet' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'New resource' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Create your first resource' })).toBeInTheDocument()
+})
+
+// FEAT-012's grammar on FEAT-007's member: the note edits in place through the dedicated
+// description endpoint — only the description travels, title and version can't be clobbered.
+test('edits the API description in place', async () => {
+  const user = userEvent.setup()
+  arrange({ data: emptySpec })
+
+  await user.click(screen.getByRole('button', { name: 'Edit API description' }))
+  const editor = screen.getByRole('textbox', { name: 'API description' })
+  expect(editor).toHaveValue('Sell products online.')
+  await user.clear(editor)
+  await user.type(editor, 'Everything the shop offers.{Enter}')
+
+  expect(updateApiDescriptionSpy).toHaveBeenCalledWith({
+    specId: 'spec-1',
+    data: { description: 'Everything the shop offers.' },
+  })
 })
 
 // AC8, populated half: resources with their capabilities in plain language first, the
